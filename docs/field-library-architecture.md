@@ -1,5 +1,9 @@
 # Field Library Architecture
 
+**Status**: authoritative
+**Owns**: field-library schema, template composition model, field-level extraction prompt structure
+**Must sync with**: `packages/schema`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
+
 ## Core Concept
 
 **Fields are the atomic units of decision documentation.**

@@ -13,12 +13,14 @@ Use this workflow to verify implementation against the current phase.
 2. Find the matching validation checkpoint and exit criteria.
 3. Run the listed commands exactly or the nearest current equivalent.
 4. Confirm command success, expected output, and stated thresholds.
-5. If any check fails, stop, diagnose, fix, and re-run before continuing.
+5. If the chunk is complete and validation passes, use that checkpoint as the commit boundary.
+6. If any check fails, stop, diagnose, fix, and re-run before continuing.
 
 ## Rules
 
 - Do not proceed on failing checkpoints.
 - Use the plan document as the source of truth for what “done” means.
+- Keep commits small and scoped to one validated unit of work.
 
 ## Common Checks
 

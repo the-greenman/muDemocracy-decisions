@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "composite": false,
+    "paths": {
+      "@repo/schema": ["../../packages/schema/src"],
+      "@repo/core": ["../../packages/core/src"],
+      "@repo/db": ["../../packages/db/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
+}

@@ -34,7 +34,11 @@ Run phase-specific validation checkpoint to verify implementation.
    - Verify output format
    - Confirm expected data appears
 
-5. **If checkpoint fails**
+5. **Commit if validated**
+   - If the task is complete for this chunk and the checkpoint passes, make one small commit for that validated unit of work
+   - Do not bundle unrelated changes into the same commit
+
+6. **If checkpoint fails**
    - **Stop** - Do not proceed to next phase
    - **Diagnose** - Identify root cause
    - **Fix** - Address at appropriate layer
@@ -87,6 +91,7 @@ curl http://localhost:3000/docs
 - ✅ Coverage >80%
 - ✅ All commands succeed
 - ✅ Output matches expected
+- ✅ Commit boundary is clear and scoped to this validated chunk
 
 ## Related Docs
 

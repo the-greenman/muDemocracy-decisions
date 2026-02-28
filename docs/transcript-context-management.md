@@ -1,5 +1,9 @@
 # Transcript and Context Management Strategy
 
+**Status**: authoritative
+**Owns**: transcript ingestion/storage architecture, chunking strategy, context-window model, retrieval APIs
+**Must sync with**: `packages/schema`, `docs/context-tagging-strategy.md`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
+
 ## Problem Statement
 
 Managing transcripts and segments presents several challenges:

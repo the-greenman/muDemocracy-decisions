@@ -1,5 +1,9 @@
 # Expert System Architecture - Hybrid Approach
 
+**Status**: authoritative
+**Owns**: expert-system scope, expert data model, MCP integration detail, expert/MCP API and CLI surface
+**Must sync with**: `packages/schema`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
+
 ## Overview
 
 The system supports two types of experts:

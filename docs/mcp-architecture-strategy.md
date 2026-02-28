@@ -1,5 +1,9 @@
 # MCP Architecture Strategy
 
+**Status**: authoritative
+**Owns**: MCP architecture direction, shared-core integration pattern, MCP-specific implementation scope
+**Must sync with**: `packages/schema`, `docs/expert-system-architecture.md`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
+
 ## Question: How to Build Consistent API + MCP System?
 
 You're asking the right questions. Let's evaluate the options systematically.
@@ -493,11 +497,12 @@ async function handleCreateMeeting(args: unknown) {
 decision-logger/
 ├── apps/
 │   ├── api/                # Hono REST API
-│   └── cli/                # Commander/Clack CLI
+│   ├── cli/                # Commander/Clack CLI
+│   └── mcp/                # MCP handlers using shared core services
 ├── packages/
 │   ├── core/               # Shared business logic
 │   ├── db/                 # Drizzle & pgvector
-│   └── types/              # Zod schemas & types
+│   └── schema/             # Zod schemas & inferred types
 ├── docs/
 └── turbo.json
 ```

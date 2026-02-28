@@ -1,5 +1,9 @@
 # Decision Detection Architecture
 
+**Status**: authoritative
+**Owns**: decision-detection prompt design, classification rules, prompt refinement workflow
+**Must sync with**: `packages/schema`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
+
 ## Core Challenge
 
 Decision detection is the **most critical** LLM task in the system. It must catch:

@@ -10,9 +10,9 @@ A context-driven decision logging system with LLM-assisted extraction, iterative
 
 **Key Features:**
 1. **Meeting Management** - Create meetings with participants (simple names)
-2. **Transcript Ingestion** - Upload complete, add chunks, or stream segments
-3. **Context Tagging** - Auto-tag segments with meeting/decision/field contexts
-4. **LLM Decision Detection** - Flag potential decisions automatically
+2. **Transcript Ingestion** - Accept complete uploads, immediate text entries, or buffered streaming transcript events
+3. **Context Tagging** - Auto-tag transcript chunks with meeting/decision/field contexts
+4. **LLM Decision Detection** - Flag potential decisions automatically, with provider choice
 5. **Context Switching** - Set active decision and field contexts
 6. **Iterative Refinement** - Add content, regenerate fields, lock when satisfied
 7. **Decision Methods** - Record how decision was made (text metadata)
@@ -20,10 +20,16 @@ A context-driven decision logging system with LLM-assisted extraction, iterative
 9. **Export** - Markdown/JSON export of final decisions
 
 **Not in Scope (Initially):**
+- ❌ Audio capture and raw audio processing inside the core system
 - ❌ Actor identification from transcripts
 - ❌ Real-time collaboration
 - ❌ Authentication
 - ❌ Web UI (CLI only)
+
+**Integration Assumptions:**
+- Transcript ingestion is transport-agnostic: the core system accepts text transcript events, not raw audio.
+- Local transcription can be added as a separate upstream component, but is not required for the product to function.
+- Local LLMs are supported as an optional inference path for detection/classification, not a hard dependency.
 
 ## Simplified Data Model
 
@@ -38,15 +44,21 @@ interface Meeting {
   createdAt: Date;
 }
 
-// Transcript Segment with Context Tags
-interface TranscriptSegment {
+// Transcript Chunk with Context Tags
+interface TranscriptChunk {
   id: string;
   meetingId: string;
-  timestamp?: string;
-  speaker: string; // may not be a known participant
+  rawTranscriptId?: string;
   text: string;
+  speaker?: string; // optional metadata only; may be unknown, mixed, or omitted
   sequenceNumber: number;
+  startTime?: number; // seconds from meeting start
+  endTime?: number; // seconds from meeting start
+  chunkStrategy: 'semantic' | 'fixed-time' | 'speaker-turn' | 'sentence';
+  tokenCount?: number;
+  wordCount?: number;
   contexts: string[]; // ['meeting:abc', 'decision:xyz', 'decision:xyz:options']
+  topics?: string[];
   createdAt: Date;
 }
 
@@ -57,7 +69,7 @@ interface FlaggedDecision {
   suggestedTitle: string;
   contextSummary: string;
   confidence: number; // 0-1: how confident this is a decision
-  segmentIds: string[];
+  chunkIds: string[];
   suggestedTemplateId: string; // LLM suggests which template to use
   templateConfidence: number; // 0-1: how confident in template choice
   status: 'pending' | 'active' | 'logged' | 'dismissed';
@@ -112,7 +124,7 @@ interface DecisionLog {
   };
   
   // Source tracking
-  sourceSegmentIds: string[];
+  sourceChunkIds: string[];
   
   // Audit
   loggedAt: Date;
@@ -251,7 +263,7 @@ Examples:
 ```
 
 #### Tagging Rules
-1. All segments get meeting context tag
+1. All transcript chunks get meeting context tag
 2. When decision context active → add decision tag
 3. When field focus active → add field tag
 4. Tags are cumulative
@@ -262,23 +274,23 @@ Examples:
 ### Example Flow
 ```bash
 # No context set
-segment 1: ["meeting:abc"]
+chunk 1: ["meeting:abc"]
 
 # Set decision context
 $ decision-logger context set-decision flag_1
-segment 2: ["meeting:abc", "decision:xyz"]
+chunk 2: ["meeting:abc", "decision:xyz"]
 
 # Set field focus
 $ decision-logger context set-field options
-segment 3: ["meeting:abc", "decision:xyz", "decision:xyz:options"]
+chunk 3: ["meeting:abc", "decision:xyz", "decision:xyz:options"]
 
 # Change field focus
 $ decision-logger context set-field decision_rationale
-segment 4: ["meeting:abc", "decision:xyz", "decision:xyz:decision_rationale"]
+chunk 4: ["meeting:abc", "decision:xyz", "decision:xyz:decision_rationale"]
 
 # Clear field focus
 $ decision-logger context clear-field
-segment 5: ["meeting:abc", "decision:xyz"]
+chunk 5: ["meeting:abc", "decision:xyz"]
 ```
 
 ## Workflow
@@ -304,12 +316,12 @@ Now all subsequent commands will use this meeting by default.
 # Upload complete transcript (context-aware, uses active meeting)
 $ decision-logger transcript upload transcript.json
 
-# Or add segments manually
+# Or add transcript text immediately
 $ decision-logger transcript add \
-  --speaker "Alice" \
-  --text "I think we should approve the roof repair"
+  --text "I think we should approve the roof repair" \
+  --speaker "Alice"
 
-# Or stream
+# Or stream transcript events from an external producer
 $ decision-logger transcript stream < live.txt
 ```
 
@@ -318,8 +330,8 @@ LLM automatically flags potential decisions.
 ### 3. View Flagged Decisions
 ```bash
 $ decision-logger decisions flagged
-1. [0.89] Approve roof repair budget (segments 12-18)
-2. [0.76] Update guest parking policy (segments 25-30)
+1. [0.89] Approve roof repair budget (chunks 12-18)
+2. [0.76] Update guest parking policy (chunks 25-30)
 ```
 
 ### 4. Set Decision Context
@@ -335,14 +347,14 @@ Active decision: "Approve roof repair budget" (dec_xyz)
 Template: Budget Approval
 ```
 
-All new segments now auto-tagged with `decision:dec_xyz`.
+All new transcript chunks now auto-tagged with `decision:dec_xyz`.
 
 ### 5. Add More Context
 ```bash
 $ decision-logger transcript add \
-  --speaker "Bob" \
-  --text "The contractor quoted £45,000 for full replacement"
-# Auto-tagged: ["meeting:mtg_123", "decision:dec_xyz"]
+  --text "The contractor quoted £45,000 for full replacement" \
+  --speaker "Bob"
+# Auto-tagged chunk: ["meeting:mtg_123", "decision:dec_xyz"]
 ```
 
 ### 6. Focus on Specific Field
@@ -351,7 +363,7 @@ $ decision-logger context set-field options
 Active field: options
 ```
 
-All new segments now auto-tagged with `decision:dec_xyz:options`.
+All new transcript chunks now auto-tagged with `decision:dec_xyz:options`.
 
 ### 7. Add Field-Specific Content
 ```bash
@@ -437,14 +449,33 @@ CREATE TABLE meetings (
 );
 
 -- Transcript Segments
-CREATE TABLE transcript_segments (
+-- Raw transcript inputs (immutable)
+CREATE TABLE raw_transcripts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  meeting_id UUID NOT NULL REFERENCES meetings(id),
+  source TEXT NOT NULL,  -- 'upload', 'stream', 'api', 'external-transcriber'
+  format TEXT,
+  content TEXT NOT NULL,
+  metadata JSONB,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+  uploaded_by TEXT
+);
+
+-- Transcript Chunks
+CREATE TABLE transcript_chunks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-  timestamp TEXT,
-  speaker TEXT NOT NULL,
+  raw_transcript_id UUID REFERENCES raw_transcripts(id),
+  speaker TEXT, -- optional metadata only
   text TEXT NOT NULL,
   sequence_number INTEGER NOT NULL,
+  start_time INTEGER,
+  end_time INTEGER,
+  chunk_strategy TEXT NOT NULL CHECK (chunk_strategy IN ('semantic', 'fixed-time', 'speaker-turn', 'sentence')),
+  token_count INTEGER,
+  word_count INTEGER,
   contexts TEXT[] NOT NULL DEFAULT '{}',
+  topics TEXT[],
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(meeting_id, sequence_number)
 );
@@ -498,7 +529,7 @@ CREATE TABLE flagged_decisions (
   suggested_title TEXT NOT NULL,
   context_summary TEXT,
   confidence REAL CHECK (confidence >= 0 AND confidence <= 1),
-  segment_ids UUID[] NOT NULL,
+  chunk_ids UUID[] NOT NULL,
   suggested_template_id TEXT REFERENCES decision_templates(id) ON DELETE SET NULL,
   template_confidence REAL CHECK (template_confidence >= 0 AND template_confidence <= 1),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'logged', 'dismissed')),
@@ -532,15 +563,16 @@ CREATE TABLE decision_logs (
   template_version INTEGER NOT NULL,
   fields JSONB NOT NULL,
   decision_method JSONB NOT NULL,
-  source_segment_ids UUID[] NOT NULL,
+  source_chunk_ids UUID[] NOT NULL,
   logged_at TIMESTAMPTZ DEFAULT NOW(),
   logged_by TEXT NOT NULL
 );
 
 -- Indexes
-CREATE INDEX idx_segments_meeting ON transcript_segments(meeting_id);
-CREATE INDEX idx_segments_contexts ON transcript_segments USING GIN(contexts);
-CREATE INDEX idx_segments_sequence ON transcript_segments(meeting_id, sequence_number);
+CREATE INDEX idx_raw_transcripts_meeting ON raw_transcripts(meeting_id);
+CREATE INDEX idx_chunks_meeting ON transcript_chunks(meeting_id);
+CREATE INDEX idx_chunks_contexts ON transcript_chunks USING GIN(contexts);
+CREATE INDEX idx_chunks_sequence ON transcript_chunks(meeting_id, sequence_number);
 CREATE INDEX idx_field_category ON decision_fields(category);
 CREATE INDEX idx_template_fields ON template_field_assignments(template_id, order_index);
 CREATE INDEX idx_flagged_meeting ON flagged_decisions(meeting_id);
@@ -573,23 +605,68 @@ Response: Meeting
 ### Transcript Ingestion
 ```typescript
 POST /api/meetings/:id/transcripts/upload
-Body: {segments: Array<{timestamp?, speaker, text}>}
+Body: {
+  content: string,
+  format?: 'txt' | 'vtt' | 'srt' | 'json',
+  chunkingStrategy?: 'semantic' | 'fixed-time' | 'speaker-turn' | 'sentence'
+}
 Response: {
-  segmentIds: string[],
+  rawId: string,
+  chunkCount: number,
   flaggedDecisions: FlaggedDecision[]
 }
 
 POST /api/meetings/:id/transcripts/add
-Body: {speaker: string, text: string, timestamp?: string}
+Body: {
+  text: string,
+  speaker?: string,
+  timestamp?: string,
+  sequenceNumber?: number
+}
 Response: {
-  segmentId: string,
+  chunkId: string,
+  sequenceNumber: number,
   contexts: string[],
   flaggedDecisions?: FlaggedDecision[]
 }
 
-GET /api/meetings/:id/segments
-Query: {context?: string, limit?: number}
-Response: {segments: TranscriptSegment[]}
+POST /api/meetings/:id/transcripts/stream
+Body: {
+  text: string,
+  speaker?: string,
+  timestamp?: string,
+  sequenceNumber?: number
+}
+Response:
+  | { buffering: true, bufferSize: number }
+  | { chunkCreated: true, chunkId: string, potentialDecision?: FlaggedDecision }
+
+GET /api/meetings/:id/streaming/status
+Response: {
+  bufferSize: number,
+  bufferedTokens: number,
+  lastChunkAt?: string
+}
+
+POST /api/meetings/:id/streaming/flush
+Response: {
+  flushed: true,
+  chunkIds: string[]
+}
+
+DELETE /api/meetings/:id/streaming/buffer
+Response: { cleared: true }
+
+GET /api/meetings/:id/chunks
+Query: {context?: string, limit?: number, strategy?: string, timeRange?: string}
+Response: {chunks: TranscriptChunk[]}
+
+GET /api/chunks/:id
+Response: TranscriptChunk
+
+POST /api/chunks/search
+Body: {query: string, meetingId?: string, limit?: number}
+Response: {chunks: TranscriptChunk[]}
 ```
 
 ### Context Management
@@ -650,7 +727,7 @@ GET /api/meetings/:id/summary
 Response: {
   meeting: Meeting,
   stats: {
-    segmentCount: number,
+  chunkCount: number,
     flaggedDecisionCount: number,
     draftDecisionCount: number,
     loggedDecisionCount: number
@@ -762,7 +839,7 @@ decision-logger template show <template-id>
 decision-logger template set-default <template-id>
 ```
 
-## LLM Integration (Vercel AI SDK)
+## LLM Integration (Provider-Agnostic)
 
 ### Decision Detection
 
@@ -779,21 +856,20 @@ decision-logger template set-default <template-id>
 
 ```typescript
 import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
 import { FlaggedDecisionsSchema } from '@repo/schema';
 import decisionDetectionPrompt from '../../../prompts/decision-detection.md';
 
 async function detectDecisions(
   meetingId: string,
-  segments: TranscriptSegment[]
+  chunks: TranscriptChunk[]
 ): Promise<FlaggedDecision[]> {
   const { object } = await generateObject({
-    model: anthropic('claude-3-5-sonnet-latest'),
+    model: llmProvider.getDetectionModel(), // local or remote implementation
     schema: FlaggedDecisionsSchema,
     system: decisionDetectionPrompt.system, // Versioned prompt (currently v3)
     prompt: `
 Transcript:
-${segments.map(s => `[${s.sequenceNumber}] ${s.speaker}: ${s.text}`).join('\n')}
+${chunks.map(c => `[${c.sequenceNumber}] ${c.speaker ? `${c.speaker}: ` : ''}${c.text}`).join('\n')}
 
 Identify ALL decisions, including implicit decisions and decisions not to act.
     `.trim()
@@ -813,18 +889,17 @@ Identify ALL decisions, including implicit decisions and decisions not to act.
 ### Draft Generation
 ```typescript
 import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
 import { DecisionDraftSchema } from '@repo/schema';
 
 async function generateDraft(decisionContextId: string) {
   const context = await getDecisionContext(decisionContextId);
-  const segments = await getSegmentsByContext(`decision:${decisionContextId}`);
+  const chunks = await getChunksByContext(`decision:${decisionContextId}`);
   
   const { object } = await generateObject({
-    model: anthropic('claude-3-5-sonnet-latest'),
+    model: llmProvider.getDraftModel(), // usually remote, but swappable
     schema: DecisionDraftSchema,
     system: "Extract decision details from this transcript and fill template fields...",
-    prompt: `Transcript: ${segments.map(s => `[${s.sequenceNumber}] ${s.speaker}: ${s.text}`).join('\n')}`
+    prompt: `Transcript: ${chunks.map(c => `[${c.sequenceNumber}] ${c.speaker ? `${c.speaker}: ` : ''}${c.text}`).join('\n')}`
   });
   
   return object.fields;
@@ -854,21 +929,21 @@ async function regenerateField(
   const displayLabel = assignment.customLabel ?? field.name;
   const displayDescription = assignment.customDescription ?? field.description;
   
-  // Get field-specific segments (highest priority)
-  const fieldSegments = await getSegmentsByContext(
+  // Get field-specific chunks (highest priority)
+  const fieldChunks = await getChunksByContext(
     `decision:${decisionContextId}:${fieldId}`
   );
   
-  // Get general decision segments (context)
-  const decisionSegments = await getSegmentsByContext(
+  // Get general decision chunks (context)
+  const decisionChunks = await getChunksByContext(
     `decision:${decisionContextId}`
   );
   
   // Combine, prioritizing field-specific
-  const allSegments = [...fieldSegments, ...decisionSegments];
+  const allChunks = [...fieldChunks, ...decisionChunks];
   
   const { object } = await generateObject({
-    model: anthropic('claude-3-5-sonnet-latest'),
+    model: llmProvider.getDraftModel(),
     schema: getFieldOutputSchema(field.fieldType),
     system: field.extractionPrompt.system,
     prompt: `
@@ -877,13 +952,13 @@ Extract the value for the "${displayLabel}" field from this transcript.
 Field: ${displayLabel}
 Description: ${displayDescription}
 
-Transcript (segments tagged with this field are most relevant):
-${allSegments.map(s => {
-  const isFieldSpecific = s.contexts.includes(`decision:${decisionContextId}:${fieldId}`);
-  return `[${s.sequenceNumber}]${isFieldSpecific ? ' ***' : ''} ${s.speaker}: ${s.text}`;
+Transcript (chunks tagged with this field are most relevant):
+${allChunks.map(c => {
+  const isFieldSpecific = c.contexts.includes(`decision:${decisionContextId}:${fieldId}`);
+  return `[${c.sequenceNumber}]${isFieldSpecific ? ' ***' : ''} ${c.speaker ? `${c.speaker}: ` : ''}${c.text}`;
 }).join('\n')}
 
-Recent field-tagged segments have the highest weight. Preserve the field's native shape.
+Recent field-tagged chunks have the highest weight. Preserve the field's native shape.
 `.trim()
   });
 
@@ -940,7 +1015,7 @@ To ensure consistency, minimize duplication, and facilitate high-quality agentic
 - **Framework**: Hono (lightweight, fast)
 - **Database**: PostgreSQL 16+
 - **ORM**: Drizzle ORM
-- **LLM**: Vercel AI SDK (with Claude 3.5 Sonnet)
+- **LLM**: Vercel AI SDK with swappable providers (remote by default, local-capable)
 - **Validation**: Zod
 - **Testing**: Vitest
 
@@ -988,7 +1063,7 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - **Phase 0**: Vertical Slice - Prove entire stack works end-to-end
 - **Phase 1**: Schema Foundation - Zod-to-All pipeline
 - **Phase 2**: Core Data Services - TDD with >80% coverage
-- **Phase 3**: LLM Integration - Mock-first, real API optional
+- **Phase 3**: LLM Integration - Mock-first, provider-agnostic, real remote API optional
 - **Phase 4**: Decision Workflow - Context, drafts, field locking
 - **Phase 5**: Expert System - Domain personas with MCP tools
 - **Phase 6**: API Layer - Complete REST endpoints
@@ -1018,9 +1093,9 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] TDD: Field library + core template seeding
 
 ### Phase 3: LLM & Expert Integration (Week 2)
-- [ ] Implement Vercel AI SDK abstraction layer in `@repo/core`
-- [ ] Test: Claude 3.5 Sonnet connectivity and structured output
-- [ ] Test: Decision detection via Vercel AI SDK
+- [ ] Implement provider-agnostic LLM abstraction layer in `@repo/core`
+- [ ] Test: default remote provider connectivity and structured output
+- [ ] Test: decision detection via pluggable detection model
 - [ ] Implement: Expert template system with MCP tool injection
 - [ ] Test: Field-specific extraction and auto-tagging
 
@@ -1082,7 +1157,7 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Create meeting via CLI
 - [ ] Upload transcript and see flagged decisions
 - [ ] Set decision context
-- [ ] Add more transcript segments (auto-tagged)
+- [ ] Add more transcript chunks/events (auto-tagged)
 - [ ] Set field focus
 - [ ] Add field-specific content (auto-tagged with field)
 - [ ] Generate draft decision log
@@ -1091,9 +1166,9 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Iterate through all fields
 - [ ] Log final decision with method and actors
 - [ ] Export as Markdown with proper formatting
-- [ ] All segments properly tagged with contexts
+- [ ] All transcript chunks properly tagged with contexts
 - [ ] Locked fields never regenerated
-- [ ] Recent segments weighted higher in LLM extraction
+- [ ] Recent field-tagged chunks weighted higher in LLM extraction
 - [ ] One decision context active at a time
 - [ ] Context switching works seamlessly
 - [ ] All tests passing with >80% coverage
@@ -1115,7 +1190,7 @@ interface Config {
     url: string;
   };
   llm: {
-    provider: 'anthropic' | 'openai';
+    provider: 'anthropic' | 'openai' | 'local';
     model: string;
   };
   api: {
@@ -1131,7 +1206,7 @@ This plan is ready for implementation. The system will:
 
 1. **Manage meetings** with simple participant lists
 2. **Ingest transcripts** flexibly (upload/chunks/stream)
-3. **Auto-tag segments** with meeting/decision/field contexts
+3. **Auto-tag transcript chunks** with meeting/decision/field contexts
 4. **Flag decisions** using LLM analysis
 5. **Support iterative refinement** with context switching and field locking
 6. **Record decision methods** with text metadata and actors

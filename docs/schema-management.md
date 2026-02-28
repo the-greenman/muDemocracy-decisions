@@ -1,22 +1,26 @@
 # Database Schema Management
 
+**Status**: aligned reference
+**Owns**: physical persistence strategy, migration workflow, DB validation
+**Must sync with**: `packages/schema`, `docs/schema-api-alignment.md`, `docs/iterative-implementation-plan.md`
+
 ## Overview
 
-The database schema is managed as **code-controlled, testable, and version-controlled** using Drizzle ORM - similar to how OpenAPI defines the API contract.
+The database schema is managed as **code-controlled, testable, and version-controlled** using Drizzle ORM. It is the physical persistence layer that implements the logical domain model defined in Zod.
 
 ## Schema Alignment with Zod
 
-While Drizzle is the source of truth for the **database physical layer**, the **domain logic layer** is governed by Zod schemas in `packages/schema`.
+`packages/schema` is the source of truth for the **logical domain layer**. Drizzle implements the **database physical layer** in `packages/db`.
 
-- **Physical Layer**: `packages/db/src/schema.ts` (Drizzle)
-- **Logical Layer**: `packages/schema/src/*.ts` (Zod)
+- **Logical Source of Truth**: `packages/schema/src/*.ts` (Zod)
+- **Physical Implementation**: `packages/db/src/schema.ts` (Drizzle)
 
 **Rule**: All data entering the system via API or CLI MUST be validated against a Zod schema before being passed to a Service, and subsequently to Drizzle. This "Validation-at-Edge" ensures the database layer remains clean and consistent.
 
-The canonical schema is defined in `packages/db/src/schema.ts`:
+The canonical domain schema starts in `packages/schema`, and the physical schema is then mapped into `packages/db/src/schema.ts`:
 
 ```typescript
-// packages/db/src/schema.ts - THE source of truth
+// packages/db/src/schema.ts - physical persistence mapping
 export const meetings = pgTable('meetings', {
   id: uuid('id').primaryKey().defaultRandom(),
   title: text('title').notNull(),
@@ -36,7 +40,7 @@ This TypeScript file:
 
 ### 1. Define Schema (Planning Phase)
 
-Edit `schema/schema.ts`:
+Define or update the domain schema in `packages/schema/src/*.ts`, then align `packages/db/src/schema.ts`:
 
 ```typescript
 export const newTable = pgTable('new_table', {
@@ -217,7 +221,7 @@ Meeting records
 
 | Aspect | OpenAPI | Drizzle Schema |
 |--------|---------|----------------|
-| **Source of Truth** | `docs/openapi.yaml` | `schema/schema.ts` |
+| **Source of Truth** | Generated from Hono + Zod | `packages/db/src/schema.ts` (physical only) |
 | **Language** | YAML | TypeScript |
 | **Validation** | OpenAPI validators | TypeScript compiler |
 | **Generation** | API docs, client SDKs | Migrations, types |

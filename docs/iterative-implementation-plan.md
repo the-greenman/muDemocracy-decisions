@@ -9,6 +9,7 @@ This document defines a detailed, phased implementation plan with validation che
 - **Checkpoint Validation**: Each phase ends with a concrete, demonstrable outcome
 - **Fail Fast**: Small iterations expose problems early
 - **Mock External Dependencies**: LLM calls are expensive; mock them until integration phase
+- **Keep Audio Outside Core**: Audio capture/transcription may exist upstream, but the core system consumes transcript text events only
 
 ---
 
@@ -110,10 +111,11 @@ decision-logger meeting create "Test Meeting" --date 2026-02-27 --participants A
 
 ### 1.1 Domain Schemas
 - [ ] `MeetingSchema` (id, title, date, participants, status, createdAt)
-- [ ] `TranscriptSegmentSchema` (id, meetingId, sequenceNumber, speaker, text, timestamp, contexts, createdAt)
-- [ ] `FlaggedDecisionSchema` (id, meetingId, suggestedTitle, contextSummary, confidence, segmentIds, suggestedTemplateId, templateConfidence, status, createdAt)
+- [ ] `RawTranscriptSchema` (id, meetingId, source, format, content, metadata, uploadedAt, uploadedBy)
+- [ ] `TranscriptChunkSchema` (id, meetingId, rawTranscriptId, sequenceNumber, text, speaker?, startTime?, endTime?, chunkStrategy, tokenCount?, wordCount?, contexts, topics?, createdAt)
+- [ ] `FlaggedDecisionSchema` (id, meetingId, suggestedTitle, contextSummary, confidence, chunkIds, suggestedTemplateId, templateConfidence, status, createdAt)
 - [ ] `DecisionContextSchema` (id, meetingId, flaggedDecisionId, title, templateId, activeField, lockedFields, draftData, status, createdAt, updatedAt)
-- [ ] `DecisionLogSchema` (id, meetingId, decisionContextId, templateId, templateVersion, fields, decisionMethod, sourceSegmentIds, loggedAt, loggedBy)
+- [ ] `DecisionLogSchema` (id, meetingId, decisionContextId, templateId, templateVersion, fields, decisionMethod, sourceChunkIds, loggedAt, loggedBy)
 - [ ] `DecisionFieldSchema` (id, name, description, category, extractionPrompt, fieldType, placeholder, validationRules, version, isCustom, createdAt)
 - [ ] `DecisionTemplateSchema` (id, name, description, category, fields: TemplateFieldAssignment[], version, isDefault, isCustom, createdAt)
 - [ ] `TemplateFieldAssignmentSchema` (fieldId, order, required, customLabel, customDescription)
@@ -174,17 +176,19 @@ pnpm test --filter=@repo/core -- --grep="Meeting"  # All passing
 ```
 
 ### 2.2 Transcript Service
-- [ ] `ITranscriptSegmentRepository`: create, findByMeetingId, findByContext, appendSegment
+- [ ] `IRawTranscriptRepository`: create, findByMeetingId
+- [ ] `ITranscriptChunkRepository`: create, findByMeetingId, findByContext, findById, search
+- [ ] `IStreamingBufferRepository`: appendEvent, getStatus, flush, clear
 - [ ] Unit tests for each method
-- [ ] `TranscriptService`: handles segment ingestion, auto-tagging with contexts
+- [ ] `TranscriptService`: handles upload, add, buffered stream ingestion, chunk creation, and auto-tagging with contexts
 - [ ] Integration tests
 
 **Validation Checkpoint 2.2**:
 ```bash
 # Integration test proves:
 # 1. Create meeting
-# 2. Add 3 transcript segments with context tags
-# 3. Query segments by context → returns correct subset
+# 2. Add transcript events and produce tagged chunks
+# 3. Query chunks by context → returns correct subset
 ```
 
 ### 2.3 Flagged Decision Service
@@ -260,12 +264,14 @@ decision-logger template show technology-selection  # Shows field composition
 
 ## Phase 3: LLM Integration (Days 7-9)
 
-**Goal**: Integrate Vercel AI SDK with comprehensive mocking strategy.
+**Goal**: Integrate a provider-agnostic LLM layer with comprehensive mocking strategy.
 
 ### 3.1 LLM Abstraction Layer
 - [ ] Define `ILLMService` interface in `packages/core`
 - [ ] Create `MockLLMService` for testing (returns canned responses)
-- [ ] Create `VercelAILLMService` implementation
+- [ ] Create provider-backed implementation via Vercel AI SDK
+- [ ] Support provider selection per workload (detection vs draft generation)
+- [ ] Ensure local models are optional adapters, not required infrastructure
 - [ ] Test: Mock service returns expected structured output
 
 **Validation Checkpoint 3.1**:
@@ -277,10 +283,11 @@ expect(result.decisions).toHaveLength(1);
 ```
 
 ### 3.2 Decision Detection
-- [ ] Implement `DecisionDetectionService` using Vercel AI SDK
-- [ ] Unit test with mock LLM (various transcript scenarios)
+- [ ] Implement `DecisionDetectionService` using the pluggable `ILLMService`
+- [ ] Unit test with mock LLM (various transcript chunk scenarios)
 - [ ] Returns `FlaggedDecision[]` with confidence scores
-- [ ] Integration test with real Claude API (marked as slow, skippable)
+- [ ] Integration test with default remote provider (marked as slow, skippable)
+- [ ] Optional adapter test for local provider when configured
 
 **Validation Checkpoint 3.2**:
 ```bash
@@ -289,7 +296,7 @@ pnpm test:integration:llm  # Slow (real API, optional)
 ```
 
 ### 3.3 Draft Generation
-- [ ] Implement `DraftGenerationService` using Vercel AI SDK
+- [ ] Implement `DraftGenerationService` using the pluggable `ILLMService`
 - [ ] Generates complete draft for all template fields
 - [ ] Unit tests with mock responses
 - [ ] Verify Zod schema validation on LLM output
@@ -303,10 +310,10 @@ expect(draft.fields.decision_statement).toBeDefined();
 ```
 
 ### 3.4 Field-Specific Regeneration
-- [ ] Implement field-specific regeneration with segment weighting
-- [ ] Field-tagged segments get highest priority
-- [ ] Decision-tagged segments get medium priority
-- [ ] Meeting-tagged segments get lowest priority
+- [ ] Implement field-specific regeneration with chunk weighting
+- [ ] Field-tagged chunks get highest priority
+- [ ] Decision-tagged chunks get medium priority
+- [ ] Meeting-tagged chunks get lowest priority
 - [ ] Unit tests with mock LLM
 
 **Validation Checkpoint 3.4**:
@@ -413,7 +420,7 @@ expect(ctx.activeField).toBe('options');
 
 ### 4.2 Auto-Tagging with Context
 - [ ] Implement auto-tagging logic in `TranscriptService`
-- [ ] New segments get meeting tag: `meeting:<id>`
+- [ ] New transcript chunks get meeting tag: `meeting:<id>`
 - [ ] If decision active, add: `decision:<id>`
 - [ ] If field active, add: `decision:<id>:<field>`
 - [ ] Test: Tags are cumulative and correct
@@ -424,14 +431,13 @@ await globalContext.setActiveMeeting('mtg_1');
 await globalContext.setActiveDecision('flag_1');
 await globalContext.setActiveField('options');
 
-const segment = await transcriptService.addSegment({
-  speaker: 'Alice',
+const chunk = await transcriptService.addText({
   text: 'We have three options...'
 });
 
-expect(segment.contexts).toContain('meeting:mtg_1');
-expect(segment.contexts).toContain('decision:ctx_1');
-expect(segment.contexts).toContain('decision:ctx_1:options');
+expect(chunk.contexts).toContain('meeting:mtg_1');
+expect(chunk.contexts).toContain('decision:ctx_1');
+expect(chunk.contexts).toContain('decision:ctx_1:options');
 ```
 
 ### 4.3 Draft Generation with Field Locking
@@ -479,7 +485,8 @@ expect(log.decisionMethod.type).toBe('consensus');
 - [ ] `decision-logger context set-field <field-id>`
 - [ ] `decision-logger context clear-field`
 - [ ] `decision-logger context clear-decision`
-- [ ] `decision-logger transcript add --speaker <name> --text <text>`
+- [ ] `decision-logger transcript add --text <text> [--speaker <name>]`
+- [ ] `decision-logger transcript stream [--file <file.txt>]`
 - [ ] `decision-logger draft lock-field <field-id>`
 - [ ] `decision-logger draft unlock-field <field-id>`
 - [ ] `decision-logger draft regenerate`
@@ -497,7 +504,7 @@ decision-logger draft generate
 decision-logger draft show
 decision-logger draft lock-field decision_statement
 decision-logger context set-field options
-decision-logger transcript add --speaker Alice --text "We have three options..."
+decision-logger transcript add --text "We have three options..."
 decision-logger draft regenerate
 decision-logger draft show  # decision_statement unchanged, options updated
 decision-logger decision log --type consensus --details "All agreed" --actors Alice,Bob --logged-by Alice
@@ -602,8 +609,14 @@ decision-logger draft expert-advice stakeholder
 
 ### 6.2 Transcript Endpoints
 - [ ] POST /api/meetings/:id/transcripts/upload (bulk upload)
-- [ ] POST /api/meetings/:id/transcripts/add (single segment)
-- [ ] GET /api/meetings/:id/segments (query with context filter)
+- [ ] POST /api/meetings/:id/transcripts/add (immediate text event)
+- [ ] POST /api/meetings/:id/transcripts/stream (buffered streaming event)
+- [ ] GET /api/meetings/:id/streaming/status
+- [ ] POST /api/meetings/:id/streaming/flush
+- [ ] DELETE /api/meetings/:id/streaming/buffer
+- [ ] GET /api/meetings/:id/chunks (query with context/time/strategy filters)
+- [ ] GET /api/chunks/:id
+- [ ] POST /api/chunks/search
 - [ ] Integration tests
 
 ### 6.3 Context Endpoints
@@ -779,7 +792,7 @@ decision-logger meeting create --help  # Shows usage examples
 ### Known Risk Areas:
 - **Phase 0**: Monorepo tooling complexity
 - **Phase 1**: Zod ↔ Drizzle alignment edge cases
-- **Phase 3**: LLM response variability
+- **Phase 3**: LLM provider variability (remote vs optional local adapters)
 - **Phase 5**: MCP tool injection complexity
 
 ---

@@ -206,12 +206,14 @@ When a task matches one of these workflows, use the skill file as the procedural
 - **Write tests first** - TDD is required
 - **Follow strict layering** - apps → core → db → schema
 - **Use validation checkpoints** - verify each phase
+- **Commit in validated chunks** - each commit should represent one coherent unit of work that passed its relevant tests/checkpoint
 - **Version prompts** - track improvements with metrics
 - **Query field library** - don't hardcode field lists
 
 ### ❌ DON'T
 
 - **Skip tests** - TDD is non-negotiable
+- **Batch unrelated changes into one commit** - keep commits scoped to a single validated unit
 - **Create circular dependencies** - violates layering
 - **Hardcode field lists** - use database queries
 - **Modify prompts without testing** - measure F1 score

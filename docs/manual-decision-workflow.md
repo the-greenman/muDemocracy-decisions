@@ -1,5 +1,9 @@
 # Manual Decision Creation and Management Workflow
 
+**Status**: authoritative
+**Owns**: manual flagged-decision workflow, triage/prioritization behavior, flagged-decision management APIs and CLI
+**Must sync with**: `packages/schema`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
+
 ## Overview
 
 In addition to AI-flagged decisions, users can manually identify and create decisions from transcript segments. This document describes the complete workflow for manual decision creation, refinement, prioritization, and management.

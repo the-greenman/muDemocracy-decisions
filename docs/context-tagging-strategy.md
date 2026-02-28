@@ -1,5 +1,9 @@
 # Context Tagging Strategy
 
+**Status**: authoritative
+**Owns**: chunk tagging model, chunk relevance model, field-level retrieval and regeneration API details
+**Must sync with**: `packages/schema`, `docs/transcript-context-management.md`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
+
 ## Overview
 
 Context tags enable precise retrieval of transcript chunks for specific decision fields. When refining a field like "options" or "stakeholders", we need to retrieve only the relevant transcript chunks, not the entire meeting.

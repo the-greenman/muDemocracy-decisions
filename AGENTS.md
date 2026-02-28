@@ -18,3 +18,4 @@ A skill is a set of local instructions stored in a `SKILL.md` file. Use the repo
 - If the task clearly matches one of the skills above, use the matching skill.
 - Read only the `SKILL.md` file first, then load referenced docs only as needed.
 - Treat `docs/PLAN.md` and `docs/iterative-implementation-plan.md` as product and implementation source-of-truth when a skill references them.
+- Treat passing tests or validation checkpoints as the default commit boundary: make small, coherent commits only after the relevant chunk is validated.
