@@ -8,7 +8,7 @@ import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-trans
 import { db } from '../../src/client';
 import { transcriptChunks } from '../../src/schema';
 import { eq } from 'drizzle-orm';
-import { CreateTranscriptChunk, CreateRawTranscript } from '@repo/schema';
+import { CreateTranscriptChunk } from '@repo/schema';
 import { randomUUID } from 'crypto';
 
 describe('DrizzleTranscriptChunkRepository', () => {
@@ -101,44 +101,45 @@ describe('DrizzleTranscriptChunkRepository', () => {
   describe('findByMeetingId', () => {
     it('should return chunks ordered by sequence number', async () => {
       // Create chunks out of order
-      const chunk3 = await repository.create({
+      await repository.create({
         meetingId: testMeetingId,
         rawTranscriptId: testRawTranscriptId,
         sequenceNumber: 3,
         text: 'Third chunk',
+        contexts: ['meeting:' + testMeetingId],
         chunkStrategy: 'fixed',
       });
 
-      const chunk1 = await repository.create({
+      await repository.create({
         meetingId: testMeetingId,
         rawTranscriptId: testRawTranscriptId,
         sequenceNumber: 1,
         text: 'First chunk',
+        contexts: ['meeting:' + testMeetingId],
         chunkStrategy: 'fixed',
       });
 
-      const chunk2 = await repository.create({
+      await repository.create({
         meetingId: testMeetingId,
         rawTranscriptId: testRawTranscriptId,
         sequenceNumber: 2,
         text: 'Second chunk',
+        contexts: ['meeting:' + testMeetingId],
         chunkStrategy: 'fixed',
       });
 
       const results = await repository.findByMeetingId(testMeetingId);
 
       expect(results).toHaveLength(3);
-      expect(results[0].sequenceNumber).toBe(1);
-      expect(results[1].sequenceNumber).toBe(2);
-      expect(results[2].sequenceNumber).toBe(3);
+      expect(results[0]!.sequenceNumber).toBe(1);
+      expect(results[1]!.sequenceNumber).toBe(2);
+      expect(results[2]!.sequenceNumber).toBe(3);
     });
   });
 
   describe('findByContext', () => {
     it('should return chunks tagged with specific context', async () => {
-      const contextTag = 'decision:' + randomUUID();
-      const testDecisionContextId = randomUUID();
-      const testFieldId = randomUUID();
+      const contextTag = 'decision:test-decision';
       
       await repository.create({
         meetingId: testMeetingId,
@@ -186,7 +187,7 @@ describe('DrizzleTranscriptChunkRepository', () => {
       const results = await repository.search(testMeetingId, 'architecture');
 
       expect(results).toHaveLength(1);
-      expect(results[0].text).toContain('architecture');
+      expect(results[0]!.text).toContain('architecture');
     });
   });
 

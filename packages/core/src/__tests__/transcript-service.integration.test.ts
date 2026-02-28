@@ -50,19 +50,23 @@ class MockTranscriptChunkRepository {
     };
   }
 
-  async findByMeetingId(meetingId: string) {
+  async findByMeetingId(_meetingId: string) {
     return [];
   }
 
-  async findByContext(contextTag: string) {
+  async findByContext(_contextTag: string) {
     return [];
   }
 
-  async search(meetingId: string, query: string) {
+  async search(_meetingId: string, _query: string) {
     return [];
   }
 
-  async findById(id: string) {
+  async findByDecisionContext(_decisionContextId: string) {
+    return [];
+  }
+
+  async findById(_id: string) {
     return null;
   }
 }
@@ -99,6 +103,7 @@ class MockStreamingBufferRepository {
         meetingId,
         text: e.data.text,
         chunkStrategy: 'streaming',
+        contexts: e.data.contexts || [`meeting:${meetingId}`],
         createdAt: new Date().toISOString(),
       }));
     
@@ -121,15 +126,15 @@ class MockChunkRelevanceRepository {
     };
   }
 
-  async findByDecisionField(decisionContextId: string, fieldId: string) {
+  async findByDecisionField(_decisionContextId: string, _fieldId: string) {
     return [];
   }
 
-  async deleteByChunk(chunkId: string) {
+  async deleteByChunk(_chunkId: string) {
     // Mock implementation
   }
 
-  async findByChunk(chunkId: string) {
+  async findByChunk(_chunkId: string) {
     return [];
   }
 }
@@ -144,11 +149,11 @@ class MockDecisionContextWindowRepository {
     };
   }
 
-  async findByDecisionContextId(decisionContextId: string) {
+  async findByDecisionContextId(_decisionContextId: string) {
     return [];
   }
 
-  async preview(decisionContextId: string, strategy: string, limit?: number) {
+  async preview(_decisionContextId: string, _strategy: string, _limit?: number) {
     return {
       chunks: [],
       totalTokens: 0,

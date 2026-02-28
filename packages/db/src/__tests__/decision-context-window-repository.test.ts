@@ -9,7 +9,6 @@ import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-trans
 import { db } from '../../src/client';
 import { decisionContextWindows } from '../../src/schema';
 import { eq } from 'drizzle-orm';
-import { CreateRawTranscript, CreateTranscriptChunk } from '@repo/schema';
 import { randomUUID } from 'crypto';
 
 describe('DrizzleDecisionContextWindowRepository', () => {
@@ -74,7 +73,7 @@ describe('DrizzleDecisionContextWindowRepository', () => {
         selectionStrategy: 'relevant' as const,
         totalTokens: 100,
         totalChunks: 2,
-        relevanceScores: { [testChunkIds[0]]: 0.8, [testChunkIds[1]]: 0.6 },
+        relevanceScores: { [testChunkIds[0]!]: 0.8, [testChunkIds[1]!]: 0.6 },
         usedFor: 'draft' as const,
       };
 
@@ -87,7 +86,7 @@ describe('DrizzleDecisionContextWindowRepository', () => {
       expect(result.selectionStrategy).toBe('relevant');
       expect(result.totalTokens).toBe(100);
       expect(result.totalChunks).toBe(2);
-      expect(result.relevanceScores).toEqual({ [testChunkIds[0]]: 0.8, [testChunkIds[1]]: 0.6 });
+      expect(result.relevanceScores).toEqual({ [testChunkIds[0]!]: 0.8, [testChunkIds[1]!]: 0.6 });
       expect(result.usedFor).toBe('draft');
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
@@ -112,7 +111,7 @@ describe('DrizzleDecisionContextWindowRepository', () => {
         selectionStrategy: 'weighted' as const,
         totalTokens: 150,
         totalChunks: 2,
-        relevanceScores: { [testChunkIds[0]]: 0.7, [testChunkIds[1]]: 0.9 },
+        relevanceScores: { [testChunkIds[0]!]: 0.7, [testChunkIds[1]!]: 0.9 },
         usedFor: 'regenerate' as const,
       };
 
@@ -123,7 +122,7 @@ describe('DrizzleDecisionContextWindowRepository', () => {
       expect(result.totalTokens).toBe(150);
       expect(result.totalChunks).toBe(2);
       expect(result.usedFor).toBe('regenerate');
-      expect(result.relevanceScores).toEqual({ [testChunkIds[0]]: 0.7, [testChunkIds[1]]: 0.9 });
+      expect(result.relevanceScores).toEqual({ [testChunkIds[0]!]: 0.7, [testChunkIds[1]!]: 0.9 });
     });
 
     it('should create separate windows for different usedFor values', async () => {
@@ -182,8 +181,8 @@ describe('DrizzleDecisionContextWindowRepository', () => {
       const results = await repository.findByDecisionContextId(testDecisionContextId);
 
       expect(results).toHaveLength(2);
-      expect(results[0].usedFor).toBe('regenerate'); // Most recently updated
-      expect(results[1].usedFor).toBe('draft');
+      expect(results[0]!.usedFor).toBe('regenerate'); // Most recently updated
+      expect(results[1]!.usedFor).toBe('draft');
     });
 
     it('should return empty array for non-existent context', async () => {
@@ -197,12 +196,12 @@ describe('DrizzleDecisionContextWindowRepository', () => {
       const result = await repository.preview(testDecisionContextId, 'relevant', 10);
 
       expect(result.chunks).toHaveLength(2);
-      expect(result.chunks[0].text).toBe('First chunk');
-      expect(result.chunks[1].text).toBe('Second chunk');
+      expect(result.chunks[0]!.text).toBe('First chunk');
+      expect(result.chunks[1]!.text).toBe('Second chunk');
       expect(result.totalTokens).toBeGreaterThan(0);
       expect(result.estimatedRelevance).toBeDefined();
-      expect(result.estimatedRelevance[testChunkIds[0]]).toBe(0.8);
-      expect(result.estimatedRelevance[testChunkIds[1]]).toBe(0.8);
+      expect(result.estimatedRelevance[testChunkIds[0]!]).toBe(0.8);
+      expect(result.estimatedRelevance[testChunkIds[1]!]).toBe(0.8);
     });
 
     it('should limit results by limit parameter', async () => {

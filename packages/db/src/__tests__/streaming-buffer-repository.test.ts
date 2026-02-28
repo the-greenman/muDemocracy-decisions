@@ -8,7 +8,6 @@ import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-trans
 import { db } from '../../src/client';
 import { transcriptChunks } from '../../src/schema';
 import { eq } from 'drizzle-orm';
-import { CreateRawTranscript } from '@repo/schema';
 import { randomUUID } from 'crypto';
 
 describe('DrizzleStreamingBufferRepository', () => {
@@ -115,13 +114,13 @@ describe('DrizzleStreamingBufferRepository', () => {
       const chunks = await repository.flush(testMeetingId);
 
       expect(chunks).toHaveLength(1);
-      expect(chunks[0].text).toBe('This is a streamed message');
-      expect(chunks[0].speaker).toBe('Bob');
-      expect(chunks[0].startTime).toBe('00:02:00');
-      expect(chunks[0].endTime).toBe('00:02:05');
-      expect(chunks[0].chunkStrategy).toBe('streaming');
-      expect(chunks[0].contexts).toContain('meeting:' + testMeetingId);
-      expect(chunks[0].topics).toEqual(['streaming']);
+      expect(chunks[0]!.text).toBe('This is a streamed message');
+      expect(chunks[0]!.speaker).toBe('Bob');
+      expect(chunks[0]!.startTime).toBe('00:02:00');
+      expect(chunks[0]!.endTime).toBe('00:02:05');
+      expect(chunks[0]!.chunkStrategy).toBe('streaming');
+      expect(chunks[0]!.contexts).toContain('meeting:' + testMeetingId);
+      expect(chunks[0]!.topics).toEqual(['streaming']);
 
       // Buffer should be cleared after flush
       const status = await repository.getStatus(testMeetingId);
@@ -143,8 +142,8 @@ describe('DrizzleStreamingBufferRepository', () => {
       const chunks = await repository.flush(testMeetingId);
 
       expect(chunks).toHaveLength(2);
-      expect(chunks[0].text).toBe('First message');
-      expect(chunks[1].text).toBe('Second message');
+      expect(chunks[0]!.text).toBe('First message');
+      expect(chunks[1]!.text).toBe('Second message');
     });
 
     it('should ignore non-text events', async () => {

@@ -9,7 +9,6 @@ import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-trans
 import { db } from '../../src/client';
 import { chunkRelevance } from '../../src/schema';
 import { eq } from 'drizzle-orm';
-import { CreateRawTranscript, CreateTranscriptChunk } from '@repo/schema';
 import { randomUUID } from 'crypto';
 
 describe('DrizzleChunkRelevanceRepository', () => {
@@ -187,8 +186,8 @@ describe('DrizzleChunkRelevanceRepository', () => {
       const results = await repository.findByChunk(testChunkId);
 
       expect(results).toHaveLength(2);
-      expect(results[0].relevance).toBe(0.6); // Ordered by relevance
-      expect(results[1].relevance).toBe(0.8);
+      expect(results[0]!.relevance).toBe(0.6); // Ordered by relevance
+      expect(results[1]!.relevance).toBe(0.8);
     });
 
     it('should return empty array for non-existent chunk', async () => {

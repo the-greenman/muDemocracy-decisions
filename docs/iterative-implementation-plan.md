@@ -37,6 +37,25 @@ This document defines a detailed, phased implementation plan with validation che
 - Field regeneration behavior: `docs/field-regeneration-strategy.md`
 - Expert and MCP scope: `docs/expert-system-architecture.md` and `docs/mcp-architecture-strategy.md`
 
+## Manual Testing Guidance
+
+Automated validation gates are required, but each phase should also leave you with something you can exercise manually. After a phase checkpoint passes, run a short smoke test through the highest-level interface available.
+
+### General Rules
+
+- Prefer CLI for manual verification when a CLI command exists
+- Otherwise use the public API directly with `curl`
+- Only drop to direct service-level testing when no external interface exists yet
+- Reuse a small set of stable test meetings and transcript fixtures so regressions are obvious
+- Treat confusing command output, unclear errors, and awkward payloads as phase-level issues, not polish-phase issues
+
+### Recommended Fixtures
+
+- One minimal meeting with 1 participant and 1 transcript event
+- One realistic meeting with 3-5 participants and a short decision-oriented transcript
+- One negative transcript where no decision should be flagged
+- One invalid request per new surface to verify errors are understandable
+
 ---
 
 ## Phase 0: Vertical Slice (Day 1)
