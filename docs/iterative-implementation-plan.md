@@ -364,8 +364,9 @@ pnpm db:studio
 
 **Status**: 🟡 IN PROGRESS - Most services complete, CLI commands partially implemented
 
-### 2.1 Meeting Service (Complete)
-- [x] `IMeetingRepository`: create, findById, findAll, update, updateStatus, delete/archive
+### 2.1 Meeting Service (Expanded CRUD Follow-up)
+- [x] `IMeetingRepository`: create, findById, findAll, updateStatus
+- [ ] Expand `IMeetingRepository` for full CRUD: add general update plus delete/archive
 - [x] Unit tests for each method (mocked DB)
 - [x] `MeetingService`: business logic wrapper
 - [x] Integration tests (real test DB)
@@ -401,6 +402,7 @@ pnpm test --filter=@repo/core -- --grep="Meeting"  # All passing
 
 ### 2.4 Decision Context Service (Complete)
 - [x] `IDecisionContextRepository`: create, findById, findByMeetingId, update, lockField, unlockField, setActiveField, updateStatus
+- [ ] Expand `IDecisionContextRepository` for full CRUD: add delete/archive for draft contexts
 - [x] Unit tests (17 tests)
 - [x] `DecisionContextService`: handles context creation, draft data updates, field locking, status transitions, and active field management
 - [x] Integration tests (13 tests)
@@ -924,7 +926,9 @@ decision-logger draft expert-advice technical
 - [ ] POST /api/meetings (create)
 - [ ] GET /api/meetings (list)
 - [ ] GET /api/meetings/:id (show)
+- [ ] PATCH /api/meetings/:id (general update for title/date/participants/status)
 - [ ] PATCH /api/meetings/:id/status (complete)
+- [ ] DELETE /api/meetings/:id (delete or archive)
 - [ ] Request lifecycle logging with request/correlation IDs
 - [ ] Integration tests for each
 
@@ -941,6 +945,9 @@ decision-logger draft expert-advice technical
 - [ ] GET /api/chunks/:id
 - [ ] POST /api/chunks/search
 - [ ] Integration tests
+
+Lifecycle note:
+- The main user flow is create/read plus targeted operational updates (for example streaming buffer flush/clear and context-window refresh), but transcript-adjacent resources still need an explicit admin CRUD/retention plan later rather than remaining implicitly append-only.
 
 Implementation rule:
 - Before any CLI built on these routes is considered valid, exercise these endpoints directly with `curl` and confirm the response shape matches the documented contract
@@ -975,7 +982,11 @@ curl http://localhost:3000/api/context
 - [ ] DELETE /api/flagged-decisions/:id
 - [ ] GET /api/flagged-decisions/:id/context (get context for flagged decision - **web UI resume**)
 - [ ] GET /api/meetings/:id/decision-contexts (list decision contexts - **web UI drafts list**)
+- [ ] POST /api/meetings/:id/decision-contexts (canonical create draft context)
 - [ ] GET /api/meetings/:id/summary (meeting stats - **web UI dashboard**)
+- [ ] GET /api/decision-contexts/:id (canonical read draft context)
+- [ ] PATCH /api/decision-contexts/:id (canonical update for title/template/draft metadata/status)
+- [ ] DELETE /api/decision-contexts/:id (delete or archive draft context)
 - [ ] GET /api/decision-contexts/:id/context-window
 - [ ] POST /api/decision-contexts/:id/context-window
 - [ ] GET /api/decision-contexts/:id/context-window/preview
@@ -1005,10 +1016,16 @@ curl http://localhost:3000/api/meetings/mtg_1/decision-contexts
 - [ ] Integration tests
 
 ### 6.6 Field Library & Template Endpoints
+- [ ] POST /api/fields (create custom field)
 - [ ] GET /api/fields (list, optional category filter)
 - [ ] GET /api/fields/:id (show field definition)
+- [ ] PATCH /api/fields/:id (update field definition)
+- [ ] DELETE /api/fields/:id (delete custom field)
+- [ ] POST /api/templates (create custom template)
 - [ ] GET /api/templates (list)
 - [ ] GET /api/templates/:id (show)
+- [ ] PATCH /api/templates/:id (update template metadata and assignments)
+- [ ] DELETE /api/templates/:id (delete custom template)
 - [ ] POST /api/templates/:id/set-default (set default)
 - [ ] Integration tests
 
@@ -1021,8 +1038,12 @@ curl http://localhost:3000/api/meetings/mtg_1/decision-contexts
 - [ ] POST /api/decision-contexts/:id/experts/:expertName/consult
 - [ ] GET /api/mcp/servers
 - [ ] POST /api/mcp/servers
+- [ ] GET /api/mcp/servers/:name
+- [ ] PATCH /api/mcp/servers/:name
+- [ ] DELETE /api/mcp/servers/:name
 - [ ] GET /api/mcp/servers/:name/tools
 - [ ] GET /api/mcp/servers/:name/resources
+- [ ] Lower priority than meeting, decision-context, field, and template CRUD routes
 - [ ] Integration tests
 
 **Validation Checkpoint 6.x**:
