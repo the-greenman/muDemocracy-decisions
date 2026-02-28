@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { FlaggedDecisionService } from '@repo/core';
-import { DrizzleFlaggedDecisionRepository, DrizzleMeetingRepository } from '@repo/db';
+import { DrizzleFlaggedDecisionRepository } from '@repo/db';
 import { db, meetings, flaggedDecisions } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
@@ -91,8 +91,8 @@ describe('FlaggedDecisionService Integration Tests', () => {
       );
 
       expect(created).toHaveLength(2);
-      expect(created[0].priority).toBe(10);
-      expect(created[1].priority).toBe(1);
+      expect(created[0]?.priority).toBe(10);
+      expect(created[1]?.priority).toBe(1);
     });
   });
 
@@ -258,12 +258,13 @@ describe('FlaggedDecisionService Integration Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle database constraints gracefully', async () => {
-      const invalidData = {
+      const invalidData: CreateFlaggedDecision = {
         meetingId: randomUUID(), // Non-existent meeting
         suggestedTitle: 'Invalid',
         contextSummary: 'This should fail',
         confidence: 0.8,
         chunkIds: [randomUUID()],
+        priority: 0,
       };
 
       await expect(
