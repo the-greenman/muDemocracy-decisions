@@ -60,7 +60,7 @@ templateCommand
       let template = await templateService.getTemplate(id);
       if (!template) {
         const allTemplates = await templateService.getAllTemplates();
-        template = allTemplates.find(t => t.name.toLowerCase() === id.toLowerCase());
+        template = allTemplates.find(t => t.name.toLowerCase() === id.toLowerCase()) || null;
       }
       
       if (!template) {

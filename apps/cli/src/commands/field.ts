@@ -1,10 +1,5 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import type { 
-  IDecisionFieldRepository,
-  DecisionField,
-  CreateDecisionField
-} from '@repo/core';
 import { DecisionFieldService } from '@repo/core';
 import { DrizzleDecisionFieldRepository } from '@repo/db';
 

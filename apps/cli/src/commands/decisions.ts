@@ -72,6 +72,7 @@ decisionsCommand
         suggestedTemplateId: options.template,
         templateConfidence: options.template ? 0.8 : undefined,
         confidence: 1.0, // Manual flags have high confidence
+        priority: 0, // Default priority
       });
 
       console.log(chalk.green('✓ Decision flagged successfully'));
