@@ -171,7 +171,7 @@ decision-logger decision export log_final_123 --format markdown > decision.md
 
 ## API
 
-The system provides a REST API built with Hono. See [OpenAPI specification](./docs/openapi.yaml) for complete API documentation.
+The system provides a REST API built with Hono. When the API is running, use `/docs` for Swagger UI or `/openapi.json` for the generated OpenAPI document. The checked-in [OpenAPI spec](./docs/openapi.yaml) is a transitional reference until the static file is fully decommissioned.
 
 ### Key Endpoints
 
@@ -263,7 +263,7 @@ npm run build
 ## Documentation
 
 - [Implementation Plan](./docs/PLAN.md) - Detailed implementation plan
-- [OpenAPI Spec](./docs/openapi.yaml) - Complete API documentation
+- [OpenAPI Spec](./docs/openapi.yaml) - Transitional static reference; runtime docs are served from the API
 - [Example Transcript](./examples/technical-decision-complex.txt) - Sample transcript
 
 ## License

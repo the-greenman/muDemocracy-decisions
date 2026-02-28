@@ -30,6 +30,8 @@ return value; // Use all 50 tokens
 ### 2. Prompt Clarity
 Different fields require different extraction strategies:
 
+The file snippets below are illustrative only. The canonical field extraction prompts live in the field library (`DecisionField.extractionPrompt`) and are loaded from the database.
+
 ```markdown
 # prompts/fields/decision_statement.md
 Extract a single, clear statement of the decision being made.
@@ -126,7 +128,7 @@ export class DraftGenerationService {
     contextId: string, 
     fieldId: string
   ): Promise<string> {
-    // Use field-specific prompt from prompts/fields/{fieldId}.md
+    // Use field-specific prompt from the field library record
     const context = await this.contextRepo.findById(contextId);
     const segments = await this.getWeightedSegments(contextId, fieldId);
     const template = await this.templateRepo.findById(context.templateId);
@@ -135,8 +137,8 @@ export class DraftGenerationService {
     const { object } = await generateObject({
       model: anthropic('claude-3-5-sonnet-latest'),
       schema: z.object({ value: z.string() }),
-      system: PROMPTS.fields[fieldId].system,
-      prompt: PROMPTS.fields[fieldId].user({ 
+      system: field.extractionPrompt.system,
+      prompt: buildFieldPrompt({ 
         segments, 
         field,
         currentValue: context.draftData[fieldId] 

@@ -1,5 +1,7 @@
 # Decision Logger - Final Implementation Plan
 
+**Document Role**: This is the consolidated product and scope summary. Specialist docs own detailed behavior, schema additions, and endpoint families for their domain. `packages/schema` is the single source of truth for domain contracts.
+
 A context-driven decision logging system with LLM-assisted extraction, iterative field refinement with locking, CLI interface, and API backend for managing meeting transcripts and structured decision logs.
 
 ## Core Requirements (Finalized)
@@ -10,214 +12,58 @@ A context-driven decision logging system with LLM-assisted extraction, iterative
 
 **Key Features:**
 1. **Meeting Management** - Create meetings with participants (simple names)
-2. **Transcript Ingestion** - Accept complete uploads, immediate text entries, or buffered streaming transcript events
-3. **Context Tagging** - Auto-tag transcript chunks with meeting/decision/field contexts
-4. **LLM Decision Detection** - Flag potential decisions automatically, with provider choice
-5. **Context Switching** - Set active decision and field contexts
-6. **Iterative Refinement** - Add content, regenerate fields, lock when satisfied
-7. **Decision Methods** - Record how decision was made (text metadata)
-8. **CLI Interface** - Command-line tool for testing workflow
-9. **Export** - Markdown/JSON export of final decisions
+2. **Transcript Ingestion** - Accept complete uploads, immediate text entries, or buffered streaming transcript events while preserving raw transcript records
+3. **Transcript Intelligence** - Build semantic chunks with topics, context tags, optional embeddings, and decision-specific context windows
+4. **Decision Triage** - Support AI-flagged and manually flagged decisions, including refinement, prioritization, and dismissal
+5. **Context Tagging** - Auto-tag transcript chunks with meeting/decision/field contexts and track field-level chunk relevance
+6. **LLM Decision Detection** - Flag potential decisions automatically, with provider choice
+7. **Context Switching** - Set active decision and field contexts
+8. **Iterative Refinement** - Add content, retrieve field-specific transcript context, regenerate fields, and lock when satisfied
+9. **Expert System** - Support core and custom experts, with MCP-backed tool access and advice history
+10. **Decision Methods** - Record how decision was made (text metadata)
+11. **CLI Interface** - Command-line tool for testing workflow
+12. **API Backend** - API is sufficient to support future UI consumers even though no dedicated web app is in scope
+13. **Export** - Markdown/JSON export of final decisions
 
 **Not in Scope (Initially):**
 - ❌ Audio capture and raw audio processing inside the core system
 - ❌ Actor identification from transcripts
 - ❌ Real-time collaboration
 - ❌ Authentication
-- ❌ Web UI (CLI only)
+- ❌ A dedicated first-party web application in the initial release
 
 **Integration Assumptions:**
 - Transcript ingestion is transport-agnostic: the core system accepts text transcript events, not raw audio.
 - Local transcription can be added as a separate upstream component, but is not required for the product to function.
 - Local LLMs are supported as an optional inference path for detection/classification, not a hard dependency.
+- Detailed workflow and endpoint expansions in specialist docs are authoritative unless they conflict with the Zod schema source-of-truth rule.
 
 ## Simplified Data Model
 
-```typescript
-// Meeting
-interface Meeting {
-  id: string;
-  title: string;
-  date: Date;
-  participants: string[]; // simple names: ["Alice", "Bob", "Carol"]
-  status: 'active' | 'completed';
-  createdAt: Date;
-}
+> **Canonical Source**: `packages/schema` is the single source of truth for all domain contracts. Detailed entity requirements are maintained in the specialist architecture docs.
 
-// Transcript Chunk with Context Tags
-interface TranscriptChunk {
-  id: string;
-  meetingId: string;
-  rawTranscriptId?: string;
-  text: string;
-  speaker?: string; // optional metadata only; may be unknown, mixed, or omitted
-  sequenceNumber: number;
-  startTime?: number; // seconds from meeting start
-  endTime?: number; // seconds from meeting start
-  chunkStrategy: 'semantic' | 'fixed-time' | 'speaker-turn' | 'sentence';
-  tokenCount?: number;
-  wordCount?: number;
-  contexts: string[]; // ['meeting:abc', 'decision:xyz', 'decision:xyz:options']
-  topics?: string[];
-  createdAt: Date;
-}
+For high-level understanding, the system revolves around these core entities:
+1. **Meeting** - The top-level container for a discussion.
+2. **TranscriptChunk** - Standardized segments of the meeting transcript with context tags.
+3. **FlaggedDecision** - Potential decisions identified by AI or users.
+4. **DecisionContext** - The active drafting environment for a specific decision.
+5. **DecisionLog** - The final, immutable record of a logged decision.
+6. **DecisionField & Template** - The building blocks for structured decision logging.
 
-// Flagged Decision
-interface FlaggedDecision {
-  id: string;
-  meetingId: string;
-  suggestedTitle: string;
-  contextSummary: string;
-  confidence: number; // 0-1: how confident this is a decision
-  chunkIds: string[];
-  suggestedTemplateId: string; // LLM suggests which template to use
-  templateConfidence: number; // 0-1: how confident in template choice
-  status: 'pending' | 'active' | 'logged' | 'dismissed';
-  createdAt: Date;
-}
+> **See**: `docs/iterative-implementation-plan.md` for the implementation sequence of these schemas.
 
-// Decision Context (working draft)
-type DecisionFieldValue = string | number | string[] | Record<string, unknown> | null;
-
-interface DecisionContext {
-  id: string;
-  meetingId: string;
-  flaggedDecisionId?: string;
-  title: string;
-  templateId: string;
-  
-  // Active focus (one at a time)
-  activeField?: string;
-  
-  // Field locking
-  lockedFields: {
-    [fieldId: string]: {
-      value: DecisionFieldValue; // JSON-compatible to preserve non-text fields
-      lockedAt: Date;
-    };
-  };
-  
-  // Draft state (JSON-compatible values; dates normalized to ISO strings)
-  draftData: Record<string, DecisionFieldValue>;
-  
-  status: 'drafting' | 'ready' | 'logged';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Decision Log (final recorded decision)
-interface DecisionLog {
-  id: string;
-  meetingId: string;
-  decisionContextId: string;
-  templateId: string;
-  templateVersion: number;
-  
-  // Persisted as JSON-compatible values
-  fields: Record<string, DecisionFieldValue>;
-  
-  // Decision method (simplified)
-  decisionMethod: {
-    type: string; // "consensus", "majority-vote", "chair-decision", etc.
-    details: string; // free-form text: "5 for, 2 against, 1 abstain"
-    actors: string[]; // ["Alice", "Bob"] - who made/owns the decision
-  };
-  
-  // Source tracking
-  sourceChunkIds: string[];
-  
-  // Audit
-  loggedAt: Date;
-  loggedBy: string;
-}
-
-// Decision Field (atomic unit in field library)
-interface DecisionField {
-  id: string; // e.g., "decision_statement", "options"
-  name: string;
-  description: string;
-  category: 'core' | 'evaluation' | 'impact' | 'risk' | 'financial' | 'stakeholder' | 'implementation' | 'governance';
-  extractionPrompt: {
-    system: string;
-    examples: Array<{ input: string; output: string }>;
-    constraints: string[];
-  };
-  fieldType: 'short_text' | 'long_text' | 'list' | 'structured' | 'numeric' | 'date';
-  placeholder?: string;
-  validationRules?: {
-    maxLength?: number;
-    minLength?: number;
-    pattern?: string;
-  };
-  version: number;
-  isCustom: boolean;
-  createdAt: Date;
-  updatedAt?: Date;
-}
-
-// Decision Template (collection of fields)
-interface DecisionTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: 'general' | 'technical' | 'strategic' | 'financial' | 'governance' | 'operational';
-  fields: TemplateFieldAssignment[]; // References to fields
-  version: number;
-  isDefault: boolean;
-  isCustom: boolean;
-  createdAt: Date;
-  updatedAt?: Date;
-}
-
-interface TemplateFieldAssignment {
-  fieldId: string; // Reference to DecisionField
-  order: number;
-  required: boolean; // Required in this template
-  customLabel?: string; // Override field name
-  customDescription?: string; // Override description
-}
-```
 
 ## Field Library & Templates
 
-The system uses a **field library** architecture:
-- **Fields** are atomic units (e.g., "decision_statement", "options", "roi_analysis")
-- **Templates** are curated collections of fields for specific decision types
-- Fields are reusable across multiple templates
-- Each field maintains its own extraction prompt
+> **Canonical Source**: `docs/field-library-architecture.md` owns the detailed field definitions, extraction prompts, and template compositions.
 
-> **See**: `docs/field-library-architecture.md` for complete architecture
+The system uses a **field library** architecture where atomic fields are reused across multiple templates. 
 
 ### Field Categories
-
-- **Core**: decision_statement, decision_context, decision_rationale
-- **Evaluation**: evaluation_criteria, options, evaluation_matrix, selected_option
-- **Impact**: consequences_positive, consequences_negative, stakeholder_impact, opportunity_cost
-- **Risk**: risk_assessment, risks_and_mitigations, assumptions, reversibility
-- **Financial**: budget_amount, roi_analysis, cost_breakdown, budget_source
-- **Stakeholder**: proposer, approval_authority, affected_stakeholders, stakeholder_concerns
-- **Implementation**: implementation_plan, implementation_owner, timeline, success_metrics, next_steps
-- **Governance**: compliance_requirements, approval_conditions, review_triggers, review_date
+Core, Evaluation, Impact, Risk, Financial, Stakeholder, Implementation, Governance.
 
 ### Core Templates
-
-**Standard Decision** (10 fields)
-- decision_statement, decision_context, evaluation_criteria, options, decision_rationale, consequences_positive, consequences_negative, assumptions, reversibility, review_triggers
-
-**Technology Selection** (11 fields)
-- decision_statement, decision_context (as "Problem Statement"), evaluation_criteria (as "Requirements"), options (as "Options Evaluated"), evaluation_matrix, selected_option, decision_rationale (as "Selection Rationale"), rejected_options_rationale, risks_and_mitigations, success_metrics, review_date
-
-**Budget Approval** (10 fields)
-- decision_statement, budget_amount, decision_context (as "Business Justification"), roi_analysis, cost_breakdown, budget_source, timeline, risk_assessment, approval_conditions, review_date
-
-**Strategy Decision** (9 fields)
-- decision_statement (as "Strategic Question"), decision_context (as "Current State"), selected_option (as "Chosen Direction"), decision_rationale (as "Alignment with Goals"), opportunity_cost, stakeholder_impact, timeline, success_metrics, review_triggers
-
-**Policy Change** (8 fields)
-- decision_statement (as "Policy Title"), decision_context (as "Current Policy"), decision_rationale (as "Rationale for Change"), affected_stakeholders, compliance_requirements, implementation_plan, timeline, review_triggers
-
-**Proposal Acceptance** (7 fields)
-- decision_statement (as "Proposal Title"), decision_context (as "Proposal Summary"), proposer, decision_rationale (as "Acceptance/Rejection Rationale"), stakeholder_concerns, implementation_owner, next_steps
+Standard Decision, Technology Selection, Budget Approval, Strategy Decision, Policy Change, Proposal Acceptance.
 
 ### Template Selection
 
@@ -667,6 +513,22 @@ Response: TranscriptChunk
 POST /api/chunks/search
 Body: {query: string, meetingId?: string, limit?: number}
 Response: {chunks: TranscriptChunk[]}
+
+GET /api/meetings/:id/transcripts/raw
+Response: {rawTranscripts: RawTranscript[]}
+
+GET /api/raw-transcripts/:id
+Response: RawTranscript
+
+GET /api/decision-contexts/:id/context-window
+Response: DecisionContextWindow
+
+POST /api/decision-contexts/:id/context-window
+Body: {strategy?: string, chunkIds?: string[], maxTokens?: number}
+Response: DecisionContextWindow
+
+GET /api/decision-contexts/:id/context-window/preview
+Response: {chunks: TranscriptChunk[], totalTokens: number}
 ```
 
 ### Context Management
@@ -716,6 +578,24 @@ Response: {cleared: true}
 GET /api/meetings/:id/flagged-decisions
 Response: {flagged: FlaggedDecision[]}
 
+POST /api/meetings/:id/flagged-decisions
+Body: {title: string, contextSummary?: string, segmentIds: string[], priority?: number, createdBy?: string}
+Response: FlaggedDecision
+
+GET /api/flagged-decisions/:id
+Response: FlaggedDecision
+
+PATCH /api/flagged-decisions/:id
+Body: {title?: string, contextSummary?: string, priority?: number, segmentIds?: string[]}
+Response: FlaggedDecision
+
+PATCH /api/flagged-decisions/:id/priority
+Body: {priority: number}
+Response: FlaggedDecision
+
+DELETE /api/flagged-decisions/:id
+Response: {dismissed: true}
+
 GET /api/flagged-decisions/:id/context
 Response: DecisionContext | null
 
@@ -742,6 +622,14 @@ Response: {draftData: Record<string, DecisionFieldValue>}
 
 POST /api/decision-contexts/:id/regenerate-field
 Body: {fieldId: string}
+Response: {fieldId: string, value: DecisionFieldValue}
+
+GET /api/decision-contexts/:id/fields/:fieldId/transcript
+Query: {includeNeighbors?: boolean, maxTokens?: number}
+Response: {chunks: TranscriptChunk[], totalTokens: number}
+
+POST /api/decision-contexts/:id/fields/:fieldId/regenerate
+Body: {includeChunks?: string[], additionalContext?: string, preserveExisting?: boolean}
 Response: {fieldId: string, value: DecisionFieldValue}
 
 GET /api/decision-contexts/:id
@@ -773,6 +661,43 @@ Response: DecisionLog
 GET /api/decisions/:id/export
 Query: {format: 'json' | 'markdown'}
 Response: File (download)
+```
+
+### Experts & MCP
+```typescript
+GET /api/experts
+Response: {experts: ExpertTemplate[]}
+
+POST /api/experts
+Body: CreateExpertTemplate
+Response: ExpertTemplate
+
+GET /api/experts/:id
+Response: ExpertTemplate
+
+PATCH /api/experts/:id
+Body: UpdateExpertTemplate
+Response: ExpertTemplate
+
+DELETE /api/experts/:id
+Response: {deleted: true}
+
+POST /api/decision-contexts/:id/experts/:expertName/consult
+Body: {focusArea?: string}
+Response: ExpertAdvice
+
+GET /api/mcp/servers
+Response: {servers: MCPServer[]}
+
+POST /api/mcp/servers
+Body: CreateMCPServer
+Response: MCPServer
+
+GET /api/mcp/servers/:name/tools
+Response: {tools: MCPTool[]}
+
+GET /api/mcp/servers/:name/resources
+Response: {resources: string[]}
 ```
 
 ### Field Library & Templates
@@ -820,8 +745,15 @@ decision-logger transcript list [--context <context-tag>]
 
 # Decision Workflow (uses active meeting/decision context)
 decision-logger decisions flagged
+decision-logger decisions flag --title <title> --segments <ids> [--priority <n>] [--created-by <name>]
+decision-logger decisions show <flagged-id>
+decision-logger decisions update <flagged-id> [--title <title>] [--context <text>] [--priority <n>] [--segments <ids>]
+decision-logger decisions priority <flagged-id> --priority <n>
+decision-logger decisions dismiss <flagged-id>
+decision-logger decisions delete <flagged-id>
 decision-logger draft generate
 decision-logger draft regenerate
+decision-logger draft regenerate-field <field-id>
 decision-logger draft show
 decision-logger draft update-field <field-id> --value <text>
 decision-logger draft lock-field <field-id>
@@ -837,6 +769,20 @@ decision-logger field show <field-id>
 decision-logger template list
 decision-logger template show <template-id>
 decision-logger template set-default <template-id>
+
+# Experts & MCP
+decision-logger expert list
+decision-logger expert show <expert-id>
+decision-logger expert create <name> --prompt-file <file> --mcp-servers <servers>
+decision-logger expert update <expert-id> --prompt-file <file>
+decision-logger expert delete <expert-id>
+decision-logger expert test <expert-id> --decision-context <id>
+decision-logger mcp list
+decision-logger mcp show <server-name>
+decision-logger mcp register <name> --type <type> --config <file>
+decision-logger mcp test <server-name>
+decision-logger mcp tools <server-name>
+decision-logger mcp resources <server-name>
 ```
 
 ## LLM Integration (Provider-Agnostic)
@@ -1066,8 +1012,8 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - **Phase 3**: LLM Integration - Mock-first, provider-agnostic, real remote API optional
 - **Phase 4**: Decision Workflow - Context, drafts, field locking
 - **Phase 5**: Expert System - Domain personas with MCP tools
-- **Phase 6**: API Layer - Complete REST endpoints
-- **Phase 7**: CLI Application - Interactive Clack interface
+- **Phase 6**: API Layer - Complete REST endpoints, including field-level retrieval and expert/MCP management
+- **Phase 7**: CLI Application - Interactive Clack interface plus decision triage and expert/MCP commands
 - **Phase 8**: Export & Polish - Documentation and production readiness
 
 ### Phase Summary (Reference)
@@ -1088,6 +1034,8 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] TDD: Meeting Repository and Service
 - [ ] TDD: Transcript Segment Repository and Service
 - [ ] TDD: Context Tagging logic and Service
+- [ ] TDD: Chunk relevance and context-window repositories/services
+- [ ] TDD: Flagged decision triage (manual create/update/prioritize/dismiss)
 - [ ] TDD: Decision Field Repository and Service
 - [ ] TDD: Decision Template Repository and Service
 - [ ] TDD: Field library + core template seeding
@@ -1096,7 +1044,10 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Implement provider-agnostic LLM abstraction layer in `@repo/core`
 - [ ] Test: default remote provider connectivity and structured output
 - [ ] Test: decision detection via pluggable detection model
+- [ ] Implement: semantic tagging/topic extraction and field source-chunk attribution
+- [ ] Implement: context-window building for draft generation and expert consultation
 - [ ] Implement: Expert template system with MCP tool injection
+- [ ] Implement: custom experts, MCP server registry, and expert advice history
 - [ ] Test: Field-specific extraction and auto-tagging
 
 ### Phase 4: Context Management (Week 2-3)
@@ -1127,7 +1078,10 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Implement: Transcript endpoints
 - [ ] Implement: Context endpoints
 - [ ] Implement: Decision endpoints
+- [ ] Implement: Manual flagged-decision management endpoints
+- [ ] Implement: Context-window and field-level transcript endpoints
 - [ ] Implement: Template endpoints
+- [ ] Implement: Expert and MCP management endpoints
 - [ ] Add: Request validation (Zod)
 - [ ] Add: Error handling
 - [ ] Test: Integration tests
@@ -1137,8 +1091,9 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Integrate Clack for interactive prompts and spinners
 - [ ] Implement: Meeting management commands (interactive)
 - [ ] Implement: Transcript ingestion and streaming UI
+- [ ] Implement: Decision triage commands (manual flag, update, prioritize, dismiss)
 - [ ] Implement: Decision refinement workflow with field locking
-- [ ] Implement: Expert advice consultation UI
+- [ ] Implement: Expert advice consultation and expert/MCP management UI
 - [ ] Test: End-to-end CLI workflows
 
 ### Phase 8: Export & Polish (Week 4-5)

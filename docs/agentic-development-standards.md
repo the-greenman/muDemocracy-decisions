@@ -84,7 +84,7 @@ When implementing a new feature, agents MUST follow this sequence:
 4. **Expose Interface**: Add API route in `apps/api` or CLI command in `apps/cli` that calls the service.
 
 ## 6. Error Handling
-- **Rule**: Define shared Error classes in `packages/schema` (e.g., `NotFoundError`, `ValidationError`).
+- **Rule**: Define shared Error classes in `packages/core` (for example `NotFoundError`, `ValidationError`).
 - **Rule**: Services throw shared errors; Apps catch them and translate to interface-specific responses (HTTP 404 or Clack error message).
 
 ## 7. Pipeline Decommissioning Plan

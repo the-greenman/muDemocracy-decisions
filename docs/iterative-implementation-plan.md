@@ -1,5 +1,7 @@
 # Iterative Implementation Plan
 
+**Document Role**: This document defines phased delivery, validation checkpoints, and sequencing. Specialist docs own detailed behavior for their domains. `packages/schema` remains the single source of truth for domain contracts.
+
 This document defines a detailed, phased implementation plan with validation checkpoints. Each phase delivers testable functionality, enabling rapid detection of architectural misunderstandings and impractical elements.
 
 ## Philosophy
@@ -10,20 +12,33 @@ This document defines a detailed, phased implementation plan with validation che
 - **Fail Fast**: Small iterations expose problems early
 - **Mock External Dependencies**: LLM calls are expensive; mock them until integration phase
 - **Keep Audio Outside Core**: Audio capture/transcription may exist upstream, but the core system consumes transcript text events only
+- **Zod First**: All new entities and contract changes begin in `packages/schema`, then flow to Drizzle and API layers
+
+## Specialist Doc Mapping
+
+- Transcript ingestion, chunking, and context windows: `docs/transcript-context-management.md`
+- Context tags, chunk relevance, and field-level retrieval: `docs/context-tagging-strategy.md`
+- Manual flagged-decision triage: `docs/manual-decision-workflow.md`
+- Field library and extraction prompts: `docs/field-library-architecture.md`
+- Decision detection behavior: `docs/decision-detection-architecture.md`
+- Field regeneration behavior: `docs/field-regeneration-strategy.md`
+- Expert and MCP scope: `docs/expert-system-architecture.md` and `docs/mcp-architecture-strategy.md`
 
 ---
 
 ## Phase 0: Vertical Slice (Day 1)
 
+**Status**: complete and aligned with the Zod-first architecture. The current implementation already uses `packages/schema` for `MeetingSchema` and `@hono/zod-openapi` for the first API route.
+
 **Goal**: Prove the entire stack works end-to-end with minimal functionality.
 
 ### 0.1 Monorepo Scaffold
-- [ ] Initialize Turborepo with `apps/` and `packages/` structure
-- [ ] Create `packages/schema` with single Zod schema: `MeetingSchema`
-- [ ] Create `packages/db` with Drizzle config (no tables yet)
-- [ ] Create `packages/core` with empty service structure
-- [ ] Create `apps/api` with Hono "hello world"
-- [ ] Verify: `pnpm build` and `pnpm test` pass across all packages
+- [x] Initialize Turborepo with `apps/` and `packages/` structure
+- [x] Create `packages/schema` with single Zod schema: `MeetingSchema`
+- [x] Create `packages/db` with Drizzle config (no tables yet)
+- [x] Create `packages/core` with empty service structure
+- [x] Create `apps/api` with Hono "hello world"
+- [x] Verify: `pnpm build` and `pnpm test` pass across all packages
 
 **Validation Checkpoint 0.1**:
 ```bash
@@ -33,10 +48,10 @@ curl http://localhost:3000/health  # Returns { "status": "ok" }
 ```
 
 ### 0.2 First Database Table
-- [ ] Define `meetings` table in `packages/db/schema.ts`
-- [ ] Run `drizzle-kit generate` to create migration
-- [ ] Apply migration to local PostgreSQL
-- [ ] Verify: Table exists via `psql` or Drizzle Studio
+- [x] Define `meetings` table in `packages/db/schema.ts`
+- [x] Run `drizzle-kit generate` to create migration
+- [x] Apply migration to local PostgreSQL
+- [x] Verify: Table exists via `psql` or Drizzle Studio
 
 **Validation Checkpoint 0.2**:
 ```bash
@@ -45,10 +60,10 @@ pnpm db:studio   # Can view empty meetings table
 ```
 
 ### 0.3 First Repository (TDD)
-- [ ] Define `IMeetingRepository` interface in `packages/core`
-- [ ] Write failing test: `MeetingRepository.create()` returns a meeting
-- [ ] Implement `DrizzleMeetingRepository`
-- [ ] Test passes
+- [x] Define `IMeetingRepository` interface in `packages/core`
+- [x] Write failing test: `MeetingRepository.create()` returns a meeting
+- [x] Implement `DrizzleMeetingRepository`
+- [x] Test passes
 
 **Validation Checkpoint 0.3**:
 ```bash
@@ -56,10 +71,10 @@ pnpm test --filter=@repo/core  # 1 passing test
 ```
 
 ### 0.4 First Service (TDD)
-- [ ] Define `IMeetingService` interface
-- [ ] Write failing test: `MeetingService.create()` validates input and calls repo
-- [ ] Implement `MeetingService` with DI
-- [ ] Test passes (uses mock repository)
+- [x] Define `IMeetingService` interface
+- [x] Write failing test: `MeetingService.create()` validates input and calls repo
+- [x] Implement `MeetingService` with DI
+- [x] Test passes (uses mock repository)
 
 **Validation Checkpoint 0.4**:
 ```bash
@@ -67,10 +82,10 @@ pnpm test --filter=@repo/core  # 2+ passing tests (unit + integration)
 ```
 
 ### 0.5 First API Endpoint
-- [ ] Create `POST /api/meetings` endpoint using `@hono/zod-openapi`
-- [ ] Wire endpoint to `MeetingService`
-- [ ] Write integration test: POST creates meeting and returns it
-- [ ] Verify OpenAPI spec is auto-generated
+- [x] Create `POST /api/meetings` endpoint using `@hono/zod-openapi`
+- [x] Wire endpoint to `MeetingService`
+- [x] Write integration test: POST creates meeting and returns it
+- [x] Verify OpenAPI spec is auto-generated
 
 **Validation Checkpoint 0.5**:
 ```bash
@@ -83,10 +98,10 @@ curl http://localhost:3000/docs  # OpenAPI spec available
 ```
 
 ### 0.6 First CLI Command
-- [ ] Create `apps/cli` with Commander.js
-- [ ] Implement `decision-logger meeting create <title>` command
-- [ ] Wire to API or directly to service
-- [ ] Test: CLI creates meeting and displays ID
+- [x] Create `apps/cli` with Commander.js
+- [x] Implement `decision-logger meeting create <title>` command
+- [x] Wire to API or directly to service
+- [x] Test: CLI creates meeting and displays ID
 
 **Validation Checkpoint 0.6**:
 ```bash
@@ -95,13 +110,13 @@ decision-logger meeting create "Test Meeting" --date 2026-02-27 --participants A
 ```
 
 ### Phase 0 Exit Criteria
-- [ ] Monorepo builds and tests pass
-- [ ] Single meeting can be created via API
-- [ ] Single meeting can be created via CLI
-- [ ] OpenAPI spec auto-generated from Zod
-- [ ] TDD workflow proven (test → implement → pass)
-- [ ] DI pattern working (service uses injected repository)
-- [ ] **Primary UX validated early** (CLI is the main interface)
+- [x] Monorepo builds and tests pass
+- [x] Single meeting can be created via API
+- [x] Single meeting can be created via CLI
+- [x] OpenAPI spec auto-generated from Zod
+- [x] TDD workflow proven (test → implement → pass)
+- [x] DI pattern working (service uses injected repository)
+- [x] **Primary UX validated early** (CLI is the main interface)
 
 ---
 
@@ -113,12 +128,17 @@ decision-logger meeting create "Test Meeting" --date 2026-02-27 --participants A
 - [ ] `MeetingSchema` (id, title, date, participants, status, createdAt)
 - [ ] `RawTranscriptSchema` (id, meetingId, source, format, content, metadata, uploadedAt, uploadedBy)
 - [ ] `TranscriptChunkSchema` (id, meetingId, rawTranscriptId, sequenceNumber, text, speaker?, startTime?, endTime?, chunkStrategy, tokenCount?, wordCount?, contexts, topics?, createdAt)
+- [ ] `ChunkRelevanceSchema` (id, chunkId, decisionContextId, fieldId, relevance, taggedBy, taggedAt)
+- [ ] `DecisionContextWindowSchema` (id, decisionContextId, chunkIds, selectionStrategy, totalTokens, totalChunks, relevanceScores, usedFor, createdAt, updatedAt)
 - [ ] `FlaggedDecisionSchema` (id, meetingId, suggestedTitle, contextSummary, confidence, chunkIds, suggestedTemplateId, templateConfidence, status, createdAt)
 - [ ] `DecisionContextSchema` (id, meetingId, flaggedDecisionId, title, templateId, activeField, lockedFields, draftData, status, createdAt, updatedAt)
 - [ ] `DecisionLogSchema` (id, meetingId, decisionContextId, templateId, templateVersion, fields, decisionMethod, sourceChunkIds, loggedAt, loggedBy)
 - [ ] `DecisionFieldSchema` (id, name, description, category, extractionPrompt, fieldType, placeholder, validationRules, version, isCustom, createdAt)
 - [ ] `DecisionTemplateSchema` (id, name, description, category, fields: TemplateFieldAssignment[], version, isDefault, isCustom, createdAt)
 - [ ] `TemplateFieldAssignmentSchema` (fieldId, order, required, customLabel, customDescription)
+- [ ] `ExpertTemplateSchema` (id, name, type, promptTemplate, mcpAccess, outputSchema, isActive, createdAt, updatedAt)
+- [ ] `MCPServerSchema` (id, name, type, connectionConfig, capabilities, status, createdAt, updatedAt)
+- [ ] `ExpertAdviceSchema` (id, decisionContextId, expertId, expertName, request, response, mcpToolsUsed, requestedAt)
 - [ ] Export all schemas and inferred types from `packages/schema`
 
 **Validation Checkpoint 1.1**:
@@ -179,8 +199,10 @@ pnpm test --filter=@repo/core -- --grep="Meeting"  # All passing
 - [ ] `IRawTranscriptRepository`: create, findByMeetingId
 - [ ] `ITranscriptChunkRepository`: create, findByMeetingId, findByContext, findById, search
 - [ ] `IStreamingBufferRepository`: appendEvent, getStatus, flush, clear
+- [ ] `IChunkRelevanceRepository`: upsert, findByDecisionField, deleteByChunk
+- [ ] `IDecisionContextWindowRepository`: createOrUpdate, findByDecisionContextId, preview
 - [ ] Unit tests for each method
-- [ ] `TranscriptService`: handles upload, add, buffered stream ingestion, chunk creation, and auto-tagging with contexts
+- [ ] `TranscriptService`: handles upload, add, buffered stream ingestion, raw transcript persistence, chunk creation, semantic tagging, and auto-tagging with contexts
 - [ ] Integration tests
 
 **Validation Checkpoint 2.2**:
@@ -192,15 +214,15 @@ pnpm test --filter=@repo/core -- --grep="Meeting"  # All passing
 ```
 
 ### 2.3 Flagged Decision Service
-- [ ] `IFlaggedDecisionRepository`: create, findByMeetingId, updateStatus
+- [ ] `IFlaggedDecisionRepository`: create, findByMeetingId, findById, update, updatePriority, updateStatus
 - [ ] Unit tests
-- [ ] `FlaggedDecisionService`: CRUD operations only (no LLM yet)
+- [ ] `FlaggedDecisionService`: supports AI and manual creation, triage, prioritization, and dismissal (no LLM yet)
 - [ ] Integration tests
 
 ### 2.4 Decision Context Service
 - [ ] `IDecisionContextRepository`: create, findById, findByMeetingId, update, lockField, unlockField
 - [ ] Unit tests
-- [ ] `DecisionContextService`: manages draft state and field locking
+- [ ] `DecisionContextService`: manages draft state, field locking, and field-specific transcript retrieval
 - [ ] Integration tests
 
 ### 2.5 Decision Log Service
@@ -224,13 +246,20 @@ pnpm test --filter=@repo/core -- --grep="Meeting"  # All passing
 - [ ] `DecisionTemplateService`: template management
 - [ ] Integration tests
 
+### 2.8 Expert and MCP Configuration Services
+- [ ] `IExpertTemplateRepository`: create, findById, findAll, update, delete
+- [ ] `IMCPServerRepository`: create, findByName, findAll, update, delete
+- [ ] `IExpertAdviceHistoryRepository`: create, findByDecisionContextId
+- [ ] Unit tests
+- [ ] Integration tests
+
 **Validation Checkpoint 2.x**:
 ```bash
 pnpm test --filter=@repo/core  # All service tests passing
 pnpm test:coverage  # >80% coverage on packages/core
 ```
 
-### 2.8 CLI Commands for Data Layer
+### 2.9 CLI Commands for Data Layer
 - [ ] `decision-logger meeting list`
 - [ ] `decision-logger meeting show <id>`
 - [ ] `decision-logger transcript list [--context <tag>]`
@@ -238,9 +267,14 @@ pnpm test:coverage  # >80% coverage on packages/core
 - [ ] `decision-logger field show <id>`
 - [ ] `decision-logger template list`
 - [ ] `decision-logger template show <id>`
+- [ ] `decision-logger decisions show <flagged-id>`
+- [ ] `decision-logger decisions flag <meeting-id> --title <title> --segments <ids>`
+- [ ] `decision-logger decisions update <flagged-id>`
+- [ ] `decision-logger decisions priority <flagged-id> --priority <n>`
+- [ ] `decision-logger decisions dismiss <flagged-id>`
 - [ ] Test: All commands work with real database
 
-**Validation Checkpoint 2.8**:
+**Validation Checkpoint 2.9**:
 ```bash
 decision-logger meeting create "Test" --date 2026-02-27 --participants Alice
 decision-logger meeting list
@@ -248,6 +282,7 @@ decision-logger field list  # Shows ~25 fields
 decision-logger field list --category evaluation  # Shows evaluation fields
 decision-logger template list  # Shows 6 templates
 decision-logger template show technology-selection  # Shows field composition
+decision-logger decisions flag mtg_1 --title "Test" --segments chunk-1,chunk-2
 ```
 
 ### Phase 2 Exit Criteria
@@ -298,6 +333,8 @@ pnpm test:integration:llm  # Slow (real API, optional)
 ### 3.3 Draft Generation
 - [ ] Implement `DraftGenerationService` using the pluggable `ILLMService`
 - [ ] Generates complete draft for all template fields
+- [ ] Captures source chunk attribution for each generated field
+- [ ] Persists chunk relevance records for field-specific retrieval
 - [ ] Unit tests with mock responses
 - [ ] Verify Zod schema validation on LLM output
 
@@ -314,6 +351,7 @@ expect(draft.fields.decision_statement).toBeDefined();
 - [ ] Field-tagged chunks get highest priority
 - [ ] Decision-tagged chunks get medium priority
 - [ ] Meeting-tagged chunks get lowest priority
+- [ ] Support explicit field transcript retrieval before regeneration
 - [ ] Unit tests with mock LLM
 
 **Validation Checkpoint 3.4**:
@@ -361,6 +399,7 @@ pnpm test:llm -- --grep="decision detection"
 - [ ] Add prompt versioning (v1, v2, etc.)
 - [ ] Document prompt refinement process in `docs/prompt-engineering.md`
 - [ ] Document decision detection architecture in `docs/decision-detection-architecture.md`
+- [ ] Treat `DecisionField.extractionPrompt` in the field library as the canonical source for field extraction prompts
 
 ### 3.6 CLI Commands for LLM Features
 - [ ] `decision-logger decisions flagged` (uses real LLM)
@@ -527,6 +566,7 @@ decision-logger decision log --type consensus --details "All agreed" --actors Al
 ### 5.1 Expert Templates
 - [ ] `ExpertRepository`: CRUD for expert templates
 - [ ] Seed default experts (Technical, Legal, Stakeholder)
+- [ ] Support core and custom expert definitions
 - [ ] Unit tests for template management
 
 **Validation Checkpoint 5.1**:
@@ -539,6 +579,7 @@ expect(expert.systemPrompt).toContain('technical architecture');
 - [ ] `ExpertService`: consult(expertId, context)
 - [ ] Test: Expert returns domain-specific advice
 - [ ] Test: MCP tools are injected into expert context
+- [ ] Persist advice history and tools used for auditability
 
 **Validation Checkpoint 5.2**:
 ```typescript
@@ -557,7 +598,12 @@ expect(advice.concerns).toBeDefined();
 pnpm test --filter=@repo/core -- --grep="Expert"  # All passing
 ```
 
-### 5.4 Expert Prompt Refinement
+### 5.4 MCP Server Registry
+- [ ] Implement CRUD and validation for MCP server registry
+- [ ] Implement tool/resource discovery endpoints
+- [ ] Test: Expert MCP access restrictions are enforced
+
+### 5.5 Expert Prompt Refinement
 - [ ] Extract expert system prompts to `prompts/experts/`
 - [ ] `prompts/experts/technical.md` - Technical expert persona
 - [ ] `prompts/experts/legal.md` - Legal expert persona
@@ -565,19 +611,23 @@ pnpm test --filter=@repo/core -- --grep="Expert"  # All passing
 - [ ] Test expert advice quality with real decisions
 - [ ] Refine expert personas based on output quality
 
-**Validation Checkpoint 5.4**:
+**Validation Checkpoint 5.5**:
 ```bash
 decision-logger draft expert-advice technical
 # Review: Is advice technically sound?
 # Refine prompts/experts/technical.md if needed
 ```
 
-### 5.5 CLI Commands for Expert System
+### 5.6 CLI Commands for Expert System
 - [ ] `decision-logger draft expert-advice <expert-type> [--focus <area>]`
+- [ ] `decision-logger expert list`
+- [ ] `decision-logger expert create <name> --prompt-file <file> --mcp-servers <servers>`
+- [ ] `decision-logger mcp list`
+- [ ] `decision-logger mcp register <name> --type <type> --config <file>`
 - [ ] Test: Consult each expert type
 - [ ] Verify advice is contextual and useful
 
-**Validation Checkpoint 5.5**:
+**Validation Checkpoint 5.6**:
 ```bash
 decision-logger context set-decision flag_1
 decision-logger draft expert-advice technical
@@ -591,6 +641,7 @@ decision-logger draft expert-advice stakeholder
 - [ ] Consultation returns structured advice
 - [ ] Multiple experts can be consulted
 - [ ] MCP tool integration working
+- [ ] Custom experts and MCP servers are manageable through the system
 - [ ] **Expert prompts externalized and refinable**
 - [ ] **CLI commands for expert consultation working**
 
@@ -614,6 +665,8 @@ decision-logger draft expert-advice stakeholder
 - [ ] GET /api/meetings/:id/streaming/status
 - [ ] POST /api/meetings/:id/streaming/flush
 - [ ] DELETE /api/meetings/:id/streaming/buffer
+- [ ] GET /api/meetings/:id/transcripts/raw
+- [ ] GET /api/raw-transcripts/:id
 - [ ] GET /api/meetings/:id/chunks (query with context/time/strategy filters)
 - [ ] GET /api/chunks/:id
 - [ ] POST /api/chunks/search
@@ -642,12 +695,22 @@ curl http://localhost:3000/api/context
 
 ### 6.4 Decision Workflow Endpoints
 - [ ] GET /api/meetings/:id/flagged-decisions (list flagged)
+- [ ] POST /api/meetings/:id/flagged-decisions (manual create)
+- [ ] GET /api/flagged-decisions/:id
+- [ ] PATCH /api/flagged-decisions/:id
+- [ ] PATCH /api/flagged-decisions/:id/priority
+- [ ] DELETE /api/flagged-decisions/:id
 - [ ] GET /api/flagged-decisions/:id/context (get context for flagged decision - **web UI resume**)
 - [ ] GET /api/meetings/:id/decision-contexts (list decision contexts - **web UI drafts list**)
 - [ ] GET /api/meetings/:id/summary (meeting stats - **web UI dashboard**)
+- [ ] GET /api/decision-contexts/:id/context-window
+- [ ] POST /api/decision-contexts/:id/context-window
+- [ ] GET /api/decision-contexts/:id/context-window/preview
 - [ ] POST /api/decision-contexts/:id/generate-draft (generate)
 - [ ] POST /api/decision-contexts/:id/regenerate (full regenerate)
 - [ ] POST /api/decision-contexts/:id/regenerate-field (single field)
+- [ ] GET /api/decision-contexts/:id/fields/:fieldId/transcript
+- [ ] POST /api/decision-contexts/:id/fields/:fieldId/regenerate
 - [ ] POST /api/decision-contexts/:id/lock-field (lock)
 - [ ] DELETE /api/decision-contexts/:id/lock-field (unlock)
 - [ ] POST /api/decision-contexts/:id/log (finalize decision)
@@ -674,6 +737,19 @@ curl http://localhost:3000/api/meetings/mtg_1/decision-contexts
 - [ ] GET /api/templates (list)
 - [ ] GET /api/templates/:id (show)
 - [ ] POST /api/templates/:id/set-default (set default)
+- [ ] Integration tests
+
+### 6.7 Expert & MCP Endpoints
+- [ ] GET /api/experts
+- [ ] POST /api/experts
+- [ ] GET /api/experts/:id
+- [ ] PATCH /api/experts/:id
+- [ ] DELETE /api/experts/:id
+- [ ] POST /api/decision-contexts/:id/experts/:expertName/consult
+- [ ] GET /api/mcp/servers
+- [ ] POST /api/mcp/servers
+- [ ] GET /api/mcp/servers/:name/tools
+- [ ] GET /api/mcp/servers/:name/resources
 - [ ] Integration tests
 
 **Validation Checkpoint 6.x**:
@@ -712,10 +788,12 @@ decision-logger draft generate  # Should show spinner during LLM call
 ### 7.2 Additional Commands
 - [ ] `decision-logger transcript stream [--file <file.txt>]` (streaming input)
 - [ ] `decision-logger draft update-field <field-id> --value <text>` (manual edit)
+- [ ] `decision-logger decisions flag|update|priority|dismiss` (triage workflow)
 - [ ] `decision-logger decision show <id>` (show logged decision)
 - [ ] `decision-logger decision export <id> --format <json|markdown>`
 - [ ] `decision-logger context clear-meeting`
 - [ ] `decision-logger template set-default <id>`
+- [ ] `decision-logger expert *` and `decision-logger mcp *` management commands
 
 ### 7.3 Error Handling & Help
 - [ ] Improve error messages (user-friendly, actionable)
