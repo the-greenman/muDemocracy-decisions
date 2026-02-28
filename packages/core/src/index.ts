@@ -4,12 +4,14 @@ export { TranscriptService } from './services/transcript-service';
 export { FlaggedDecisionService } from './services/flagged-decision-service';
 export { DecisionContextService } from './services/decision-context-service';
 export { DecisionLogService } from './services/decision-log-service';
+export { DecisionFieldService } from './services/decision-field-service';
 
 // Service Factory
 export { 
   createDecisionLogService, 
   createDecisionContextService, 
-  createTranscriptService, 
+  createTranscriptService,
+  createDecisionFieldService,
   createServices,
   type ServiceContainer 
 } from './service-factory';
@@ -26,6 +28,8 @@ export type { IDecisionContextRepository, CreateDecisionContext } from './interf
 export type { IDecisionContextService } from './interfaces/i-decision-context-service';
 export type { IDecisionLogRepository } from './interfaces/i-decision-log-repository';
 export type { IDecisionLogService } from './interfaces/i-decision-log-service';
+export type { IDecisionFieldRepository } from './interfaces/i-decision-field-repository';
+export type { IDecisionFieldService } from './interfaces/i-decision-field-service';
 export type {
   IRawTranscriptRepository,
   ITranscriptChunkRepository,
@@ -39,3 +43,4 @@ export type { Meeting, CreateMeeting, UpdateMeeting } from '@repo/schema';
 export type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
 export type { DecisionContext } from '@repo/schema';
 export type { DecisionLog, CreateDecisionLog } from '@repo/schema';
+export type { DecisionField, CreateDecisionField } from '@repo/schema';

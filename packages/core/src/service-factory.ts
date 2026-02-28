@@ -8,6 +8,7 @@
 import { DecisionLogService } from './services/decision-log-service';
 import { DecisionContextService } from './services/decision-context-service';
 import { TranscriptService } from './services/transcript-service';
+import { DecisionFieldService } from './services/decision-field-service';
 
 // Import repository implementations from db package
 import {
@@ -17,7 +18,8 @@ import {
   DrizzleTranscriptChunkRepository,
   DrizzleStreamingBufferRepository,
   DrizzleChunkRelevanceRepository,
-  DrizzleDecisionContextWindowRepository
+  DrizzleDecisionContextWindowRepository,
+  DrizzleDecisionFieldRepository
 } from '@repo/db';
 
 /**
@@ -53,12 +55,22 @@ export function createTranscriptService(): TranscriptService {
 }
 
 /**
+ * Creates a DecisionFieldService with real repositories
+ */
+export function createDecisionFieldService(): DecisionFieldService {
+  return new DecisionFieldService(
+    new DrizzleDecisionFieldRepository()
+  );
+}
+
+/**
  * Service container for all services
  */
 export interface ServiceContainer {
   decisionLogService: DecisionLogService;
   decisionContextService: DecisionContextService;
   transcriptService: TranscriptService;
+  decisionFieldService: DecisionFieldService;
 }
 
 /**
@@ -68,6 +80,7 @@ export function createServices(): ServiceContainer {
   return {
     decisionLogService: createDecisionLogService(),
     decisionContextService: createDecisionContextService(),
-    transcriptService: createTranscriptService()
+    transcriptService: createTranscriptService(),
+    decisionFieldService: createDecisionFieldService()
   };
 }

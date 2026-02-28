@@ -343,15 +343,41 @@ export const DecisionFieldSchema = z.object({
     category: 'outcome',
     extractionPrompt: 'Extract the main decision statement from the discussion',
     fieldType: 'textarea',
-    placeholder: 'Enter the decision...',
-    validationRules: [{ type: 'required' }],
+    placeholder: 'Enter the decision statement...',
+    validationRules: [
+      { type: 'required', message: 'Decision statement is required' },
+      { type: 'minLength', value: 10, message: 'Decision must be at least 10 characters' },
+    ],
     version: 1,
     isCustom: false,
-    createdAt: '2026-02-27T10:00:00Z',
+    createdAt: '2024-01-15T10:30:00Z',
   },
 });
 
 export type DecisionField = z.infer<typeof DecisionFieldSchema>;
+
+export const CreateDecisionFieldSchema = DecisionFieldSchema.omit({
+  id: true,
+  version: true,
+  isCustom: true,
+  createdAt: true,
+}).openapi('CreateDecisionField', {
+  description: 'Schema for creating a new decision field',
+  example: {
+    name: 'decision_statement',
+    description: 'The core decision being made',
+    category: 'outcome',
+    extractionPrompt: 'Extract the main decision statement from the discussion',
+    fieldType: 'textarea',
+    placeholder: 'Enter the decision statement...',
+    validationRules: [
+      { type: 'required', message: 'Decision statement is required' },
+      { type: 'minLength', value: 10, message: 'Decision must be at least 10 characters' },
+    ],
+  },
+});
+
+export type CreateDecisionField = z.infer<typeof CreateDecisionFieldSchema>;
 
 // ============================================================================
 // DECISION TEMPLATE SCHEMAS
