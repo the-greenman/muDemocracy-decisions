@@ -20,8 +20,7 @@
     "@repo/schema": "workspace:*",
     "commander": "^11.1.0",
     "chalk": "^5.3.0",
-    "cli-table3": "^0.6.3",
-    "dotenv": "^16.4.0"
+    "cli-table3": "^0.6.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

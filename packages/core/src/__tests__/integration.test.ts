@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { DrizzleMeetingRepository } from '@repo/db';
 import { MeetingService } from '@repo/core';
-import { CreateMeetingSchema } from '@repo/schema';
 
 const TEST_DB_URL = 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev';
 
