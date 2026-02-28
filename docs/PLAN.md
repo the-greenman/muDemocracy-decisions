@@ -56,13 +56,17 @@ interface FlaggedDecision {
   meetingId: string;
   suggestedTitle: string;
   contextSummary: string;
-  confidence: number;
+  confidence: number; // 0-1: how confident this is a decision
   segmentIds: string[];
+  suggestedTemplateId: string; // LLM suggests which template to use
+  templateConfidence: number; // 0-1: how confident in template choice
   status: 'pending' | 'active' | 'logged' | 'dismissed';
   createdAt: Date;
 }
 
 // Decision Context (working draft)
+type DecisionFieldValue = string | number | string[] | Record<string, unknown> | null;
+
 interface DecisionContext {
   id: string;
   meetingId: string;
@@ -76,13 +80,13 @@ interface DecisionContext {
   // Field locking
   lockedFields: {
     [fieldId: string]: {
-      value: string; // all fields are text
+      value: DecisionFieldValue; // JSON-compatible to preserve non-text fields
       lockedAt: Date;
     };
   };
   
-  // Draft state (all text fields)
-  draftData: Record<string, string>;
+  // Draft state (JSON-compatible values; dates normalized to ISO strings)
+  draftData: Record<string, DecisionFieldValue>;
   
   status: 'drafting' | 'ready' | 'logged';
   createdAt: Date;
@@ -97,8 +101,8 @@ interface DecisionLog {
   templateId: string;
   templateVersion: number;
   
-  // All fields are text
-  fields: Record<string, string>;
+  // Persisted as JSON-compatible values
+  fields: Record<string, DecisionFieldValue>;
   
   // Decision method (simplified)
   decisionMethod: {
@@ -115,41 +119,111 @@ interface DecisionLog {
   loggedBy: string;
 }
 
-// Decision Template (simplified - all text fields)
+// Decision Field (atomic unit in field library)
+interface DecisionField {
+  id: string; // e.g., "decision_statement", "options"
+  name: string;
+  description: string;
+  category: 'core' | 'evaluation' | 'impact' | 'risk' | 'financial' | 'stakeholder' | 'implementation' | 'governance';
+  extractionPrompt: {
+    system: string;
+    examples: Array<{ input: string; output: string }>;
+    constraints: string[];
+  };
+  fieldType: 'short_text' | 'long_text' | 'list' | 'structured' | 'numeric' | 'date';
+  placeholder?: string;
+  validationRules?: {
+    maxLength?: number;
+    minLength?: number;
+    pattern?: string;
+  };
+  version: number;
+  isCustom: boolean;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+// Decision Template (collection of fields)
 interface DecisionTemplate {
   id: string;
   name: string;
+  description: string;
+  category: 'general' | 'technical' | 'strategic' | 'financial' | 'governance' | 'operational';
+  fields: TemplateFieldAssignment[]; // References to fields
   version: number;
-  fields: TemplateField[];
-  isDefault: boolean; // only one template can be default
+  isDefault: boolean;
+  isCustom: boolean;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
-interface TemplateField {
-  id: string;
-  name: string;
-  label: string;
-  description?: string; // help text for LLM
-  required: boolean;
+interface TemplateFieldAssignment {
+  fieldId: string; // Reference to DecisionField
   order: number;
+  required: boolean; // Required in this template
+  customLabel?: string; // Override field name
+  customDescription?: string; // Override description
 }
 ```
 
-## Standard Decision Template
+## Field Library & Templates
 
-**Default Template: "Standard Decision"**
+The system uses a **field library** architecture:
+- **Fields** are atomic units (e.g., "decision_statement", "options", "roi_analysis")
+- **Templates** are curated collections of fields for specific decision types
+- Fields are reusable across multiple templates
+- Each field maintains its own extraction prompt
 
-Fields (all text):
-1. **decision_statement** - The decision being made
-2. **decision_context** - Background and context
-3. **evaluation_criteria** - Criteria used to evaluate options
-4. **options** - Available options (Option1, Option2, Option3, etc.)
-5. **tradeoffs** - Trade-offs between options
-6. **consequences_positive** - Positive consequences
-7. **consequences_negative** - Negative consequences
-8. **assumptions** - Assumptions made
-9. **reversibility** - How reversible is this decision
-10. **review_triggers** - When should this decision be reviewed
+> **See**: `docs/field-library-architecture.md` for complete architecture
+
+### Field Categories
+
+- **Core**: decision_statement, decision_context, decision_rationale
+- **Evaluation**: evaluation_criteria, options, evaluation_matrix, selected_option
+- **Impact**: consequences_positive, consequences_negative, stakeholder_impact, opportunity_cost
+- **Risk**: risk_assessment, risks_and_mitigations, assumptions, reversibility
+- **Financial**: budget_amount, roi_analysis, cost_breakdown, budget_source
+- **Stakeholder**: proposer, approval_authority, affected_stakeholders, stakeholder_concerns
+- **Implementation**: implementation_plan, implementation_owner, timeline, success_metrics, next_steps
+- **Governance**: compliance_requirements, approval_conditions, review_triggers, review_date
+
+### Core Templates
+
+**Standard Decision** (10 fields)
+- decision_statement, decision_context, evaluation_criteria, options, decision_rationale, consequences_positive, consequences_negative, assumptions, reversibility, review_triggers
+
+**Technology Selection** (11 fields)
+- decision_statement, decision_context (as "Problem Statement"), evaluation_criteria (as "Requirements"), options (as "Options Evaluated"), evaluation_matrix, selected_option, decision_rationale (as "Selection Rationale"), rejected_options_rationale, risks_and_mitigations, success_metrics, review_date
+
+**Budget Approval** (10 fields)
+- decision_statement, budget_amount, decision_context (as "Business Justification"), roi_analysis, cost_breakdown, budget_source, timeline, risk_assessment, approval_conditions, review_date
+
+**Strategy Decision** (9 fields)
+- decision_statement (as "Strategic Question"), decision_context (as "Current State"), selected_option (as "Chosen Direction"), decision_rationale (as "Alignment with Goals"), opportunity_cost, stakeholder_impact, timeline, success_metrics, review_triggers
+
+**Policy Change** (8 fields)
+- decision_statement (as "Policy Title"), decision_context (as "Current Policy"), decision_rationale (as "Rationale for Change"), affected_stakeholders, compliance_requirements, implementation_plan, timeline, review_triggers
+
+**Proposal Acceptance** (7 fields)
+- decision_statement (as "Proposal Title"), decision_context (as "Proposal Summary"), proposer, decision_rationale (as "Acceptance/Rejection Rationale"), stakeholder_concerns, implementation_owner, next_steps
+
+### Template Selection
+
+When decisions are flagged, the LLM suggests the most appropriate template:
+
+```bash
+decision-logger decisions flagged
+# 1. [0.89] Select database technology
+#    Template: Technology Selection (confidence: 0.95)
+# 2. [0.76] Approve roof repair budget
+#    Template: Budget Approval (confidence: 0.88)
+
+# Accept suggested template
+decision-logger context set-decision flag_1
+
+# Or override
+decision-logger context set-decision flag_1 --template standard-decision
+```
 
 ## Context Management
 
@@ -191,16 +265,16 @@ Examples:
 segment 1: ["meeting:abc"]
 
 # Set decision context
-$ decision-logger context set-decision abc flag_1
+$ decision-logger context set-decision flag_1
 segment 2: ["meeting:abc", "decision:xyz"]
 
 # Set field focus
-$ decision-logger context set-field xyz options
+$ decision-logger context set-field options
 segment 3: ["meeting:abc", "decision:xyz", "decision:xyz:options"]
 
 # Change field focus
-$ decision-logger context set-field xyz tradeoffs
-segment 4: ["meeting:abc", "decision:xyz", "decision:xyz:tradeoffs"]
+$ decision-logger context set-field decision_rationale
+segment 4: ["meeting:abc", "decision:xyz", "decision:xyz:decision_rationale"]
 
 # Clear field focus
 $ decision-logger context clear-field
@@ -227,23 +301,23 @@ Now all subsequent commands will use this meeting by default.
 
 ### 3. Add Transcripts
 ```bash
-# Upload complete transcript
-$ decision-logger transcript upload mtg_123 transcript.json
+# Upload complete transcript (context-aware, uses active meeting)
+$ decision-logger transcript upload transcript.json
 
 # Or add segments manually
-$ decision-logger transcript add mtg_123 \
+$ decision-logger transcript add \
   --speaker "Alice" \
   --text "I think we should approve the roof repair"
 
 # Or stream
-$ decision-logger transcript stream mtg_123 < live.txt
+$ decision-logger transcript stream < live.txt
 ```
 
 LLM automatically flags potential decisions.
 
 ### 3. View Flagged Decisions
 ```bash
-$ decision-logger decisions flagged mtg_123
+$ decision-logger decisions flagged
 1. [0.89] Approve roof repair budget (segments 12-18)
 2. [0.76] Update guest parking policy (segments 25-30)
 ```
@@ -251,12 +325,12 @@ $ decision-logger decisions flagged mtg_123
 ### 4. Set Decision Context
 ```bash
 # Option 1: Use default template
-$ decision-logger context set-decision mtg_123 flag_1
+$ decision-logger context set-decision flag_1
 Active decision: "Approve roof repair budget" (dec_xyz)
 Template: Standard Decision (default)
 
 # Option 2: Specify template explicitly
-$ decision-logger context set-decision mtg_123 flag_1 --template budget-approval
+$ decision-logger context set-decision flag_1 --template budget-approval
 Active decision: "Approve roof repair budget" (dec_xyz)
 Template: Budget Approval
 ```
@@ -265,7 +339,7 @@ All new segments now auto-tagged with `decision:dec_xyz`.
 
 ### 5. Add More Context
 ```bash
-$ decision-logger transcript add mtg_123 \
+$ decision-logger transcript add \
   --speaker "Bob" \
   --text "The contractor quoted £45,000 for full replacement"
 # Auto-tagged: ["meeting:mtg_123", "decision:dec_xyz"]
@@ -273,7 +347,7 @@ $ decision-logger transcript add mtg_123 \
 
 ### 6. Focus on Specific Field
 ```bash
-$ decision-logger context set-field dec_xyz options
+$ decision-logger context set-field options
 Active field: options
 ```
 
@@ -281,11 +355,11 @@ All new segments now auto-tagged with `decision:dec_xyz:options`.
 
 ### 7. Add Field-Specific Content
 ```bash
-$ decision-logger transcript add mtg_123 \
+$ decision-logger transcript add \
   --speaker "Carol" \
   --text "Option 1: Full replacement for £45k, lasts 20 years"
 
-$ decision-logger transcript add mtg_123 \
+$ decision-logger transcript add \
   --speaker "Carol" \
   --text "Option 2: Patch repair for £12k, lasts 3 years"
 # Both auto-tagged with field context
@@ -293,10 +367,10 @@ $ decision-logger transcript add mtg_123 \
 
 ### 8. Generate Draft
 ```bash
-$ decision-logger draft generate dec_xyz
+$ decision-logger draft generate
 Generated draft decision log
 
-$ decision-logger draft show dec_xyz
+$ decision-logger draft show
 Decision: Approve roof repair budget
 Template: Standard Decision
 
@@ -309,24 +383,24 @@ Fields:
 
 ### 9. Lock Satisfied Fields
 ```bash
-$ decision-logger draft lock-field dec_xyz options
+$ decision-logger draft lock-field options
 Locked field: options
 
-$ decision-logger draft lock-field dec_xyz decision_statement
+$ decision-logger draft lock-field decision_statement
 Locked field: decision_statement
 ```
 
 ### 10. Refine Other Fields
 ```bash
 # Focus on consequences
-$ decision-logger context set-field dec_xyz consequences_positive
+$ decision-logger context set-field consequences_positive
 
-$ decision-logger transcript add mtg_123 \
+$ decision-logger transcript add \
   --speaker "Alice" \
   --text "This will prevent water damage and increase property value"
 
 # Regenerate only unlocked fields
-$ decision-logger draft regenerate dec_xyz
+$ decision-logger draft regenerate
 Regenerated draft (locked fields preserved)
 ```
 
@@ -335,7 +409,7 @@ Repeat steps 6-10 for each field until all fields are locked.
 
 ### 12. Log Final Decision
 ```bash
-$ decision-logger decision log dec_xyz \
+$ decision-logger decision log \
   --type "consensus" \
   --details "All committee members agreed" \
   --actors "Alice,Bob,Carol,David" \
@@ -375,6 +449,48 @@ CREATE TABLE transcript_segments (
   UNIQUE(meeting_id, sequence_number)
 );
 
+-- Decision Fields Library
+CREATE TABLE decision_fields (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('core', 'evaluation', 'impact', 'risk', 'financial', 'stakeholder', 'implementation', 'governance')),
+  extraction_prompt JSONB NOT NULL,
+  field_type TEXT NOT NULL CHECK (field_type IN ('short_text', 'long_text', 'list', 'structured', 'numeric', 'date')),
+  placeholder TEXT,
+  validation_rules JSONB,
+  version INTEGER NOT NULL DEFAULT 1,
+  is_custom BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ
+);
+
+-- Decision Templates
+CREATE TABLE decision_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  category TEXT NOT NULL CHECK (category IN ('general', 'technical', 'strategic', 'financial', 'governance', 'operational')),
+  version INTEGER NOT NULL DEFAULT 1,
+  is_default BOOLEAN DEFAULT false,
+  is_custom BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ
+);
+
+-- Template-Field Assignments (many-to-many)
+CREATE TABLE template_field_assignments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id TEXT NOT NULL REFERENCES decision_templates(id) ON DELETE CASCADE,
+  field_id TEXT NOT NULL REFERENCES decision_fields(id) ON DELETE RESTRICT,
+  order_index INTEGER NOT NULL,
+  required BOOLEAN NOT NULL DEFAULT false,
+  custom_label TEXT,
+  custom_description TEXT,
+  UNIQUE(template_id, field_id),
+  UNIQUE(template_id, order_index)
+);
+
 -- Flagged Decisions
 CREATE TABLE flagged_decisions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -383,6 +499,8 @@ CREATE TABLE flagged_decisions (
   context_summary TEXT,
   confidence REAL CHECK (confidence >= 0 AND confidence <= 1),
   segment_ids UUID[] NOT NULL,
+  suggested_template_id TEXT REFERENCES decision_templates(id) ON DELETE SET NULL,
+  template_confidence REAL CHECK (template_confidence >= 0 AND template_confidence <= 1),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'logged', 'dismissed')),
   source TEXT NOT NULL DEFAULT 'ai' CHECK (source IN ('ai', 'manual')),
   priority INTEGER DEFAULT 0,
@@ -396,7 +514,7 @@ CREATE TABLE decision_contexts (
   meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
   flagged_decision_id UUID REFERENCES flagged_decisions(id),
   title TEXT NOT NULL,
-  template_id UUID NOT NULL,
+  template_id TEXT NOT NULL REFERENCES decision_templates(id),
   active_field TEXT,
   locked_fields JSONB DEFAULT '{}',
   draft_data JSONB DEFAULT '{}',
@@ -405,26 +523,12 @@ CREATE TABLE decision_contexts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Decision Templates
-CREATE TABLE decision_templates (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  version INTEGER DEFAULT 1,
-  fields JSONB NOT NULL,
-  is_default BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(name, version)
-);
-
--- Index for default template lookup
-CREATE UNIQUE INDEX idx_templates_default ON decision_templates(is_default) WHERE is_default = true;
-
 -- Decision Logs (immutable once created)
 CREATE TABLE decision_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   meeting_id UUID NOT NULL REFERENCES meetings(id),
   decision_context_id UUID NOT NULL REFERENCES decision_contexts(id),
-  template_id UUID NOT NULL,
+  template_id TEXT NOT NULL REFERENCES decision_templates(id),
   template_version INTEGER NOT NULL,
   fields JSONB NOT NULL,
   decision_method JSONB NOT NULL,
@@ -437,11 +541,14 @@ CREATE TABLE decision_logs (
 CREATE INDEX idx_segments_meeting ON transcript_segments(meeting_id);
 CREATE INDEX idx_segments_contexts ON transcript_segments USING GIN(contexts);
 CREATE INDEX idx_segments_sequence ON transcript_segments(meeting_id, sequence_number);
+CREATE INDEX idx_field_category ON decision_fields(category);
+CREATE INDEX idx_template_fields ON template_field_assignments(template_id, order_index);
 CREATE INDEX idx_flagged_meeting ON flagged_decisions(meeting_id);
 CREATE INDEX idx_flagged_status ON flagged_decisions(status) WHERE status = 'pending';
 CREATE INDEX idx_contexts_meeting ON decision_contexts(meeting_id);
 CREATE INDEX idx_contexts_status ON decision_contexts(status);
 CREATE INDEX idx_logs_meeting ON decision_logs(meeting_id);
+CREATE UNIQUE INDEX idx_templates_default ON decision_templates(is_default) WHERE is_default = true;
 ```
 
 ## API Endpoints
@@ -487,9 +594,28 @@ Response: {segments: TranscriptSegment[]}
 
 ### Context Management
 ```typescript
+// Global context (for web UI state management)
+GET /api/context
+Response: {
+  activeMeetingId?: string,
+  activeDecisionContextId?: string,
+  activeFieldId?: string,
+  meeting?: Meeting,              // Populated if active
+  decisionContext?: DecisionContext,  // Populated if active
+  field?: DecisionField           // Populated if active
+}
+
+POST /api/context/meeting
+Body: {meetingId: string}
+Response: {activeMeetingId: string}
+
+DELETE /api/context/meeting
+Response: {cleared: true}
+
+// Meeting-specific context (legacy, kept for compatibility)
 GET /api/meetings/:id/context
 Response: {
-  activeDecisionId?: string,
+  activeDecisionContextId?: string,
   activeField?: string
 }
 
@@ -513,11 +639,33 @@ Response: {cleared: true}
 GET /api/meetings/:id/flagged-decisions
 Response: {flagged: FlaggedDecision[]}
 
+GET /api/flagged-decisions/:id/context
+Response: DecisionContext | null
+
+GET /api/meetings/:id/decision-contexts
+Query: {status?: 'drafting' | 'ready' | 'logged'}
+Response: {contexts: DecisionContext[]}
+
+GET /api/meetings/:id/summary
+Response: {
+  meeting: Meeting,
+  stats: {
+    segmentCount: number,
+    flaggedDecisionCount: number,
+    draftDecisionCount: number,
+    loggedDecisionCount: number
+  }
+}
+
 POST /api/decision-contexts/:id/generate-draft
-Response: {draftData: Record<string, string>}
+Response: {draftData: Record<string, DecisionFieldValue>}
 
 POST /api/decision-contexts/:id/regenerate
-Response: {draftData: Record<string, string>}
+Response: {draftData: Record<string, DecisionFieldValue>}
+
+POST /api/decision-contexts/:id/regenerate-field
+Body: {fieldId: string}
+Response: {fieldId: string, value: DecisionFieldValue}
 
 GET /api/decision-contexts/:id
 Response: DecisionContext
@@ -526,8 +674,8 @@ POST /api/decision-contexts/:id/lock-field
 Body: {fieldId: string}
 Response: DecisionContext
 
-POST /api/decision-contexts/:id/unlock-field
-Body: {fieldId: string}
+DELETE /api/decision-contexts/:id/lock-field
+Query: {fieldId: string}
 Response: DecisionContext
 
 POST /api/decision-contexts/:id/log
@@ -539,20 +687,33 @@ Body: {
 }
 Response: DecisionLog
 
-GET /api/decision-logs/:id
+GET /api/meetings/:id/decisions
+Response: {decisions: DecisionLog[]}
+
+GET /api/decisions/:id
 Response: DecisionLog
 
-GET /api/decision-logs/:id/export
+GET /api/decisions/:id/export
 Query: {format: 'json' | 'markdown'}
 Response: File (download)
 ```
 
-### Templates
+### Field Library & Templates
 ```typescript
+GET /api/fields
+Query: {category?: string}
+Response: {fields: DecisionField[]}
+
+GET /api/fields/:id
+Response: DecisionField
+
 GET /api/templates
 Response: {templates: DecisionTemplate[]}
 
 GET /api/templates/:id
+Response: DecisionTemplate
+
+POST /api/templates/:id/set-default
 Response: DecisionTemplate
 ```
 
@@ -594,6 +755,8 @@ decision-logger decision show <decision-log-id>
 decision-logger decision export <decision-log-id> --format <json|markdown> [--output <file>]
 
 # Templates
+decision-logger field list [--category <category>]
+decision-logger field show <field-id>
 decision-logger template list
 decision-logger template show <template-id>
 decision-logger template set-default <template-id>
@@ -602,20 +765,48 @@ decision-logger template set-default <template-id>
 ## LLM Integration (Vercel AI SDK)
 
 ### Decision Detection
+
+**Critical**: Decision detection must catch **implicit decisions**, especially decisions NOT to act.
+
+> **See**: `docs/decision-detection-architecture.md` for complete prompt architecture and refinement process
+
+**Key patterns to detect**:
+- Explicit: "We decided to use X"
+- Implicit defer: "I want alignment" → decision to delay
+- Implicit reject: "I don't like these options" → decision to reject and seek alternatives
+- Implicit redirect: "Let's focus on X instead" → decision to deprioritize Y
+- Consensus by silence: No objections → implicit approval
+
 ```typescript
 import { generateObject } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
-import { FlaggedDecisionsSchema } from '@repo/types';
+import { FlaggedDecisionsSchema } from '@repo/schema';
+import decisionDetectionPrompt from '../../../prompts/decision-detection.md';
 
-async function detectDecisions(segments: TranscriptSegment[]) {
+async function detectDecisions(
+  meetingId: string,
+  segments: TranscriptSegment[]
+): Promise<FlaggedDecision[]> {
   const { object } = await generateObject({
     model: anthropic('claude-3-5-sonnet-latest'),
     schema: FlaggedDecisionsSchema,
-    system: "Analyze this meeting transcript and identify all decisions made...",
-    prompt: `Transcript: ${segments.map(s => `[${s.sequenceNumber}] ${s.speaker}: ${s.text}`).join('\n')}`
+    system: decisionDetectionPrompt.system, // Versioned prompt (currently v3)
+    prompt: `
+Transcript:
+${segments.map(s => `[${s.sequenceNumber}] ${s.speaker}: ${s.text}`).join('\n')}
+
+Identify ALL decisions, including implicit decisions and decisions not to act.
+    `.trim()
   });
   
-  return object.decisions;
+  // Filter low-confidence decisions (< 0.5)
+  const decisions = object.decisions.filter(d => d.confidence >= 0.5);
+  
+  return decisions.map(d => ({
+    ...d,
+    meetingId,
+    status: 'pending'
+  }));
 }
 ```
 
@@ -623,7 +814,7 @@ async function detectDecisions(segments: TranscriptSegment[]) {
 ```typescript
 import { generateObject } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
-import { DecisionDraftSchema } from '@repo/types';
+import { DecisionDraftSchema } from '@repo/schema';
 
 async function generateDraft(decisionContextId: string) {
   const context = await getDecisionContext(decisionContextId);
@@ -645,7 +836,7 @@ async function generateDraft(decisionContextId: string) {
 async function regenerateField(
   decisionContextId: string,
   fieldId: string
-): Promise<string> {
+): Promise<DecisionFieldValue> {
   const context = await getDecisionContext(decisionContextId);
   
   // Check if locked
@@ -654,7 +845,14 @@ async function regenerateField(
   }
   
   const template = await getTemplate(context.templateId);
-  const field = template.fields.find(f => f.id === fieldId);
+  const assignment = template.fields.find(f => f.fieldId === fieldId);
+  if (!assignment) {
+    throw new Error('Field is not part of the active template');
+  }
+
+  const field = await fieldRepo.findById(fieldId);
+  const displayLabel = assignment.customLabel ?? field.name;
+  const displayDescription = assignment.customDescription ?? field.description;
   
   // Get field-specific segments (highest priority)
   const fieldSegments = await getSegmentsByContext(
@@ -669,11 +867,15 @@ async function regenerateField(
   // Combine, prioritizing field-specific
   const allSegments = [...fieldSegments, ...decisionSegments];
   
-  const prompt = `
-Extract the value for the "${field.label}" field from this transcript.
+  const { object } = await generateObject({
+    model: anthropic('claude-3-5-sonnet-latest'),
+    schema: getFieldOutputSchema(field.fieldType),
+    system: field.extractionPrompt.system,
+    prompt: `
+Extract the value for the "${displayLabel}" field from this transcript.
 
-Field: ${field.label}
-Description: ${field.description || 'N/A'}
+Field: ${displayLabel}
+Description: ${displayDescription}
 
 Transcript (segments tagged with this field are most relevant):
 ${allSegments.map(s => {
@@ -681,69 +883,46 @@ ${allSegments.map(s => {
   return `[${s.sequenceNumber}]${isFieldSpecific ? ' ***' : ''} ${s.speaker}: ${s.text}`;
 }).join('\n')}
 
-Extract the value as plain text. Recent segments have higher weight.
+Recent field-tagged segments have the highest weight. Preserve the field's native shape.
+`.trim()
+  });
 
-Return JSON:
-{
-  "value": "extracted text value"
-}
-`;
-
-  const response = await llmService.complete(prompt);
-  return parseFieldValue(response);
+  return object.value;
 }
 ```
 
 ## Export Format
 
-### Markdown Template
-```markdown
-# {decision_statement}
+Exports are **template-driven**, not hardcoded to a single fixed field set.
 
-**Meeting:** {meeting_title}
-**Date:** {meeting_date}
-**Decision Method:** {decision_method.type}
-**Details:** {decision_method.details}
-**Decision Makers:** {decision_method.actors}
+### Markdown Rendering Rules
 
-## Context
+- Use the active template's ordered field assignments to determine section order.
+- For each field, render `customLabel` when present; otherwise use the field library name.
+- Omit empty optional fields by default.
+- Render values by field type:
+  - `short_text`, `long_text`, `date`, `numeric`: prose/value block
+  - `list`: markdown list
+  - `structured`: formatted JSON block or field-specific formatter
+- Prepend shared metadata (`Meeting`, `Date`, `Decision Method`, `Logged By`).
 
-{decision_context}
+### Example Renderer Shape
 
-## Evaluation Criteria
+```typescript
+function renderDecisionLogMarkdown(log: DecisionLog, template: DecisionTemplate) {
+  const sections = template.fields
+    .sort((a, b) => a.order - b.order)
+    .map((assignment) => {
+      const value = log.fields[assignment.fieldId];
+      if (value == null || value === '') return null;
 
-{evaluation_criteria}
+      const label = assignment.customLabel ?? getFieldName(assignment.fieldId);
+      return renderSection(label, value);
+    })
+    .filter(Boolean);
 
-## Options
-
-{options}
-
-## Trade-offs
-
-{tradeoffs}
-
-## Consequences
-
-### Positive
-{consequences_positive}
-
-### Negative
-{consequences_negative}
-
-## Assumptions
-
-{assumptions}
-
-## Reversibility
-
-{reversibility}
-
-## Review Triggers
-
-{review_triggers}
-
----
-*Logged by {logged_by} on {logged_at}*
+  return [renderMetadata(log), ...sections].join('\n\n');
+}
 ```
 
 ## Development Philosophy (Agentic-Safe)
@@ -759,11 +938,13 @@ To ensure consistency, minimize duplication, and facilitate high-quality agentic
 ### Backend
 - **Runtime**: Node.js 20+
 - **Framework**: Hono (lightweight, fast)
-- **Database**: PostgreSQL 16+ with pgvector
+- **Database**: PostgreSQL 16+
 - **ORM**: Drizzle ORM
 - **LLM**: Vercel AI SDK (with Claude 3.5 Sonnet)
 - **Validation**: Zod
 - **Testing**: Vitest
+
+> **Note**: pgvector extension is not required for initial implementation. See `docs/pgvector-justification.md` for future considerations.
 
 ### CLI
 - **Framework**: Commander.js (routing)
@@ -814,7 +995,7 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - **Phase 7**: CLI Application - Interactive Clack interface
 - **Phase 8**: Export & Polish - Documentation and production readiness
 
-### Phase Summary (Original Reference)
+### Phase Summary (Reference)
 
 ### Phase 1: Foundation (Week 1)
 - [ ] Initialize Turborepo monorepo structure
@@ -822,8 +1003,9 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Implement `@hono/zod-openapi` pipeline in `apps/api`
 - [ ] Automate `openapi.yaml` generation and decommission manual file
 - [ ] Set up `packages/db` with `drizzle-zod` alignment
+- [ ] Define field-library schemas (`DecisionField`, `DecisionTemplate`, `TemplateFieldAssignment`)
 - [ ] Set up `packages/core` with Service-Repository pattern and DI container
-- [ ] Configure PostgreSQL 16+ with pgvector
+- [ ] Configure PostgreSQL 16+
 - [ ] Configure Vitest for monorepo testing (TDD ready)
 - [ ] Implement shared error handling and domain exceptions in `packages/core`
 
@@ -831,8 +1013,9 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] TDD: Meeting Repository and Service
 - [ ] TDD: Transcript Segment Repository and Service
 - [ ] TDD: Context Tagging logic and Service
+- [ ] TDD: Decision Field Repository and Service
 - [ ] TDD: Decision Template Repository and Service
-- [ ] TDD: Standard Decision Template seeding
+- [ ] TDD: Field library + core template seeding
 
 ### Phase 3: LLM & Expert Integration (Week 2)
 - [ ] Implement Vercel AI SDK abstraction layer in `@repo/core`

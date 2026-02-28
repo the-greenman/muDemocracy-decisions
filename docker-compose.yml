@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: decision-logger-db
+    environment:
+      POSTGRES_USER: decision_logger
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: decision_logger_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U decision_logger"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Drizzle Studio for DB inspection
+  # Uncomment if you want a web UI for the database
+  # drizzle-studio:
+  #   image: node:20-alpine
+  #   container_name: decision-logger-studio
+  #   working_dir: /app
+  #   volumes:
+  #     - .:/app
+  #   command: npx drizzle-kit studio
+  #   ports:
+  #     - "4983:4983"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     DATABASE_URL: postgresql://decision_logger:dev_password@postgres:5432/decision_logger_dev
+
+volumes:
+  postgres_data:
+    driver: local
