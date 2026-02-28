@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-transcript-repository';
 import { db } from '../../src/client';
-import { rawTranscripts } from '../../src/schema';
+import { rawTranscripts, meetings } from '../../src/schema';
 import { eq } from 'drizzle-orm';
 import { CreateRawTranscript } from '@repo/schema';
 import { randomUUID } from 'crypto';
@@ -18,6 +18,15 @@ describe('DrizzleRawTranscriptRepository', () => {
     repository = new DrizzleRawTranscriptRepository();
     testMeetingId = randomUUID();
     
+    // Create a test meeting to satisfy foreign key constraint
+    await db.insert(meetings).values({
+      id: testMeetingId,
+      title: 'Test Meeting',
+      date: new Date().toISOString(),
+      participants: [],
+      status: 'active',
+    });
+    
     // Clean up any existing test data
     await db.delete(rawTranscripts).where(eq(rawTranscripts.meetingId, testMeetingId));
   });
@@ -25,6 +34,7 @@ describe('DrizzleRawTranscriptRepository', () => {
   afterEach(async () => {
     // Clean up test data
     await db.delete(rawTranscripts).where(eq(rawTranscripts.meetingId, testMeetingId));
+    await db.delete(meetings).where(eq(meetings.id, testMeetingId));
   });
 
   describe('create', () => {
@@ -86,7 +96,7 @@ describe('DrizzleRawTranscriptRepository', () => {
 
       // Create a transcript for a different meeting
       await repository.create({
-        meetingId: 'other-meeting',
+        meetingId: '11111111-1111-1111-1111-111111111111',
         source: 'upload',
         format: 'txt',
         content: 'Other transcript',
@@ -100,7 +110,7 @@ describe('DrizzleRawTranscriptRepository', () => {
     });
 
     it('should return empty array for meeting with no transcripts', async () => {
-      const results = await repository.findByMeetingId('non-existent-meeting');
+      const results = await repository.findByMeetingId('00000000-0000-0000-0000-000000000000');
       expect(results).toEqual([]);
     });
   });
@@ -122,7 +132,7 @@ describe('DrizzleRawTranscriptRepository', () => {
     });
 
     it('should return null for non-existent ID', async () => {
-      const result = await repository.findById('non-existent-id');
+      const result = await repository.findById('00000000-0000-0000-0000-000000000000');
       expect(result).toBeNull();
     });
   });

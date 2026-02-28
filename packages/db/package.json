@@ -19,7 +19,7 @@
     "dev": "tsup --watch",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
+    "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
     "db:validate": "drizzle-kit check",
     "db:seed": "tsx scripts/seed.ts",

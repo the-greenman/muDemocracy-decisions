@@ -234,16 +234,16 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
   private mapToSchema(row: any): DecisionContext {
     return {
       id: row.id,
-      meetingId: row.meetingId, // Drizzle returns camelCase
-      flaggedDecisionId: row.flaggedDecisionId,
+      meetingId: row.meeting_id || row.meetingId, // Handle both snake_case from raw SQL and camelCase from Drizzle
+      flaggedDecisionId: row.flagged_decision_id || row.flaggedDecisionId,
       title: row.title,
-      templateId: row.templateId,
-      activeField: row.activeField, // Keep null from DB, TypeScript will treat as undefined
-      lockedFields: row.lockedFields,
-      draftData: row.draftData || undefined,
+      templateId: row.template_id || row.templateId,
+      activeField: row.active_field || row.activeField, // Keep null from DB, TypeScript will treat as undefined
+      lockedFields: row.locked_fields || row.lockedFields,
+      draftData: row.draft_data || row.draftData || undefined,
       status: row.status,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
+      createdAt: (row.created_at || row.createdAt).toISOString(),
+      updatedAt: (row.updated_at || row.updatedAt).toISOString(),
     };
   }
 }

@@ -10,7 +10,6 @@
  */
 
 import { pgTable, uuid, text, date, timestamp, pgEnum, index, integer, jsonb, boolean, real } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
 
 // ============================================================================
 // MEETINGS
@@ -352,9 +351,10 @@ export type ExpertAdviceInsert = typeof expertAdvice.$inferInsert;
 // RELATIONS
 // ============================================================================
 
-export const meetingsRelations = relations(meetings, () => ({
-  // Will add relations in later phases
-}));
+// TODO: Add relations in later phases
+// export const meetingsRelations = relations(meetings, () => ({
+//   // Will add relations in later phases
+// }));
 
 // ============================================================================
 // EXPORTS

@@ -2,12 +2,19 @@
  * Drizzle implementation of IFlaggedDecisionRepository
  */
 
-import type { IFlaggedDecisionRepository } from '@repo/core';
 import { FlaggedDecision } from '@repo/schema';
 import type { CreateFlaggedDecision } from '@repo/schema';
 import { db } from '../client';
 import { flaggedDecisions } from '../schema';
 import { eq, desc } from 'drizzle-orm';
+
+// Interface definition to avoid circular dependency
+interface IFlaggedDecisionRepository {
+  create(data: CreateFlaggedDecision): Promise<FlaggedDecision>;
+  findById(id: string): Promise<FlaggedDecision | null>;
+  findByMeetingId(meetingId: string): Promise<FlaggedDecision[]>;
+  updateStatus(id: string, status: FlaggedDecision['status']): Promise<FlaggedDecision | null>;
+}
 
 export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionRepository {
   async create(data: CreateFlaggedDecision): Promise<FlaggedDecision> {

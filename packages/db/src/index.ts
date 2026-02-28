@@ -13,3 +13,5 @@ export { DrizzleStreamingBufferRepository } from './repositories/streaming-buffe
 export { DrizzleChunkRelevanceRepository } from './repositories/chunk-relevance-repository';
 export { DrizzleDecisionContextWindowRepository } from './repositories/decision-context-window-repository';
 export { DrizzleFlaggedDecisionRepository } from './repositories/flagged-decision-repository';
+export { DrizzleDecisionContextRepository } from './repositories/decision-context-repository';
+export { DrizzleDecisionLogRepository } from './repositories/decision-log-repository';

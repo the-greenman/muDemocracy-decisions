@@ -120,7 +120,7 @@ describe('DrizzleChunkRelevanceRepository', () => {
       await repository.upsert({
         chunkId: testChunkId,
         decisionContextId: testDecisionContextId,
-        fieldId: 'other-field',
+        fieldId: '11111111-1111-1111-1111-111111111111',
         relevance: 0.6,
         taggedBy: 'llm',
       });
@@ -133,7 +133,7 @@ describe('DrizzleChunkRelevanceRepository', () => {
     });
 
     it('should return empty array for non-existent field', async () => {
-      const results = await repository.findByDecisionField('non-existent', 'non-existent');
+      const results = await repository.findByDecisionField('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000');
       expect(results).toEqual([]);
     });
   });
@@ -151,8 +151,8 @@ describe('DrizzleChunkRelevanceRepository', () => {
 
       await repository.upsert({
         chunkId: testChunkId,
-        decisionContextId: 'other-decision',
-        fieldId: 'other-field',
+        decisionContextId: '22222222-2222-2222-2222-222222222222',
+        fieldId: '11111111-1111-1111-1111-111111111111',
         relevance: 0.6,
         taggedBy: 'llm',
       });
@@ -177,21 +177,22 @@ describe('DrizzleChunkRelevanceRepository', () => {
 
       await repository.upsert({
         chunkId: testChunkId,
-        decisionContextId: 'other-decision',
-        fieldId: 'other-field',
-        relevance: 0.6,
-        taggedBy: 'rule',
+        decisionContextId: '33333333-3333-3333-3333-333333333333',
+        fieldId: '44444444-4444-4444-4444-444444444444',
+        relevance: 0.9,
+        taggedBy: 'manual',
       });
 
       const results = await repository.findByChunk(testChunkId);
 
       expect(results).toHaveLength(2);
-      expect(results[0]!.relevance).toBe(0.6); // Ordered by relevance
+      expect(results[0]!.relevance).toBe(0.8); // Ordered by relevance
+      expect(results[1]!.relevance).toBe(0.9);
       expect(results[1]!.relevance).toBe(0.8);
     });
 
     it('should return empty array for non-existent chunk', async () => {
-      const results = await repository.findByChunk('non-existent-chunk');
+      const results = await repository.findByChunk('00000000-0000-0000-0000-000000000000');
       expect(results).toEqual([]);
     });
   });

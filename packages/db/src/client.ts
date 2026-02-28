@@ -10,7 +10,7 @@ import postgres from 'postgres';
 import * as schema from './schema';
 
 // Connection string from environment
-const connectionString = process.env.DATABASE_URL || 'postgresql://localhost:5432/decision_logger';
+const connectionString = process.env.DATABASE_URL || 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev';
 
 // Create postgres client
 // For serverless/edge environments, use { prepare: false }

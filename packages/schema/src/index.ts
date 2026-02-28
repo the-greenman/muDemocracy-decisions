@@ -269,6 +269,11 @@ export const DecisionContextSchema = z.object({
 
 export type DecisionContext = z.infer<typeof DecisionContextSchema>;
 
+// For creation, omit auto-generated fields and defaults
+export type CreateDecisionContext = Omit<DecisionContext, 
+  'id' | 'status' | 'lockedFields' | 'createdAt' | 'updatedAt'
+>;
+
 // ============================================================================
 // DECISION LOG SCHEMAS
 // ============================================================================
@@ -281,7 +286,7 @@ export const DecisionLogSchema = z.object({
   templateVersion: z.number().int(),
   fields: z.record(z.any()),
   decisionMethod: z.object({
-    type: z.enum(['consensus', 'vote', 'authority', 'defer', 'reject']),
+    type: z.enum(['consensus', 'vote', 'authority', 'defer', 'reject', 'manual', 'ai_assisted']),
     details: z.string().optional(),
   }),
   sourceChunkIds: z.array(z.string().uuid()),
@@ -304,6 +309,8 @@ export const DecisionLogSchema = z.object({
 });
 
 export type DecisionLog = z.infer<typeof DecisionLogSchema>;
+
+export type CreateDecisionLog = Omit<DecisionLog, 'id' | 'loggedAt'>;
 
 // ============================================================================
 // DECISION FIELD SCHEMAS

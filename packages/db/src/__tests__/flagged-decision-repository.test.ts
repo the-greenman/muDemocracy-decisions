@@ -5,21 +5,18 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DrizzleFlaggedDecisionRepository } from '../../src/repositories/flagged-decision-repository';
-import { DrizzleMeetingRepository } from '../../src/repositories/meeting-repository';
 import { db } from '../../src/client';
 import { flaggedDecisions, meetings } from '../../src/schema';
 import { eq } from 'drizzle-orm';
-import { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
+import { CreateFlaggedDecision } from '@repo/schema';
 import { randomUUID } from 'crypto';
 
 describe('DrizzleFlaggedDecisionRepository', () => {
   let repository: DrizzleFlaggedDecisionRepository;
-  let meetingRepo: DrizzleMeetingRepository;
   let testMeetingId: string;
 
   beforeEach(async () => {
     repository = new DrizzleFlaggedDecisionRepository();
-    meetingRepo = new DrizzleMeetingRepository();
     testMeetingId = randomUUID();
     
     // Create a test meeting with the specific ID
@@ -77,6 +74,7 @@ describe('DrizzleFlaggedDecisionRepository', () => {
         contextSummary: 'Minimal context',
         confidence: 0.5,
         chunkIds: [randomUUID()],
+        priority: 0,
       };
 
       const result = await repository.create(data);
@@ -113,8 +111,8 @@ describe('DrizzleFlaggedDecisionRepository', () => {
       const results = await repository.findByMeetingId(testMeetingId);
 
       expect(results).toHaveLength(2);
-      expect(results[0]!.suggestedTitle).toBe('Decision 2');
-      expect(results[1]!.suggestedTitle).toBe('Decision 1');
+      expect(results[0]!.suggestedTitle).toBe('Decision 1'); // Higher priority (5) comes first
+      expect(results[1]!.suggestedTitle).toBe('Decision 2');
     });
 
     it('should return empty array for meeting with no decisions', async () => {
@@ -131,6 +129,7 @@ describe('DrizzleFlaggedDecisionRepository', () => {
         contextSummary: 'Context',
         confidence: 0.7,
         chunkIds: [randomUUID()],
+        priority: 0,
       });
 
       const result = await repository.findById(created.id);
@@ -154,6 +153,7 @@ describe('DrizzleFlaggedDecisionRepository', () => {
         contextSummary: 'Original context',
         confidence: 0.5,
         chunkIds: [randomUUID()],
+        priority: 0,
       });
 
       const updateData = {

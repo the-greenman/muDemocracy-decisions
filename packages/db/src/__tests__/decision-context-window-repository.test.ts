@@ -137,7 +137,7 @@ describe('DrizzleDecisionContextWindowRepository', () => {
 
       const regenerateData = {
         decisionContextId: testDecisionContextId,
-        chunkIds: [testChunkIds[0]],
+        chunkIds: [testChunkIds[0]!], // Non-null assertion since we know testChunkIds has values
         selectionStrategy: 'recent' as const,
         totalTokens: 50,
         totalChunks: 1,
@@ -186,7 +186,7 @@ describe('DrizzleDecisionContextWindowRepository', () => {
     });
 
     it('should return empty array for non-existent context', async () => {
-      const results = await repository.findByDecisionContextId('non-existent');
+      const results = await repository.findByDecisionContextId('00000000-0000-0000-0000-000000000000');
       expect(results).toEqual([]);
     });
   });
@@ -211,7 +211,7 @@ describe('DrizzleDecisionContextWindowRepository', () => {
     });
 
     it('should return empty preview for non-existent context', async () => {
-      const result = await repository.preview('non-existent', 'relevant', 10);
+      const result = await repository.preview('00000000-0000-0000-0000-000000000000', 'relevant', 10);
 
       expect(result.chunks).toEqual([]);
       expect(result.totalTokens).toBe(0);

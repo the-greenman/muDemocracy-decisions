@@ -210,7 +210,7 @@ describe('DrizzleTranscriptChunkRepository', () => {
     });
 
     it('should return null for non-existent ID', async () => {
-      const result = await repository.findById('non-existent-id');
+      const result = await repository.findById('00000000-0000-0000-0000-000000000000');
       expect(result).toBeNull();
     });
   });
