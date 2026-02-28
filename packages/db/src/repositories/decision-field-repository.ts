@@ -6,10 +6,20 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '../client';
 import { decisionFields } from '../schema';
 import type { 
-  IDecisionFieldRepository,
   DecisionField,
   CreateDecisionField
-} from '@repo/core';
+} from '@repo/schema';
+
+// Interface definition to avoid circular dependency
+interface IDecisionFieldRepository {
+  create(data: CreateDecisionField): Promise<DecisionField>;
+  findAll(): Promise<DecisionField[]>;
+  findById(id: string): Promise<DecisionField | null>;
+  findByCategory(category: string): Promise<DecisionField[]>;
+  findByType(type: string): Promise<DecisionField[]>;
+  update(id: string, data: Partial<CreateDecisionField>): Promise<DecisionField | null>;
+  delete(id: string): Promise<boolean>;
+}
 
 export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository {
   async create(data: CreateDecisionField): Promise<DecisionField> {

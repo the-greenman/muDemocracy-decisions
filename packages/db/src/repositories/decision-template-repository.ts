@@ -13,13 +13,34 @@ import {
 import { db } from '../client';
 import { eq, and, ilike, desc, asc, inArray } from 'drizzle-orm';
 import type { 
-  IDecisionTemplateRepository,
-  ITemplateFieldAssignmentRepository,
   DecisionTemplate,
   CreateDecisionTemplate,
   TemplateFieldAssignment,
   CreateTemplateFieldAssignment
-} from '@repo/core';
+} from '@repo/schema';
+
+// Interface definitions to avoid circular dependency
+interface IDecisionTemplateRepository {
+  create(data: CreateDecisionTemplate): Promise<DecisionTemplate>;
+  findById(id: string): Promise<DecisionTemplate | null>;
+  findAll(): Promise<DecisionTemplate[]>;
+  findByCategory(category: string): Promise<DecisionTemplate[]>;
+  findDefault(): Promise<DecisionTemplate | null>;
+  update(id: string, data: Partial<CreateDecisionTemplate>): Promise<DecisionTemplate | null>;
+  delete(id: string): Promise<boolean>;
+  setDefault(id: string): Promise<DecisionTemplate>;
+  search(query: string): Promise<DecisionTemplate[]>;
+}
+
+interface ITemplateFieldAssignmentRepository {
+  create(data: CreateTemplateFieldAssignment): Promise<TemplateFieldAssignment>;
+  createMany(data: CreateTemplateFieldAssignment[]): Promise<TemplateFieldAssignment[]>;
+  findByTemplate(templateId: string): Promise<TemplateFieldAssignment[]>;
+  findByField(fieldId: string): Promise<TemplateFieldAssignment[]>;
+  update(templateId: string, fieldId: string, data: Partial<CreateTemplateFieldAssignment>): Promise<TemplateFieldAssignment | null>;
+  delete(templateId: string, fieldId: string): Promise<boolean>;
+  deleteByTemplate(templateId: string): Promise<boolean>;
+}
 
 export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepository {
   private mapToSchema(row: DecisionTemplateSelect & { fields?: TemplateFieldAssignment[] }): DecisionTemplate {
@@ -297,7 +318,7 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     return this.mapFieldAssignmentToSchema(row);
   }
 
-  async findByTemplateId(templateId: string): Promise<TemplateFieldAssignment[]> {
+  async findByTemplate(templateId: string): Promise<TemplateFieldAssignment[]> {
     const rows = await db
       .select()
       .from(templateFieldAssignments)
@@ -307,7 +328,7 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     return rows.map(row => this.mapFieldAssignmentToSchema(row));
   }
 
-  async findByFieldId(fieldId: string): Promise<TemplateFieldAssignment[]> {
+  async findByField(fieldId: string): Promise<TemplateFieldAssignment[]> {
     const rows = await db
       .select()
       .from(templateFieldAssignments)
@@ -322,9 +343,15 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     fieldId: string,
     data: Partial<CreateTemplateFieldAssignment>
   ): Promise<TemplateFieldAssignment | null> {
+    const updateData: any = {
+      ...data,
+      customLabel: data.customLabel ?? null,
+      customDescription: data.customDescription ?? null,
+    };
+    
     const [row] = await db
       .update(templateFieldAssignments)
-      .set(data)
+      .set(updateData)
       .where(and(
         eq(templateFieldAssignments.templateId, templateId),
         eq(templateFieldAssignments.fieldId, fieldId)
@@ -346,7 +373,7 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     return result.length > 0;
   }
 
-  async deleteByTemplateId(templateId: string): Promise<boolean> {
+  async deleteByTemplate(templateId: string): Promise<boolean> {
     const result = await db
       .delete(templateFieldAssignments)
       .where(eq(templateFieldAssignments.templateId, templateId))
@@ -356,9 +383,11 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
   }
 
   async createMany(assignments: CreateTemplateFieldAssignment[]): Promise<TemplateFieldAssignment[]> {
+    // Note: This assumes templateId is added to each assignment before calling
+    // This is done in the service layer
     const rows = await db
       .insert(templateFieldAssignments)
-      .values(assignments)
+      .values(assignments as any[])
       .returning();
 
     return rows.map(row => this.mapFieldAssignmentToSchema(row));

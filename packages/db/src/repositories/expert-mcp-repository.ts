@@ -15,16 +15,16 @@ import { eq, and, ilike, desc, asc, gte, lte, sql } from 'drizzle-orm';
 import type { 
   ExpertTemplate,
   CreateExpertTemplate,
-  UpdateExpertTemplate,
   MCPServer,
   CreateMCPServer,
-  UpdateMCPServer,
   ExpertAdvice,
   CreateExpertAdvice
-} from '@repo/core';
-import { CreateMCPServerWithCompatSchema, CreateExpertAdviceWithCompatSchema } from '@repo/schema';
+} from '@repo/schema';
 
-// Interface definitions
+type UpdateExpertTemplate = Partial<Omit<CreateExpertTemplate, 'id'>>;
+type UpdateMCPServer = Partial<Omit<CreateMCPServer, 'id'>>;
+
+// Interface definitions to avoid circular dependency
 interface IExpertTemplateRepository {
   create(data: CreateExpertTemplate): Promise<ExpertTemplate>;
   findById(id: string): Promise<ExpertTemplate | null>;

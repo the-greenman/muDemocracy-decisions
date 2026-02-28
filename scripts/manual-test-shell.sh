@@ -50,6 +50,13 @@ build_workspace() {
   )
 }
 
+run_db_migrations() {
+  (
+    cd "$ROOT_DIR"
+    DATABASE_URL="$DATABASE_URL" npm exec -w @repo/db tsx scripts/migrate.ts
+  )
+}
+
 print_ready_banner() {
   cat <<EOF
 Manual test shell is ready.
@@ -61,11 +68,13 @@ Environment:
 Available commands:
   decision-logger meeting create "Test Meeting" --date 2026-02-27 --participants Alice,Bob
   decision-logger meeting list
+  decision-logger transcript add --meeting-id <meeting-id> --speaker Alice --text "We should ship this."
   decision-logger-api
 
 Notes:
-  - 'decision-logger' runs the built CLI from apps/cli/dist/index.mjs
+  - 'decision-logger' runs the built CLI from apps/cli/dist/index.js
   - 'decision-logger-api' starts the built API server in the current shell
+  - Checked-in SQL migrations are applied automatically during bootstrap
   - Use Ctrl+C to stop the API server when running it in the foreground
 EOF
 }
@@ -76,7 +85,7 @@ write_rcfile() {
   cat >"$rcfile" <<EOF
 export DATABASE_URL='$DATABASE_URL'
 cd '$ROOT_DIR'
-alias decision-logger='node "$ROOT_DIR/apps/cli/dist/index.mjs"'
+alias decision-logger='node "$ROOT_DIR/apps/cli/dist/index.js"'
 alias decision-logger-api='DATABASE_URL="$DATABASE_URL" node "$ROOT_DIR/apps/api/dist/index.js"'
 echo
 echo "Entering manual test shell for $ROOT_DIR"
@@ -93,6 +102,8 @@ setup_environment() {
   local compose_cmd
   compose_cmd="$(choose_compose_cmd)"
 
+  export DATABASE_URL
+
   (
     cd "$ROOT_DIR"
     # Only the database is required for interactive local smoke testing.
@@ -100,13 +111,14 @@ setup_environment() {
   )
 
   wait_for_postgres
+  run_db_migrations
   build_workspace
 }
 
 configure_current_shell() {
   export DATABASE_URL
   cd "$ROOT_DIR"
-  alias decision-logger="node \"$ROOT_DIR/apps/cli/dist/index.mjs\""
+  alias decision-logger="node \"$ROOT_DIR/apps/cli/dist/index.js\""
   alias decision-logger-api="DATABASE_URL=\"$DATABASE_URL\" node \"$ROOT_DIR/apps/api/dist/index.js\""
   print_ready_banner
 }
