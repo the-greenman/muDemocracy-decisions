@@ -36,6 +36,8 @@ A context-driven decision logging system with LLM-assisted extraction, iterative
 - Transcript ingestion is transport-agnostic: the core system accepts text transcript events, not raw audio.
 - Local transcription can be added as a separate upstream component, but is not required for the product to function.
 - Local LLMs are supported as an optional inference path for detection/classification, not a hard dependency.
+
+> **See**: `docs/transcription-service-plan.md` for the separate containerized transcription service boundary and integration contract
 - Detailed workflow and endpoint expansions in specialist docs are authoritative unless they conflict with the Zod schema source-of-truth rule.
 
 ## Simplified Data Model

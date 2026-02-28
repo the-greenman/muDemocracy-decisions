@@ -12,6 +12,8 @@ This document defines a detailed, phased implementation plan with validation che
 - **Fail Fast**: Small iterations expose problems early
 - **Mock External Dependencies**: LLM calls are expensive; mock them until integration phase
 - **Keep Audio Outside Core**: Audio capture/transcription may exist upstream, but the core system consumes transcript text events only
+
+> **See**: `docs/transcription-service-plan.md` for the external containerized transcription service that integrates with the transcript streaming endpoints
 - **Zod First**: All new entities and contract changes begin in `packages/schema`, then flow to Drizzle and API layers
 
 ## Specialist Doc Mapping
