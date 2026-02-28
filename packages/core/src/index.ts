@@ -6,6 +6,9 @@ export { DecisionContextService } from './services/decision-context-service';
 export { DecisionLogService } from './services/decision-log-service';
 export { DecisionFieldService } from './services/decision-field-service';
 export { DecisionTemplateService } from './services/decision-template-service';
+export { ExpertTemplateService } from './services/expert-template-service';
+export { MCPServerService } from './services/mcp-server-service';
+export { ExpertAdviceService } from './services/expert-advice-service';
 
 // Service Factory
 export { 
@@ -37,6 +40,18 @@ export type {
 } from './interfaces/i-decision-template-repository';
 export type { IDecisionTemplateService } from './interfaces/i-decision-template-service';
 export type {
+  IExpertTemplateRepository
+} from './interfaces/i-expert-template-repository';
+export type {
+  IExpertTemplateService
+} from './services/expert-template-service';
+export type {
+  IMCPServerService
+} from './services/mcp-server-service';
+export type {
+  IExpertAdviceService
+} from './services/expert-advice-service';
+export type {
   IRawTranscriptRepository,
   ITranscriptChunkRepository,
   IStreamingBufferRepository,
@@ -46,13 +61,11 @@ export type {
 
 // Re-export types from schema for convenience
 export type { Meeting, CreateMeeting, UpdateMeeting } from '@repo/schema';
-export type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
-export type { DecisionContext } from '@repo/schema';
 export type { DecisionLog, CreateDecisionLog } from '@repo/schema';
+export type { DecisionContext, CreateDecisionContext } from '@repo/schema';
 export type { DecisionField, CreateDecisionField } from '@repo/schema';
-export type { 
-  DecisionTemplate, 
-  CreateDecisionTemplate,
-  TemplateFieldAssignment,
-  CreateTemplateFieldAssignment 
-} from '@repo/schema';
+export type { DecisionTemplate, CreateDecisionTemplate } from '@repo/schema';
+export type { TemplateFieldAssignment, CreateTemplateFieldAssignment } from '@repo/schema';
+export type { ExpertTemplate, CreateExpertTemplate, UpdateExpertTemplate } from '@repo/schema';
+export type { MCPServer, CreateMCPServer, UpdateMCPServer } from '@repo/schema';
+export type { ExpertAdvice, CreateExpertAdvice } from '@repo/schema';

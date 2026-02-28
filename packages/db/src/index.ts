@@ -20,3 +20,8 @@ export {
   DrizzleDecisionTemplateRepository,
   DrizzleTemplateFieldAssignmentRepository 
 } from './repositories/decision-template-repository';
+export {
+  DrizzleExpertTemplateRepository,
+  DrizzleMCPServerRepository,
+  DrizzleExpertAdviceHistoryRepository
+} from './repositories/expert-mcp-repository';

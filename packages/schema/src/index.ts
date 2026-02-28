@@ -504,6 +504,13 @@ export const ExpertTemplateSchema = z.object({
   },
 });
 
+// For backward compatibility, add displayName as computed field
+export const ExpertTemplateWithDisplaySchema = ExpertTemplateSchema.transform((data) => ({
+  ...data,
+  displayName: data.name, // Use name as displayName
+  description: undefined, // Not stored in DB
+}));
+
 export type ExpertTemplate = z.infer<typeof ExpertTemplateSchema>;
 
 // ============================================================================
@@ -518,7 +525,7 @@ export const MCPServerSchema = z.object({
   capabilities: z.object({
     tools: z.array(z.string()).optional(),
     resources: z.array(z.string()).optional(),
-  }),
+  }).optional(),
   status: z.enum(['active', 'inactive', 'error']).default('active'),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
@@ -535,6 +542,13 @@ export const MCPServerSchema = z.object({
     updatedAt: '2026-02-27T10:00:00Z',
   },
 });
+
+// For backward compatibility, add description and connection fields
+export const MCPServerWithCompatSchema = MCPServerSchema.transform((data) => ({
+  ...data,
+  description: undefined, // Not stored in DB
+  connection: data.connectionConfig, // Map connectionConfig to connection
+}));
 
 export type MCPServer = z.infer<typeof MCPServerSchema>;
 
@@ -573,14 +587,104 @@ export const ExpertAdviceSchema = z.object({
   },
 });
 
+// For backward compatibility, map fields to expected names
+export const ExpertAdviceWithCompatSchema = ExpertAdviceSchema.transform((data) => ({
+  ...data,
+  advice: data.response, // Map response to advice
+  confidence: undefined, // Not stored in DB
+  reasoning: undefined, // Not stored in DB
+  createdAt: data.requestedAt, // Map requestedAt to createdAt
+}));
+
 export type ExpertAdvice = z.infer<typeof ExpertAdviceSchema>;
 
-// Export all schemas
-export {
-  // Re-export for convenience
-  z,
-  DecisionTemplateSchema,
-  CreateDecisionTemplateSchema,
-  TemplateFieldAssignmentSchema,
-  CreateTemplateFieldAssignmentSchema,
-};
+// CREATE AND UPDATE SCHEMAS
+// ============================================================================
+
+// Expert Template Create/Update
+export const CreateExpertTemplateSchema = ExpertTemplateSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).openapi('CreateExpertTemplate', {
+  description: 'Schema for creating a new expert template',
+  example: {
+    name: 'Technical Architecture Review',
+    type: 'technical',
+    promptTemplate: 'You are a technical architect...',
+    mcpAccess: ['github', 'docs'],
+  },
+});
+
+export const UpdateExpertTemplateSchema = CreateExpertTemplateSchema.partial().openapi('UpdateExpertTemplate', {
+  description: 'Schema for updating an expert template',
+});
+
+export type CreateExpertTemplate = z.infer<typeof CreateExpertTemplateSchema>;
+export type UpdateExpertTemplate = z.infer<typeof UpdateExpertTemplateSchema>;
+
+// MCP Server Create/Update
+export const CreateMCPServerSchema = MCPServerSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).openapi('CreateMCPServer', {
+  description: 'Schema for creating a new MCP server',
+  example: {
+    name: 'github-mcp',
+    type: 'stdio',
+    connectionConfig: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
+    capabilities: { tools: ['search_code', 'get_file'] },
+  },
+});
+
+// For backward compatibility, accept connection field instead of connectionConfig
+export const CreateMCPServerWithCompatSchema = CreateMCPServerSchema.transform((data) => {
+  if ('connection' in data && !('connectionConfig' in data)) {
+    return {
+      ...data,
+      connectionConfig: (data as any).connection,
+      connection: undefined,
+    };
+  }
+  return data;
+});
+
+export const UpdateMCPServerSchema = CreateMCPServerSchema.partial().openapi('UpdateMCPServer', {
+  description: 'Schema for updating an MCP server',
+});
+
+export type CreateMCPServer = z.infer<typeof CreateMCPServerSchema>;
+export type UpdateMCPServer = z.infer<typeof UpdateMCPServerSchema>;
+
+// Expert Advice Create
+export const CreateExpertAdviceSchema = ExpertAdviceSchema.omit({
+  id: true,
+  requestedAt: true,
+}).openapi('CreateExpertAdvice', {
+  description: 'Schema for creating expert advice',
+  example: {
+    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
+    expertId: '550e8400-e29b-41d4-a716-446655440010',
+    expertName: 'Technical Architecture Review',
+    request: 'Review this architecture decision',
+    response: {
+      suggestions: ['Consider service mesh'],
+      concerns: ['Latency concerns'],
+    },
+  },
+});
+
+// For backward compatibility, accept advice field instead of response
+export const CreateExpertAdviceWithCompatSchema = CreateExpertAdviceSchema.transform((data) => {
+  if ('advice' in data && !('response' in data)) {
+    return {
+      ...data,
+      response: (data as any).advice,
+      advice: undefined,
+    };
+  }
+  return data;
+});
+
+export type CreateExpertAdvice = z.infer<typeof CreateExpertAdviceSchema>;

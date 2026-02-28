@@ -1,0 +1,365 @@
+/**
+ * Integration tests for Expert and MCP Services
+ * Tests against real test database
+ */
+
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
+import { 
+  ExpertTemplateService,
+  MCPServerService,
+  ExpertAdviceService
+} from '@repo/core';
+import { 
+  DrizzleExpertTemplateRepository,
+  DrizzleMCPServerRepository,
+  DrizzleExpertAdviceHistoryRepository
+} from '../repositories/expert-mcp-repository';
+import { db } from '../client';
+import { sql } from 'drizzle-orm';
+import type {
+  CreateExpertTemplate,
+  CreateMCPServer,
+  CreateExpertAdvice
+} from '@repo/core';
+
+describe('Expert and MCP Service Integration Tests', () => {
+  let expertTemplateService: ExpertTemplateService;
+  let mcpServerService: MCPServerService;
+  let expertAdviceService: ExpertAdviceService;
+
+  beforeAll(async () => {
+    const expertRepo = new DrizzleExpertTemplateRepository();
+    const mcpRepo = new DrizzleMCPServerRepository();
+    const adviceRepo = new DrizzleExpertAdviceHistoryRepository();
+
+    expertTemplateService = new ExpertTemplateService(expertRepo);
+    mcpServerService = new MCPServerService(mcpRepo);
+    expertAdviceService = new ExpertAdviceService(adviceRepo, expertRepo);
+  });
+
+  beforeEach(async () => {
+    // Clean up test data
+    await db.execute(sql`DELETE FROM expert_advice`);
+    await db.execute(sql`DELETE FROM expert_templates`);
+    await db.execute(sql`DELETE FROM mcp_servers`);
+  });
+
+  afterAll(async () => {
+    // Clean up
+    await db.execute(sql`DELETE FROM expert_advice`);
+    await db.execute(sql`DELETE FROM expert_templates`);
+    await db.execute(sql`DELETE FROM mcp_servers`);
+  });
+
+  describe('ExpertTemplateService Integration', () => {
+    it('should create and retrieve expert templates', async () => {
+      const data: CreateExpertTemplate = {
+        name: 'Technical Architect',
+        type: 'technical',
+        promptTemplate: 'You are a technical architect. Review this decision...',
+        mcpAccess: ['github', 'jira'],
+        isActive: true,
+      };
+
+      const created = await expertTemplateService.createTemplate(data);
+      expect(created).toBeDefined();
+      expect(created.id).toBeDefined();
+      expect(created.name).toBe(data.name);
+
+      const retrieved = await expertTemplateService.getTemplate(created.id);
+      expect(retrieved).toEqual(created);
+    });
+
+    it('should get templates by type', async () => {
+      const technicalTemplate: CreateExpertTemplate = {
+        name: 'Technical Expert',
+        type: 'technical',
+        promptTemplate: 'You are a technical expert',
+        mcpAccess: [],
+        isActive: true,
+      };
+
+      const legalTemplate: CreateExpertTemplate = {
+        name: 'Legal Expert',
+        type: 'legal',
+        promptTemplate: 'You are a legal expert',
+        mcpAccess: [],
+        isActive: true,
+      };
+
+      await expertTemplateService.createTemplate(technicalTemplate);
+      await expertTemplateService.createTemplate(legalTemplate);
+
+      const technicalExperts = await expertTemplateService.getTemplatesByType('technical');
+      expect(technicalExperts).toHaveLength(1);
+      expect(technicalExperts[0].name).toBe('Technical Expert');
+
+      const legalExperts = await expertTemplateService.getTemplatesByType('legal');
+      expect(legalExperts).toHaveLength(1);
+      expect(legalExperts[0].name).toBe('Legal Expert');
+    });
+
+    it('should search templates', async () => {
+      const template1: CreateExpertTemplate = {
+        name: 'Database Architect',
+        type: 'technical',
+        promptTemplate: 'You are a database architect',
+        mcpAccess: [],
+      };
+
+      const template2: CreateExpertTemplate = {
+        name: 'Legal Counsel',
+        type: 'legal',
+        promptTemplate: 'You are legal counsel',
+        mcpAccess: [],
+      };
+
+      await expertTemplateService.createTemplate(template1);
+      await expertTemplateService.createTemplate(template2);
+
+      const searchResults = await expertTemplateService.searchTemplates('architect');
+      expect(searchResults).toHaveLength(1);
+      expect(searchResults[0].name).toBe('Database Architect');
+    });
+  });
+
+  describe('MCPServerService Integration', () => {
+    it('should create and retrieve MCP servers', async () => {
+      const data: CreateMCPServer = {
+        name: 'github-mcp',
+        type: 'stdio',
+        connectionConfig: {
+          command: 'npx',
+          args: ['-y', '@modelcontextprotocol/server-github']
+        },
+        status: 'active',
+        capabilities: {
+          tools: ['search_code', 'get_file', 'create_issue'],
+          resources: ['repositories', 'issues']
+        },
+      };
+
+      const created = await mcpServerService.createServer(data);
+      expect(created).toBeDefined();
+      expect(created.id).toBeDefined();
+      expect(created.name).toBe(data.name);
+
+      const retrieved = await mcpServerService.getServer(data.name);
+      expect(retrieved).toEqual(created);
+    });
+
+    it('should update server status', async () => {
+      const data: CreateMCPServer = {
+        name: 'test-server',
+        type: 'http',
+        connectionConfig: { url: 'http://localhost:3000' },
+        status: 'active',
+      };
+
+      await mcpServerService.createServer(data);
+      
+      const updated = await mcpServerService.updateServerStatus('test-server', 'inactive');
+      expect(updated).toBe(true);
+
+      const server = await mcpServerService.getServer('test-server');
+      expect(server!.status).toBe('inactive');
+    });
+
+    it('should get servers by type', async () => {
+      const stdioServer: CreateMCPServer = {
+        name: 'stdio-server',
+        type: 'stdio',
+        connectionConfig: { command: 'node', args: ['server.js'] },
+        status: 'active',
+      };
+
+      const httpServer: CreateMCPServer = {
+        name: 'http-server',
+        type: 'http',
+        connectionConfig: { url: 'http://localhost:3000' },
+        status: 'active',
+      };
+
+      await mcpServerService.createServer(stdioServer);
+      await mcpServerService.createServer(httpServer);
+
+      const stdioServers = await mcpServerService.getServersByType('stdio');
+      expect(stdioServers).toHaveLength(1);
+      expect(stdioServers[0].name).toBe('stdio-server');
+
+      const httpServers = await mcpServerService.getServersByType('http');
+      expect(httpServers).toHaveLength(1);
+      expect(httpServers[0].name).toBe('http-server');
+    });
+  });
+
+  describe('ExpertAdviceService Integration', () => {
+    it('should create and retrieve expert advice', async () => {
+      // First create an expert template
+      const expertData: CreateExpertTemplate = {
+        name: 'Security Expert',
+        type: 'technical',
+        promptTemplate: 'You are a security expert',
+        mcpAccess: [],
+        isActive: true,
+      };
+      const expert = await expertTemplateService.createTemplate(expertData);
+
+      const adviceData: CreateExpertAdvice = {
+        decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
+        expertId: expert.id,
+        expertName: expert.name,
+        request: 'Is this approach secure?',
+        response: {
+          suggestions: ['Implement authentication', 'Use HTTPS'],
+          concerns: ['Potential SQL injection vulnerability'],
+          questions: ['What data will be stored?']
+        },
+        mcpToolsUsed: ['security-scanner'],
+      };
+
+      const created = await expertAdviceService.createAdvice(adviceData);
+      expect(created).toBeDefined();
+      expect(created.id).toBeDefined();
+      expect(created.decisionContextId).toBe(adviceData.decisionContextId);
+
+      const retrieved = await expertAdviceService.getAdviceById(created.id);
+      expect(retrieved).toEqual(created);
+    });
+
+    it('should consult with an expert', async () => {
+      // Create an expert template
+      const expertData: CreateExpertTemplate = {
+        name: 'Performance Expert',
+        type: 'technical',
+        promptTemplate: 'You are a performance optimization expert',
+        mcpAccess: ['profiler'],
+        isActive: true,
+      };
+      const expert = await expertTemplateService.createTemplate(expertData);
+
+      const decisionContextId = '550e8400-e29b-41d4-a716-446655440004';
+      const request = 'How can we optimize this query?';
+
+      const advice = await expertAdviceService.consultExpert(
+        expert.id,
+        decisionContextId,
+        request
+      );
+
+      expect(advice).toBeDefined();
+      expect(advice.expertId).toBe(expert.id);
+      expect(advice.decisionContextId).toBe(decisionContextId);
+      expect(advice.response.suggestions).toBeDefined();
+      expect(advice.response.suggestions.length).toBeGreaterThan(0);
+    });
+
+    it('should get advice by decision context', async () => {
+      // Create experts
+      const expert1 = await expertTemplateService.createTemplate({
+        name: 'Expert 1',
+        type: 'technical',
+        promptTemplate: 'You are expert 1',
+        mcpAccess: [],
+        isActive: true,
+      });
+
+      const expert2 = await expertTemplateService.createTemplate({
+        name: 'Expert 2',
+        type: 'legal',
+        promptTemplate: 'You are expert 2',
+        mcpAccess: [],
+        isActive: true,
+      });
+
+      const decisionContextId = '550e8400-e29b-41d4-a716-446655440004';
+
+      // Create advice from both experts
+      await expertAdviceService.createAdvice({
+        decisionContextId,
+        expertId: expert1.id,
+        expertName: expert1.name,
+        request: 'Test request 1',
+        response: { suggestions: ['Advice 1'] },
+      });
+
+      await expertAdviceService.createAdvice({
+        decisionContextId,
+        expertId: expert2.id,
+        expertName: expert2.name,
+        request: 'Test request 2',
+        response: { suggestions: ['Advice 2'] },
+      });
+
+      const adviceList = await expertAdviceService.getAdviceByDecisionContext(decisionContextId);
+      expect(adviceList).toHaveLength(2);
+    });
+
+    it('should get advice counts', async () => {
+      // Create expert
+      const expert = await expertTemplateService.createTemplate({
+        name: 'Test Expert',
+        type: 'technical',
+        promptTemplate: 'You are a test expert',
+        mcpAccess: [],
+      });
+
+      const decisionContextId = '550e8400-e29b-41d4-a716-446655440004';
+
+      // Create multiple advice entries
+      for (let i = 0; i < 3; i++) {
+        await expertAdviceService.createAdvice({
+          decisionContextId,
+          expertId: expert.id,
+          expertName: expert.name,
+          request: `Request ${i}`,
+          response: { suggestions: [`Suggestion ${i}`] },
+        });
+      }
+
+      const expertCount = await expertAdviceService.getAdviceCountByExpert(expert.id);
+      expect(expertCount).toBe(3);
+
+      const decisionCount = await expertAdviceService.getAdviceCountByDecision(decisionContextId);
+      expect(decisionCount).toBe(3);
+    });
+  });
+
+  describe('Cross-Service Integration', () => {
+    it('should create expert with MCP access and use it in advice', async () => {
+      // Create MCP server
+      const mcpServer = await mcpServerService.createServer({
+        name: 'code-analyzer',
+        type: 'stdio',
+        connectionConfig: { command: 'code-analyzer' },
+        capabilities: { tools: ['analyze', 'suggest'] },
+        status: 'active',
+      });
+
+      // Create expert with MCP access
+      const expert = await expertTemplateService.createTemplate({
+        name: 'Code Review Expert',
+        type: 'technical',
+        promptTemplate: 'You are a code review expert',
+        mcpAccess: [mcpServer.name],
+        isActive: true,
+      });
+
+      // Create advice using the expert
+      const advice = await expertAdviceService.createAdvice({
+        decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
+        expertId: expert.id,
+        expertName: expert.name,
+        request: 'Review this code',
+        response: {
+          suggestions: ['Add error handling', 'Improve variable names'],
+          concerns: ['Potential performance issue'],
+        },
+        mcpToolsUsed: ['analyze'],
+      });
+
+      expect(advice.mcpToolsUsed).toContain('analyze');
+      expect(expert.mcpAccess).toContain(mcpServer.name);
+    });
+  });
+});
