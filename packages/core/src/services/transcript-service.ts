@@ -20,8 +20,8 @@ import {
 
 export interface TranscriptUploadData {
   meetingId: string;
-  source: 'upload' | 'api' | 'stream';
-  format: 'text' | 'json' | 'vtt' | 'srt';
+  source: 'upload' | 'stream' | 'import';
+  format: 'json' | 'txt' | 'vtt' | 'srt';
   content: string;
   metadata?: Record<string, any>;
   uploadedBy?: string;
@@ -206,8 +206,8 @@ export class TranscriptService {
   // Context window management
   async createContextWindow(
     decisionContextId: string,
-    strategy: 'recent' | 'relevant' | 'comprehensive',
-    usedFor: 'draft' | 'regeneration' | 'field-specific'
+    strategy: 'recent' | 'relevant' | 'weighted',
+    usedFor: 'draft' | 'regenerate' | 'field-specific'
   ): Promise<DecisionContextWindow> {
     // Get relevant chunks based on strategy
     const preview = await this.contextWindowRepo.preview(decisionContextId, strategy);

@@ -3,7 +3,7 @@ export { MeetingService } from './services/meeting-service';
 export { TranscriptService } from './services/transcript-service';
 
 // Interfaces
-export type { IMeetingRepository } from './interfaces/meeting-repository';
+export type { IMeetingRepository } from './interfaces/i-meeting-repository';
 export type {
   IRawTranscriptRepository,
   ITranscriptChunkRepository,
