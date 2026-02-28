@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { MeetingService } from '@repo/core';
 import { DrizzleMeetingRepository } from '@repo/db';
-import { db } from '@repo/db';
 
 // Create service instance
 const repo = new DrizzleMeetingRepository();
