@@ -5,7 +5,8 @@
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && npm run generate:openapi",
+    "generate:openapi": "node scripts/export-openapi.mjs",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
