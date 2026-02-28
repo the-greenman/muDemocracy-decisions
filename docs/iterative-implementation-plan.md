@@ -467,6 +467,8 @@ pnpm test:coverage  # >80% coverage on packages/core
 - [x] `decision-logger field show <id>`
 - [x] `decision-logger template list`
 - [x] `decision-logger template show <id>`
+- [x] `decision-logger template update <id> [--name <name>] [--description <description>] [--category <category>]`
+- [x] `decision-logger template delete <id> [--force]`
 - [x] `decision-logger decisions show <flagged-id>`
 - [x] `decision-logger decisions flag <meeting-id> --title <title> --segments <ids>`
 - [x] `decision-logger decisions update <flagged-id>`

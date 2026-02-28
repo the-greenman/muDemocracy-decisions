@@ -91,7 +91,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     // If fields are provided, update them
     if (fields) {
       // Delete existing field assignments
-      await this.fieldAssignmentRepository.deleteByTemplateId(id);
+      await this.fieldAssignmentRepository.deleteByTemplate(id);
       
       // Create new field assignments
       if (fields.length > 0) {
@@ -122,7 +122,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     }
 
     // Delete field assignments first
-    await this.fieldAssignmentRepository.deleteByTemplateId(id);
+    await this.fieldAssignmentRepository.deleteByTemplate(id);
 
     // Delete template
     const success = await this.templateRepository.delete(id);
