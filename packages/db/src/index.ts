@@ -12,3 +12,4 @@ export { DrizzleTranscriptChunkRepository } from './repositories/transcript-chun
 export { DrizzleStreamingBufferRepository } from './repositories/streaming-buffer-repository';
 export { DrizzleChunkRelevanceRepository } from './repositories/chunk-relevance-repository';
 export { DrizzleDecisionContextWindowRepository } from './repositories/decision-context-window-repository';
+export { DrizzleFlaggedDecisionRepository } from './repositories/flagged-decision-repository';

@@ -2,11 +2,12 @@
  * Drizzle implementation of IFlaggedDecisionRepository
  */
 
-import { IFlaggedDecisionRepository } from '@repo/core';
-import { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
+import type { IFlaggedDecisionRepository } from '@repo/core';
+import { FlaggedDecision } from '@repo/schema';
+import type { CreateFlaggedDecision } from '@repo/schema';
 import { db } from '../client';
 import { flaggedDecisions } from '../schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionRepository {
   async create(data: CreateFlaggedDecision): Promise<FlaggedDecision> {
@@ -14,6 +15,8 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       .insert(flaggedDecisions)
       .values({
         ...data,
+        suggestedTemplateId: data.suggestedTemplateId || null,
+        templateConfidence: data.templateConfidence || null,
         status: 'pending',
         priority: data.priority || 0,
       })
@@ -31,7 +34,7 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       .select()
       .from(flaggedDecisions)
       .where(eq(flaggedDecisions.meetingId, meetingId))
-      .orderBy(flaggedDecisions.priority, flaggedDecisions.createdAt);
+      .orderBy(desc(flaggedDecisions.priority), flaggedDecisions.createdAt);
 
     return rows.map(row => this.mapToSchema(row));
   }
@@ -53,12 +56,22 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
     id: string,
     data: Partial<Omit<CreateFlaggedDecision, 'meetingId' | 'chunkIds'>>
   ): Promise<FlaggedDecision | null> {
+    const updateData: any = {
+      ...data,
+      updatedAt: new Date(),
+    };
+    
+    if (data.suggestedTemplateId !== undefined) {
+      updateData.suggestedTemplateId = data.suggestedTemplateId || null;
+    }
+    
+    if (data.templateConfidence !== undefined) {
+      updateData.templateConfidence = data.templateConfidence || null;
+    }
+
     const [row] = await db
       .update(flaggedDecisions)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(flaggedDecisions.id, id))
       .returning();
 
@@ -116,7 +129,7 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       status: row.status,
       priority: row.priority,
       createdAt: row.createdAt!.toISOString(),
-      updatedAt: row.updatedAt?.toISOString(),
+      updatedAt: row.updatedAt?.toISOString() || new Date().toISOString(),
     };
   }
 }

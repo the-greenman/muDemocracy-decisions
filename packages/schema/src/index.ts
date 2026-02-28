@@ -212,6 +212,7 @@ export const FlaggedDecisionSchema = z.object({
   status: z.enum(['pending', 'accepted', 'rejected', 'dismissed']).default('pending'),
   priority: z.number().int().default(0),
   createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
 }).openapi('FlaggedDecision', {
   description: 'A decision flagged for attention in a meeting',
   example: {
@@ -226,11 +227,12 @@ export const FlaggedDecisionSchema = z.object({
     status: 'pending',
     priority: 1,
     createdAt: '2026-02-27T10:00:00Z',
+    updatedAt: '2026-02-27T10:00:00Z',
   },
 });
 
 export type FlaggedDecision = z.infer<typeof FlaggedDecisionSchema>;
-export type CreateFlaggedDecision = Omit<FlaggedDecision, 'id' | 'status' | 'createdAt'>;
+export type CreateFlaggedDecision = Omit<FlaggedDecision, 'id' | 'status' | 'createdAt' | 'updatedAt'>;
 
 // ============================================================================
 // DECISION CONTEXT SCHEMAS
