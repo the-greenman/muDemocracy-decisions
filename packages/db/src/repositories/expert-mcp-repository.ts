@@ -18,7 +18,9 @@ import type {
   MCPServer,
   CreateMCPServer,
   ExpertAdvice,
-  CreateExpertAdvice,
+  CreateExpertAdvice
+} from '@repo/schema';
+import { 
   CreateMCPServerWithCompatSchema,
   CreateExpertAdviceWithCompatSchema
 } from '@repo/schema';
