@@ -5,16 +5,14 @@
 
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 import { DecisionTemplateService } from '../services/decision-template-service';
-import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository, DrizzleDecisionFieldRepository } from '@repo/db';
-import { db } from '@repo/db/client';
-import { decisionTemplates, templateFieldAssignments, decisionFields } from '@repo/db/schema';
-import { eq } from 'drizzle-orm';
+import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository } from '../../../db/src/repositories/decision-template-repository';
+import { DrizzleDecisionFieldRepository } from '../../../db/src/repositories/decision-field-repository';
+import { db } from '../../../db/src/client';
+import { decisionTemplates, templateFieldAssignments, decisionFields } from '../../../db/src/schema';
 import type { 
   CreateDecisionTemplate,
-  CreateTemplateFieldAssignment,
-  DecisionTemplate,
-  CreateDecisionField
-} from '@repo/core';
+  CreateTemplateFieldAssignment
+} from '../index';
 
 describe('DecisionTemplateService Integration Tests', () => {
   let service: DecisionTemplateService;
@@ -61,19 +59,23 @@ describe('DecisionTemplateService Integration Tests', () => {
       const fieldId1 = testFieldIds[0];
       const fieldId2 = testFieldIds[1];
       
+      if (!fieldId1 || !fieldId2) {
+        throw new Error('Test field IDs not properly initialized');
+      }
+      
       const templateData: CreateDecisionTemplate = {
         name: 'Test Template',
         description: 'A test template for integration testing',
         category: 'standard',
         fields: [
           {
-            fieldId: fieldId1,
+            fieldId: fieldId1!,
             order: 0,
             required: true,
             customLabel: 'Custom Field 1',
           },
           {
-            fieldId: fieldId2,
+            fieldId: fieldId2!,
             order: 1,
             required: false,
           },
@@ -121,7 +123,7 @@ describe('DecisionTemplateService Integration Tests', () => {
         category: 'standard',
         fields: [
           {
-            fieldId: fieldId1,
+            fieldId: fieldId1!,
             order: 0,
             required: true,
           },
@@ -134,12 +136,12 @@ describe('DecisionTemplateService Integration Tests', () => {
         description: 'Updated description',
         fields: [
           {
-            fieldId: fieldId1,
+            fieldId: fieldId1!,
             order: 0,
             required: false, // Changed from true
           },
           {
-            fieldId: fieldId2,
+            fieldId: fieldId2!,
             order: 1,
             required: true, // New field
           },
@@ -195,7 +197,7 @@ describe('DecisionTemplateService Integration Tests', () => {
         category: 'standard',
         fields: [
           {
-            fieldId: fieldId1,
+            fieldId: fieldId1!,
             order: 0,
             required: true,
           },
@@ -251,7 +253,7 @@ describe('DecisionTemplateService Integration Tests', () => {
 
       // Add a field
       const fieldAssignment = await service.addFieldToTemplate(template.id, {
-        fieldId: fieldId1,
+        fieldId: fieldId1!,
         order: 0,
         required: true,
         customLabel: 'New Field',
@@ -275,7 +277,7 @@ describe('DecisionTemplateService Integration Tests', () => {
         category: 'standard',
         fields: [
           {
-            fieldId: fieldId1,
+            fieldId: fieldId1!,
             order: 0,
             required: true,
           },
@@ -303,17 +305,17 @@ describe('DecisionTemplateService Integration Tests', () => {
         category: 'standard',
         fields: [
           {
-            fieldId: fieldId1,
+            fieldId: fieldId1!,
             order: 0,
             required: true,
           },
           {
-            fieldId: fieldId2,
+            fieldId: fieldId2!,
             order: 1,
             required: true,
           },
           {
-            fieldId: fieldId3,
+            fieldId: fieldId3!,
             order: 2,
             required: true,
           },
@@ -322,9 +324,9 @@ describe('DecisionTemplateService Integration Tests', () => {
 
       // Reorder fields
       await service.reorderTemplateFields(template.id, [
-        { fieldId: fieldId1, order: 2 },
-        { fieldId: fieldId2, order: 0 },
-        { fieldId: fieldId3, order: 1 },
+        { fieldId: fieldId1!, order: 2 },
+        { fieldId: fieldId2!, order: 0 },
+        { fieldId: fieldId3!, order: 1 },
       ]);
 
       // Verify new order
@@ -446,17 +448,17 @@ describe('DecisionTemplateService Integration Tests', () => {
 
       const fieldAssignments: CreateTemplateFieldAssignment[] = [
         {
-          fieldId: fieldId1,
+          fieldId: fieldId1!,
           order: 0,
           required: true,
         },
         {
-          fieldId: fieldId2,
+          fieldId: fieldId2!,
           order: 1,
           required: false,
         },
         {
-          fieldId: fieldId3,
+          fieldId: fieldId3!,
           order: 2,
           required: true,
         },
@@ -504,12 +506,12 @@ describe('DecisionTemplateService Integration Tests', () => {
           category: 'standard',
           fields: [
             {
-              fieldId: fieldId1,
+              fieldId: fieldId1!,
               order: 0,
               required: true,
             },
             {
-              fieldId: fieldId2,
+              fieldId: fieldId2!,
               order: 2, // Should be 1
               required: true,
             },
