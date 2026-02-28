@@ -71,7 +71,7 @@ export class TranscriptService {
     const transcript = await this.rawTranscriptRepo.create(createData);
 
     // Auto-chunk the uploaded content
-    if (data.format === 'text') {
+    if (data.format === 'txt') {
       await this.chunkTranscript(transcript.id, {
         strategy: 'semantic',
         maxTokens: 500,
