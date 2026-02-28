@@ -71,6 +71,12 @@ All fields are text-based:
 9. **reversibility** - How reversible is this decision
 10. **review_triggers** - When should this decision be reviewed
 
+## For AI Agents (Claude Code / Cascade)
+
+**Start here**: Read `.cascade/README.md` for agentic development workflow.
+
+**Full guide**: See `docs/agentic-setup-guide.md` for complete instructions.
+
 ## Quick Start
 
 ### Prerequisites
