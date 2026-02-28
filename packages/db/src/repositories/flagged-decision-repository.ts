@@ -2,8 +2,8 @@
  * Drizzle implementation of IFlaggedDecisionRepository
  */
 
-import { FlaggedDecision } from '@repo/schema';
-import type { CreateFlaggedDecision } from '@repo/schema';
+import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
+import type { FlaggedDecisionSelect } from '../schema';
 import { db } from '../client';
 import { flaggedDecisions } from '../schema';
 import { eq, desc } from 'drizzle-orm';
@@ -65,7 +65,6 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
   ): Promise<FlaggedDecision | null> {
     const updateData: any = {
       ...data,
-      updatedAt: new Date(),
     };
     
     if (data.suggestedTemplateId !== undefined) {
@@ -94,7 +93,6 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       .update(flaggedDecisions)
       .set({
         priority,
-        updatedAt: new Date(),
       })
       .where(eq(flaggedDecisions.id, id))
       .returning();
@@ -111,7 +109,6 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       .update(flaggedDecisions)
       .set({
         status,
-        updatedAt: new Date(),
       })
       .where(eq(flaggedDecisions.id, id))
       .returning();
@@ -123,7 +120,7 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
     return this.mapToSchema(row);
   }
 
-  private mapToSchema(row: any): FlaggedDecision {
+  private mapToSchema(row: FlaggedDecisionSelect): FlaggedDecision {
     return {
       id: row.id,
       meetingId: row.meetingId,
@@ -136,7 +133,7 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       status: row.status,
       priority: row.priority,
       createdAt: row.createdAt!.toISOString(),
-      updatedAt: row.updatedAt?.toISOString() || new Date().toISOString(),
+      updatedAt: (row as any).updatedAt?.toISOString() || new Date().toISOString(),
     };
   }
 }

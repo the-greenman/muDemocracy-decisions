@@ -641,10 +641,10 @@ export const CreateMCPServerSchema = MCPServerSchema.omit({
 // For backward compatibility, accept connection field instead of connectionConfig
 export const CreateMCPServerWithCompatSchema = CreateMCPServerSchema.transform((data) => {
   if ('connection' in data && !('connectionConfig' in data)) {
+    const { connection, ...rest } = data as any;
     return {
-      ...data,
-      connectionConfig: (data as any).connection,
-      connection: undefined,
+      ...rest,
+      connectionConfig: connection,
     };
   }
   return data;
@@ -678,10 +678,10 @@ export const CreateExpertAdviceSchema = ExpertAdviceSchema.omit({
 // For backward compatibility, accept advice field instead of response
 export const CreateExpertAdviceWithCompatSchema = CreateExpertAdviceSchema.transform((data) => {
   if ('advice' in data && !('response' in data)) {
+    const { advice, ...rest } = data as any;
     return {
-      ...data,
-      response: (data as any).advice,
-      advice: undefined,
+      ...rest,
+      response: advice,
     };
   }
   return data;

@@ -225,7 +225,7 @@ export const flaggedDecisions = pgTable('flagged_decisions', {
   status: flaggedDecisionStatusEnum('status').notNull().default('pending'),
   priority: integer('priority').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }),
+  // updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   meetingIdx: index('idx_flagged_decisions_meeting').on(table.meetingId),
   statusIdx: index('idx_flagged_decisions_status').on(table.status),

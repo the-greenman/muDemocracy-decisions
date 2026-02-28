@@ -3,6 +3,9 @@ import chalk from 'chalk';
 import { meetingCommand } from './commands/meeting';
 import { transcriptCommand } from './commands/transcript';
 import { decisionCommand } from './commands/decision';
+import { fieldCommand } from './commands/field';
+import { templateCommand } from './commands/template';
+import { decisionsCommand } from './commands/decisions';
 
 const program = new Command();
 
@@ -15,6 +18,9 @@ program
 program.addCommand(meetingCommand);
 program.addCommand(transcriptCommand);
 program.addCommand(decisionCommand);
+program.addCommand(fieldCommand);
+program.addCommand(templateCommand);
+program.addCommand(decisionsCommand);
 
 // Global error handler
 program.configureOutput({
