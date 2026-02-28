@@ -42,7 +42,7 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: decision-logger-api
     environment:
-      DATABASE_URL: postgresql://decision_logger:dev_password@postgres:5432/decision_logger_dev
+      DATABASE_URL: postgresql://decision_logger:decision_logger@postgres:5432/decision_logger_dev
       PORT: 3000
       NODE_ENV: production
     ports:
