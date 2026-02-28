@@ -41,7 +41,7 @@ interface MCPTool {
 Experts specify which MCP servers they need:
 
 ```typescript
-// packages/types/src/expert.ts
+// packages/schema/src/expert.ts
 interface ExpertTemplate {
   id: string;
   name: string;

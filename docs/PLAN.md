@@ -751,8 +751,8 @@ Return JSON:
 To ensure consistency, minimize duplication, and facilitate high-quality agentic development, the project follows the [Agentic Development Standards](./agentic-development-standards.md).
 
 ### Core Guardrails:
-1. **Zod-First**: All domain schemas are defined in `packages/types` using Zod. All types are inferred.
-2. **One-Way Dependencies**: `apps` → `packages/core` → `packages/db` & `packages/types`.
+1. **Zod-First**: All domain schemas are defined in `packages/schema` using Zod. All types are inferred.
+2. **One-Way Dependencies**: `apps` → `packages/core` → `packages/db` & `packages/schema`.
 3. **Logic Neutrality**: Business logic resides exclusively in `packages/core` services. Apps are thin interface adapters.
 4. **Service-Based Orchestration**: Services manage the flow between DB, LLM, and Validation.
 
@@ -800,27 +800,39 @@ decision-logger/
 
 ## Implementation Phases
 
+> **Detailed Plan**: See [iterative-implementation-plan.md](./iterative-implementation-plan.md) for the full phased implementation with validation checkpoints.
+
+The implementation follows an iterative approach with 9 phases (0-8), each with concrete validation checkpoints. Key highlights:
+
+- **Phase 0**: Vertical Slice - Prove entire stack works end-to-end
+- **Phase 1**: Schema Foundation - Zod-to-All pipeline
+- **Phase 2**: Core Data Services - TDD with >80% coverage
+- **Phase 3**: LLM Integration - Mock-first, real API optional
+- **Phase 4**: Decision Workflow - Context, drafts, field locking
+- **Phase 5**: Expert System - Domain personas with MCP tools
+- **Phase 6**: API Layer - Complete REST endpoints
+- **Phase 7**: CLI Application - Interactive Clack interface
+- **Phase 8**: Export & Polish - Documentation and production readiness
+
+### Phase Summary (Original Reference)
+
 ### Phase 1: Foundation (Week 1)
 - [ ] Initialize Turborepo monorepo structure
-- [ ] Set up `packages/schema` as the Single Source of Truth (Zod)
-- [ ] Implement `zod-openapi` pipeline for automated spec generation
-- [ ] Set up `packages/db` with Drizzle, aligned with Zod schemas
-- [ ] Set up `packages/core` for shared business logic
+- [ ] Set up `packages/schema` - Single source of truth (Zod)
+- [ ] Implement `@hono/zod-openapi` pipeline in `apps/api`
+- [ ] Automate `openapi.yaml` generation and decommission manual file
+- [ ] Set up `packages/db` with `drizzle-zod` alignment
+- [ ] Set up `packages/core` with Service-Repository pattern and DI container
 - [ ] Configure PostgreSQL 16+ with pgvector
-- [ ] Configure Vitest for monorepo testing
+- [ ] Configure Vitest for monorepo testing (TDD ready)
+- [ ] Implement shared error handling and domain exceptions in `packages/core`
 
-### Phase 2: Core Data Layer (Week 1-2)
-- [ ] Test: Meeting CRUD
-- [ ] Implement: Meeting repository
-- [ ] Test: Segment storage with contexts
-- [ ] Implement: Segment repository
-- [ ] Test: Context tagging logic
-- [ ] Implement: Context tagger
-- [ ] Test: Context queries
-- [ ] Implement: Context-based queries
-- [ ] Test: Template storage
-- [ ] Implement: Template repository
-- [ ] Create: Standard decision template
+### Phase 2: Core Data Layer (Week 1-2 - TDD Approach)
+- [ ] TDD: Meeting Repository and Service
+- [ ] TDD: Transcript Segment Repository and Service
+- [ ] TDD: Context Tagging logic and Service
+- [ ] TDD: Decision Template Repository and Service
+- [ ] TDD: Standard Decision Template seeding
 
 ### Phase 3: LLM & Expert Integration (Week 2)
 - [ ] Implement Vercel AI SDK abstraction layer in `@repo/core`

@@ -439,10 +439,10 @@ Use TypeScript's type system effectively:
 
 ```typescript
 // ============================================================================
-// SHARED TYPE DEFINITIONS (@repo/types)
+// SHARED TYPE DEFINITIONS (@repo/schema)
 // ============================================================================
 
-// packages/types/src/meeting.ts - Single source of truth
+// packages/schema/src/meeting.ts - Single source of truth
 import { z } from 'zod';
 
 export const CreateMeetingSchema = z.object({

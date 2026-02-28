@@ -6,10 +6,10 @@ The database schema is managed as **code-controlled, testable, and version-contr
 
 ## Schema Alignment with Zod
 
-While Drizzle is the source of truth for the **database physical layer**, the **domain logic layer** is governed by Zod schemas in `packages/types`.
+While Drizzle is the source of truth for the **database physical layer**, the **domain logic layer** is governed by Zod schemas in `packages/schema`.
 
 - **Physical Layer**: `packages/db/src/schema.ts` (Drizzle)
-- **Logical Layer**: `packages/types/src/*.ts` (Zod)
+- **Logical Layer**: `packages/schema/src/*.ts` (Zod)
 
 **Rule**: All data entering the system via API or CLI MUST be validated against a Zod schema before being passed to a Service, and subsequently to Drizzle. This "Validation-at-Edge" ensures the database layer remains clean and consistent.
 

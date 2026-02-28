@@ -36,7 +36,7 @@ To minimize duplicate code, the system follows a strict "Shared Core" pattern.
           ↓
     [packages/core] (Services & LLM Logic)
           ↓
-    [packages/db] & [packages/types]
+    [packages/db] & [packages/schema]
 ```
 - **Rule**: Apps MUST NOT contain business logic. They are strictly "interface adapters" (Hono routes or CLI commands).
 - **Rule**: Business logic MUST reside in `packages/core/src/services`.
@@ -58,7 +58,7 @@ Before adding code to `apps/api` or `apps/cli`, an agent must ask:
 ### 3.2 LLM Interaction
 - **Rule**: All LLM prompts and Vercel AI SDK calls MUST reside in `packages/core/src/llm`.
 - **Rule**: Prompts MUST be versioned or clearly organized by domain.
-- **Rule**: LLM outputs MUST be validated against schemas from `packages/types`.
+- **Rule**: LLM outputs MUST be validated against schemas from `packages/schema`.
 
 ## 4. Automated Consistency Checks
 
@@ -70,19 +70,27 @@ To prevent "Schema Drift", we will implement the following automated checks:
 
 ### 4.2 Zod to Drizzle (Data Safety)
 - **Pattern**: Use Zod schemas in Service methods to sanitize data before DB insertion.
-- **Audit**: Periodic review of `packages/db/schema.ts` against `packages/types` Zod definitions.
+- **Audit**: Periodic review of `packages/db/schema.ts` against `packages/schema` Zod definitions.
 
 ### 4.3 Type-Safe Tooling
-- **Rule**: Use `@repo/types` everywhere. If an agent needs a new field, it MUST be added to `packages/types` first.
+- **Rule**: Use `@repo/schema` everywhere. If an agent needs a new field, it MUST be added to `packages/schema` first.
 
 ## 5. Agentic Workflows
 
 When implementing a new feature, agents MUST follow this sequence:
-1. **Define Schema**: Add/Update Zod schema in `packages/types`.
+1. **Define Schema**: Add/Update Zod schema in `packages/schema`.
 2. **Define DB**: Update Drizzle schema in `packages/db` and generate migration.
 3. **Implement Service**: Add logic to a service in `packages/core`.
 4. **Expose Interface**: Add API route in `apps/api` or CLI command in `apps/cli` that calls the service.
 
 ## 6. Error Handling
-- **Rule**: Define shared Error classes in `packages/types` (e.g., `NotFoundError`, `ValidationError`).
+- **Rule**: Define shared Error classes in `packages/schema` (e.g., `NotFoundError`, `ValidationError`).
 - **Rule**: Services throw shared errors; Apps catch them and translate to interface-specific responses (HTTP 404 or Clack error message).
+
+## 7. Pipeline Decommissioning Plan
+
+To transition from the current manual state to the automated pipeline:
+1.  **Foundation**: Set up the monorepo and `packages/schema`.
+2.  **Migration**: Move existing manual definitions from `docs/openapi.yaml` and `schema/schema.ts` into Zod models in `packages/schema`.
+3.  **Automation**: Configure `@hono/zod-openapi` to generate the spec.
+4.  **Removal**: Once the generated output matches the desired contract, DELETE the manually maintained `docs/openapi.yaml` and `schema/schema.ts` files to prevent any future manual edits.
