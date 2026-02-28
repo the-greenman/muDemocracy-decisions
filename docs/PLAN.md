@@ -19,11 +19,12 @@ A context-driven decision logging system with LLM-assisted extraction, iterative
 6. **LLM Decision Detection** - Flag potential decisions automatically, with provider choice
 7. **Context Switching** - Set active decision and field contexts
 8. **Iterative Refinement** - Add content, retrieve field-specific transcript context, regenerate fields, and lock when satisfied
-9. **Expert System** - Support core and custom experts, with MCP-backed tool access and advice history
-10. **Decision Methods** - Record how decision was made (text metadata)
-11. **CLI Interface** - Command-line tool for testing workflow
-12. **API Backend** - API is sufficient to support future UI consumers even though no dedicated web app is in scope
-13. **Export** - Markdown/JSON export of final decisions
+9. **Operational Observability** - Emit structured logs with correlation IDs so requests, commands, streaming, and LLM operations can be debugged live
+10. **Expert System** - Support core and custom experts, with MCP-backed tool access and advice history
+11. **Decision Methods** - Record how decision was made (text metadata)
+12. **CLI Interface** - Command-line tool for testing workflow
+13. **API Backend** - API is sufficient to support future UI consumers even though no dedicated web app is in scope
+14. **Export** - Markdown/JSON export of final decisions
 
 **Not in Scope (Initially):**
 - ❌ Audio capture and raw audio processing inside the core system
@@ -39,6 +40,7 @@ A context-driven decision logging system with LLM-assisted extraction, iterative
 
 > **See**: `docs/transcription-service-plan.md` for the separate containerized transcription service boundary and integration contract
 - Detailed workflow and endpoint expansions in specialist docs are authoritative unless they conflict with the Zod schema source-of-truth rule.
+- Runtime logging, correlation, and redaction rules are defined in `docs/logging-observability-plan.md`.
 
 ## Simplified Data Model
 
@@ -1015,7 +1017,7 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - **Phase 4**: Decision Workflow - Context, drafts, field locking
 - **Phase 5**: Expert System - Domain personas with MCP tools
 - **Phase 6**: API Layer - Complete REST endpoints, including field-level retrieval and expert/MCP management
-- **Phase 7**: CLI Application - Interactive Clack interface plus decision triage and expert/MCP commands
+- **Phase 7**: CLI Application - Interactive Clack interface plus decision triage, debug verbosity, and expert/MCP commands
 - **Phase 8**: Export & Polish - Documentation and production readiness
 
 ### Phase Summary (Reference)
@@ -1038,6 +1040,7 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] TDD: Context Tagging logic and Service
 - [ ] TDD: Chunk relevance and context-window repositories/services
 - [ ] TDD: Flagged decision triage (manual create/update/prioritize/dismiss)
+- [ ] TDD: Shared structured logging and correlation helpers
 - [ ] TDD: Decision Field Repository and Service
 - [ ] TDD: Decision Template Repository and Service
 - [ ] TDD: Field library + core template seeding
@@ -1048,6 +1051,7 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Test: decision detection via pluggable detection model
 - [ ] Implement: semantic tagging/topic extraction and field source-chunk attribution
 - [ ] Implement: context-window building for draft generation and expert consultation
+- [ ] Implement: structured LLM and transcript pipeline logging for live diagnostics
 - [ ] Implement: Expert template system with MCP tool injection
 - [ ] Implement: custom experts, MCP server registry, and expert advice history
 - [ ] Test: Field-specific extraction and auto-tagging
@@ -1096,6 +1100,7 @@ The implementation follows an iterative approach with 9 phases (0-8), each with 
 - [ ] Implement: Decision triage commands (manual flag, update, prioritize, dismiss)
 - [ ] Implement: Decision refinement workflow with field locking
 - [ ] Implement: Expert advice consultation and expert/MCP management UI
+- [ ] Implement: `--verbose` and debug-friendly logging surfaces
 - [ ] Test: End-to-end CLI workflows
 
 ### Phase 8: Export & Polish (Week 4-5)

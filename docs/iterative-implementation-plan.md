@@ -12,8 +12,13 @@ This document defines a detailed, phased implementation plan with validation che
   - ✅ 2.1 Meeting Service - Complete
   - ✅ 2.2 Transcript Service - Complete
   - ✅ 2.3 Flagged Decision Service - Complete
-  - ⏳ 2.4 Decision Context Service - Next
-  - ⏳ 2.5-2.9 Remaining Services - Pending
+  - ✅ 2.4 Decision Context Service - Complete
+  - ✅ 2.4a Logging Foundation - Complete
+  - ✅ 2.5 Decision Log Service - Complete
+  - ⏳ 2.6 Decision Field Service - Next
+  - ⏳ 2.7 Decision Template Service - Pending
+  - ⏳ 2.8 Expert and MCP Configuration Services - Pending
+  - ✅ 2.9 CLI Commands for Data Layer - Partially Complete (transcript and decision commands done)
 - ⏳ **Phase 3**: LLM Integration - Pending
 
 ## Philosophy
@@ -28,10 +33,12 @@ This document defines a detailed, phased implementation plan with validation che
 
 > **See**: `docs/transcription-service-plan.md` for the external containerized transcription service that integrates with the transcript streaming endpoints
 - **Zod First**: All new entities and contract changes begin in `packages/schema`, then flow to Drizzle and API layers
+- **Observability by Default**: Live operations must be diagnosable through structured logs and correlation IDs, not ad hoc debugging
 
 ## Specialist Doc Mapping
 
 - Transcript ingestion, chunking, and context windows: `docs/transcript-context-management.md`
+- Logging, runtime debugging, and correlation strategy: `docs/logging-observability-plan.md`
 - Context tags, chunk relevance, and field-level retrieval: `docs/context-tagging-strategy.md`
 - Manual flagged-decision triage: `docs/manual-decision-workflow.md`
 - Field library and extraction prompts: `docs/field-library-architecture.md`
@@ -55,13 +62,25 @@ Automated validation gates are required, but each phase should also leave you wi
 
 - Treat bare `decision-logger ...` examples in this document as the target UX, not proof that the command is already runnable
 - A CLI command does not count as manually tested until it has been run through the actual repo entrypoint and its output has been inspected
-- For this repo, the reliable pre-install invocation is:
+- For this repo, the cleanest no-global-install path is to build the CLI package and run the built entrypoint directly
+- The CLI build artifact is `apps/cli/dist/index.mjs` (not `index.js`)
+- If `pnpm` is available, a reliable pre-install invocation is:
 
 ```bash
 npx pnpm@8.15.0 --filter ./apps/cli exec tsx src/index.ts <command...>
 ```
 
-- After the CLI package is built, the packaged binary path can be tested with:
+- If `pnpm` is not installed, use npm workspaces instead:
+
+```bash
+npm run build -w @repo/schema
+npm run build -w @repo/db
+npm run build -w @repo/core
+npm run build -w decision-logger
+node apps/cli/dist/index.mjs <command...>
+```
+
+- After the CLI package is built, the packaged binary path can also be tested with:
 
 ```bash
 npx pnpm@8.15.0 --filter ./apps/cli build
@@ -76,6 +95,42 @@ npx pnpm@8.15.0 --filter ./apps/cli exec decision-logger <command...>
 - If a CLI command ultimately depends on an API route, manually test the backing route with `curl` before marking the user-facing flow as credible
 - For new routes, verify both the happy path and at least one invalid request
 - Record the exact command or `curl` used in the phase notes so the test is repeatable
+
+### Practical Bootstrap
+
+Use this sequence to get into a known-good state for manual smoke testing without relying on a global `pnpm` install:
+
+```bash
+# 1. Start the local database
+docker compose up -d
+
+# 2. Export the DB connection used by the built packages
+export DATABASE_URL="postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev"
+
+# 3. Build the workspace packages in dependency order
+npm run build -w @repo/schema
+npm run build -w @repo/db
+npm run build -w @repo/core
+npm run build -w decision-logger
+npm run build -w @repo/api
+
+# 4. Run a CLI smoke test against the built artifact
+node apps/cli/dist/index.mjs meeting create "Manual Smoke A" --date 2026-02-27 --participants Alice
+
+# 5. Start the API in another shell (or background it)
+DATABASE_URL="$DATABASE_URL" node apps/api/dist/index.js
+
+# 6. Hit the API directly
+curl -X POST http://localhost:3000/api/meetings \
+  -H "Content-Type: application/json" \
+  -d '{"title":"API Smoke","date":"2026-02-27","participants":["Alice"]}'
+```
+
+Notes:
+
+- Use `docker compose up -d`, not `docker compose up -d postgres`, unless your compose service is explicitly named `postgres`
+- If your local port/user/password differ, adjust `DATABASE_URL` to match your `docker-compose.yml` and `.env`
+- Keep one shell dedicated to the API process during manual testing instead of relying on `pkill`
 
 ### Recommended Fixtures
 
@@ -186,7 +241,7 @@ curl http://localhost:3000/docs  # OpenAPI spec available
 ### 0.6 First CLI Command
 - [x] Create `apps/cli` with Commander.js
 - [x] Implement `decision-logger meeting create <title>` command
-- [x] Wire to API or directly to service
+- [x] Wire directly to `@repo/core` service (temporary scaffolding — replaced by API client in Phase 7)
 - [x] **Write E2E smoke test: run CLI command, assert output contains a meeting ID**
 
 **Validation Checkpoint 0.6**:
@@ -307,7 +362,7 @@ pnpm db:studio
 
 ## Phase 2: Core Data Services (Days 4-6)
 
-**Status**: 🟡 IN PROGRESS - Meeting Service (2.1), Transcript Service (2.2), and Flagged Decision Service (2.3) are complete
+**Status**: 🟡 IN PROGRESS - Most services complete, CLI commands partially implemented
 
 ### 2.1 Meeting Service (Complete)
 - [x] `IMeetingRepository`: create, findById, findAll, updateStatus
@@ -344,17 +399,23 @@ pnpm test --filter=@repo/core -- --grep="Meeting"  # All passing
 - [x] `FlaggedDecisionService`: supports AI and manual creation, triage, prioritization, and dismissal (no LLM yet)
 - [x] Integration tests
 
-### 2.4 Decision Context Service
-- [ ] `IDecisionContextRepository`: create, findById, findByMeetingId, update, lockField, unlockField
-- [ ] Unit tests
-- [ ] `DecisionContextService`: manages draft state, field locking, and field-specific transcript retrieval
-- [ ] Integration tests
+### 2.4 Decision Context Service (Complete)
+- [x] `IDecisionContextRepository`: create, findById, findByMeetingId, update, lockField, unlockField, setActiveField, updateStatus
+- [x] Unit tests (17 tests)
+- [x] `DecisionContextService`: handles context creation, draft data updates, field locking, status transitions, and active field management
+- [x] Integration tests (13 tests)
 
-### 2.5 Decision Log Service
-- [ ] `IDecisionLogRepository`: create, findById, findByMeetingId
-- [ ] Unit tests
-- [ ] `DecisionLogService`: immutable decision recording
-- [ ] Integration tests
+### 2.4a Logging Foundation (Complete)
+- [x] Create shared structured logger in `packages/core`
+- [x] Add correlation/context helpers for API, CLI, and async operations
+- [x] Add redaction utilities and log-level configuration
+- [x] Unit tests for logger context propagation and redaction
+
+### 2.5 Decision Log Service (Complete)
+- [x] `IDecisionLogRepository`: create, findById, findByMeetingId, findByDecisionContextId, findByLoggedBy, findByDateRange, countByMeetingId
+- [x] Unit tests (9 tests)
+- [x] `DecisionLogService`: immutable decision recording with statistics
+- [x] Integration tests (11 tests)
 
 ### 2.6 Decision Field Service
 - [ ] `IDecisionFieldRepository`: create, findById, findAll, findByCategory
@@ -385,9 +446,19 @@ pnpm test:coverage  # >80% coverage on packages/core
 ```
 
 ### 2.9 CLI Commands for Data Layer
+- [x] `decision-logger transcript list [--meeting-id <id>]`
+- [x] `decision-logger transcript add --text <text> --speaker <speaker> --meeting-id <id>`
+- [ ] `decision-logger transcript upload [--file <file>]` (placeholder implemented)
+- [ ] `decision-logger transcript process [--transcript-id <id>]` (placeholder implemented)
+- [x] `decision-logger transcript show <id>` (placeholder implemented)
+- [x] `decision-logger decision list [--meeting-id <id>|--context-id <id>|--user <user>]`
+- [x] `decision-logger decision show <id>`
+- [x] `decision-logger decision stats --meeting-id <id>`
+- [x] `decision-logger decision add --context-id <id>`
+- [x] `decision-logger decision context create --meeting-id <id> --flagged-decision-id <id> --title <title> --template-id <id>`
+- [x] `decision-logger decision context list [--meeting-id <id>]`
 - [ ] `decision-logger meeting list`
 - [ ] `decision-logger meeting show <id>`
-- [ ] `decision-logger transcript list [--context <tag>]`
 - [ ] `decision-logger field list [--category <category>]`
 - [ ] `decision-logger field show <id>`
 - [ ] `decision-logger template list`
@@ -397,7 +468,7 @@ pnpm test:coverage  # >80% coverage on packages/core
 - [ ] `decision-logger decisions update <flagged-id>`
 - [ ] `decision-logger decisions priority <flagged-id> --priority <n>`
 - [ ] `decision-logger decisions dismiss <flagged-id>`
-- [ ] Test: All commands work with real database
+- [x] Test: Transcript and decision commands work with real database
 
 Implementation rule:
 - Do not mark any command in this section complete until it has been invoked through the actual CLI entrypoint (`tsx` or built binary), not just through a unit test of the underlying service
@@ -428,13 +499,16 @@ decision-logger meeting show does-not-exist
 
 ### Phase 2 Exit Criteria
 - [x] Transcript Service implemented and tested (2.2)
-- [ ] Remaining 5 services implemented (2.3-2.7)
+- [x] Decision Context Service implemented and tested (2.4)
+- [x] Decision Log Service implemented and tested (2.5)
+- [x] Logging Foundation implemented (2.4a)
+- [ ] Remaining 3 services implemented (2.6-2.8)
 - [x] Unit test coverage for transcript repositories
 - [x] Integration tests prove DB operations work for transcripts
 - [ ] Field library seeded (~25 fields)
 - [ ] 6 core templates seeded (Standard, Technology, Strategy, Budget, Policy, Proposal)
 - [x] Context tagging logic working
-- [ ] CLI commands available for manual testing
+- [x] CLI commands available for transcript and decision (partial)
 - [x] No LLM dependencies yet (pure data layer)
 
 ---
@@ -449,6 +523,7 @@ decision-logger meeting show does-not-exist
 - [ ] Create provider-backed implementation via Vercel AI SDK
 - [ ] Support provider selection per workload (detection vs draft generation)
 - [ ] Ensure local models are optional adapters, not required infrastructure
+- [ ] Emit structured LLM operation logs (provider, model, latency, validation result)
 - [ ] Test: Mock service returns expected structured output
 
 **Validation Checkpoint 3.1**:
@@ -621,6 +696,7 @@ expect(ctx.activeField).toBe('options');
 - [ ] New transcript chunks get meeting tag: `meeting:<id>`
 - [ ] If decision active, add: `decision:<id>`
 - [ ] If field active, add: `decision:<id>:<field>`
+- [ ] Emit transcript pipeline logs for ingest, buffering, chunk creation, and tagging
 - [ ] Test: Tags are cumulative and correct
 
 **Validation Checkpoint 4.2**:
@@ -846,6 +922,7 @@ decision-logger draft expert-advice technical
 - [ ] GET /api/meetings (list)
 - [ ] GET /api/meetings/:id (show)
 - [ ] PATCH /api/meetings/:id/status (complete)
+- [ ] Request lifecycle logging with request/correlation IDs
 - [ ] Integration tests for each
 
 ### 6.2 Transcript Endpoints
@@ -975,61 +1052,85 @@ curl http://localhost:3000/api/meetings/mtg_1/flagged-decisions
 
 ---
 
-## Phase 7: CLI Polish & UX (Days 19-21)
+## Phase 7: CLI — API Client & UX Polish (Days 19-21)
 
-**Goal**: Add interactive features and polish to the CLI (commands already built in Phases 0-5).
+**Goal**: Rewrite the CLI as a proper API client that can target a local or remote server, then add interactive UX polish with Clack.
 
-### 7.1 Interactive Mode with Clack
+**Architecture shift**: The Phase 0–6 CLI commands import `@repo/core` and `@repo/db` directly — this is convenient scaffolding for local dev but ties the CLI to a database connection. Phase 7 removes all direct service/repo imports from `apps/cli` and replaces them with HTTP calls to the API. The CLI becomes a pure consumer of the REST API, identical to any future web UI.
+
+```
+Before (Phase 0–6):  CLI → @repo/core services → @repo/db → Postgres
+After  (Phase 7):    CLI → HTTP → API → @repo/core services → @repo/db → Postgres
+```
+
+**Configuration**: `DECISION_LOGGER_API_URL` env var (defaults to `http://localhost:3000`). Allows pointing at a remote deployed instance without any code change.
+
+### 7.0 API Client Layer
+- [ ] Create `apps/cli/src/api-client.ts` — thin fetch wrapper using `DECISION_LOGGER_API_URL`
+- [ ] Handle common HTTP errors (4xx, 5xx) and surface them as user-friendly messages
+- [ ] Add `--api-url <url>` global flag to override `DECISION_LOGGER_API_URL` at runtime
+- [ ] **Remove all `@repo/core` and `@repo/db` imports from `apps/cli`** — CLI must not depend on these packages
+
+**Validation Checkpoint 7.0**:
+```bash
+# CLI talks to API, not DB directly
+DECISION_LOGGER_API_URL=http://localhost:3000 decision-logger meeting list
+# Start API on a different port, CLI follows
+DECISION_LOGGER_API_URL=http://localhost:4000 decision-logger meeting list
+```
+
+### 7.1 Rewrite Commands Against API
+- [ ] `meeting` commands → `GET/POST /api/meetings`
+- [ ] `transcript` commands → `POST /api/meetings/:id/transcripts/*`
+- [ ] `decisions` commands → `GET/POST/PATCH /api/flagged-decisions`, `POST /api/decision-contexts`
+- [ ] `draft` commands → `POST /api/decision-contexts/:id/generate-draft`, `lock-field`, `regenerate`
+- [ ] `decision log/show/export` → `POST /api/decision-contexts/:id/log`, `GET /api/decisions/:id`
+- [ ] `context` commands → `POST/DELETE /api/context/meeting`, `POST /api/meetings/:id/context/*`
+- [ ] `field` and `template` commands → `GET /api/fields`, `GET /api/templates`
+- [ ] `expert` and `mcp` management commands
+
+### 7.2 Interactive Mode with Clack
 - [ ] Add Clack prompts for missing required arguments
 - [ ] Add spinners for LLM operations ("Generating draft...")
 - [ ] Add colored output for decision fields (green=locked, yellow=unlocked)
 - [ ] Add progress indicators for multi-step operations
 - [ ] Add confirmation prompts for destructive actions
 
-**Validation Checkpoint 7.1**:
+**Validation Checkpoint 7.2**:
 ```bash
-# Test interactive prompts
-decision-logger meeting create  # Should prompt for title, date, participants
-decision-logger draft generate  # Should show spinner during LLM call
+decision-logger meeting create  # Prompts for title, date, participants if not supplied
+decision-logger draft generate  # Shows spinner during LLM call
 ```
 
-### 7.2 Additional Commands
-- [ ] `decision-logger transcript stream [--file <file.txt>]` (streaming input)
-- [ ] `decision-logger draft update-field <field-id> --value <text>` (manual edit)
-- [ ] `decision-logger decisions flag|update|priority|dismiss` (triage workflow)
-- [ ] `decision-logger decision show <id>` (show logged decision)
-- [ ] `decision-logger decision export <id> --format <json|markdown>`
-- [ ] `decision-logger context clear-meeting`
-- [ ] `decision-logger template set-default <id>`
-- [ ] `decision-logger expert *` and `decision-logger mcp *` management commands
-
 ### 7.3 Error Handling & Help
-- [ ] Improve error messages (user-friendly, actionable)
-- [ ] Add `--help` to all commands
-- [ ] Add examples to help text
-- [ ] Handle common errors gracefully (no meeting context, no API key, etc.)
+- [ ] Improve error messages (user-friendly, actionable, include API error body)
+- [ ] Handle offline API gracefully ("Cannot connect to API at http://localhost:3000")
+- [ ] Add `--help` to all commands with usage examples
+- [ ] Add `--verbose` flag to print raw HTTP request/response for debugging
 
 **Validation Checkpoint 7.3**:
 ```bash
-decision-logger draft generate  # No meeting context → clear error message
+# API not running → clear connection error, not a stack trace
+decision-logger meeting list  # "Cannot connect to API at http://localhost:3000"
 decision-logger meeting create --help  # Shows usage examples
 ```
 
-**Manual Smoke Test**:
+**Manual Smoke Test** (API running):
 ```bash
-# Check command discoverability and bad-state handling
 decision-logger --help
 decision-logger transcript --help
-decision-logger context set-decision does-not-exist
-decision-logger transcript stream --file missing.txt
+decision-logger context set-decision does-not-exist  # 404 surfaced cleanly
+DECISION_LOGGER_API_URL=http://remote-host:3000 decision-logger meeting list  # Remote works
 ```
 
 ### Phase 7 Exit Criteria
+- [ ] `apps/cli` has zero imports from `@repo/core` or `@repo/db`
+- [ ] CLI works against `http://localhost:3000` (local) and any remote `DECISION_LOGGER_API_URL`
+- [ ] All commands use the API client layer (no direct DB access)
 - [ ] Interactive prompts working with Clack
 - [ ] Spinners and colored output enhance UX
-- [ ] Error messages are clear and actionable
-- [ ] Help text is comprehensive
-- [ ] CLI feels polished and professional
+- [ ] Error messages are clear and actionable, including API-down scenario
+- [ ] Help text is comprehensive with examples
 
 ---
 
@@ -1046,6 +1147,7 @@ decision-logger transcript stream --file missing.txt
 - [ ] Update README with final architecture
 - [ ] API documentation (auto-generated from OpenAPI)
 - [ ] CLI usage guide
+- [ ] Logging and live-debugging guide using correlation IDs
 
 ### 8.3 Final Validation
 - [ ] End-to-end workflow test
