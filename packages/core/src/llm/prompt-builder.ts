@@ -33,22 +33,32 @@ export class PromptBuilder {
   }
 
   addTranscriptChunk(chunk: TranscriptChunk): this {
-    this.segments.push({
+    const segment: PromptSegment = {
       type: 'transcript',
-      speaker: chunk.speaker,
       text: chunk.text,
       tags: chunk.contexts,
-    });
+    };
+
+    if (chunk.speaker) {
+      segment.speaker = chunk.speaker;
+    }
+
+    this.segments.push(segment);
     return this;
   }
 
   addGuidance(segment: GuidanceSegment): this {
-    this.segments.push({
+    const promptSegment: PromptSegment = {
       type: 'guidance',
-      fieldId: segment.fieldId,
       content: segment.content,
       source: segment.source,
-    });
+    };
+
+    if (segment.fieldId) {
+      promptSegment.fieldId = segment.fieldId;
+    }
+
+    this.segments.push(promptSegment);
     return this;
   }
 

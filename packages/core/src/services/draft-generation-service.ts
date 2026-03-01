@@ -1,5 +1,6 @@
 import type { DecisionContext, DecisionField } from '@repo/schema';
 import type { ILLMService, GuidanceSegment } from '../llm/i-llm-service';
+import type { PromptSegmentData } from '@repo/schema';
 import { buildDraftPrompt, buildFieldRegenerationPrompt } from '../llm/prompt-builder';
 import type { ITranscriptChunkRepository } from '../interfaces/transcript-repositories';
 import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
@@ -61,7 +62,7 @@ export class DraftGenerationService {
       decisionContextId,
       fieldId: null,
       operation: 'generate_draft',
-      promptSegments: prompt.segments as object[],
+      promptSegments: prompt.segments as PromptSegmentData[],
       promptText: prompt.text,
       responseText: JSON.stringify(draftResult),
       parsedResult: draftResult,
@@ -129,7 +130,7 @@ export class DraftGenerationService {
       decisionContextId,
       fieldId,
       operation: 'regenerate_field',
-      promptSegments: prompt.segments as object[],
+      promptSegments: prompt.segments as PromptSegmentData[],
       promptText: prompt.text,
       responseText: JSON.stringify({ [fieldId]: value }),
       parsedResult: { [fieldId]: value },
