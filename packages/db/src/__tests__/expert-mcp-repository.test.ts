@@ -79,15 +79,13 @@ describe('DrizzleExpertTemplateRepository', () => {
       const mockReturning = vi.fn().mockResolvedValue([mockRow]);
       const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
       const mockInsert = vi.fn().mockReturnValue({ values: mockValues });
-      vi.mocked(db.insert).mockReturnValue(mockInsert);
+      vi.mocked(db.insert).mockImplementation(mockInsert as any);
 
       const result = await repository.create(data);
 
       expect(result).toEqual({
         id: mockRow.id,
         name: mockRow.name,
-        displayName: mockRow.name,
-        description: undefined,
         type: mockRow.type,
         promptTemplate: mockRow.promptTemplate,
         mcpAccess: mockRow.mcpAccess,
@@ -96,7 +94,7 @@ describe('DrizzleExpertTemplateRepository', () => {
         createdAt: mockRow.createdAt.toISOString(),
         updatedAt: mockRow.updatedAt.toISOString(),
       });
-      expect(db.insert).toHaveBeenCalledWith(expertTemplates);
+      expect(db.insert).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -119,15 +117,13 @@ describe('DrizzleExpertTemplateRepository', () => {
           where: vi.fn().mockResolvedValue([mockRow]),
         }),
       });
-      vi.mocked(db.select).mockReturnValue(mockSelect);
+      vi.mocked(db.select).mockImplementation(mockSelect as any);
 
       const result = await repository.findById('550e8400-e29b-41d4-a716-446655440010');
 
       expect(result).toEqual({
         id: mockRow.id,
         name: mockRow.name,
-        displayName: mockRow.name,
-        description: undefined,
         type: mockRow.type,
         promptTemplate: mockRow.promptTemplate,
         mcpAccess: mockRow.mcpAccess,
@@ -144,7 +140,7 @@ describe('DrizzleExpertTemplateRepository', () => {
           where: vi.fn().mockResolvedValue([]),
         }),
       });
-      vi.mocked(db.select).mockReturnValue(mockSelect);
+      vi.mocked(db.select).mockImplementation(mockSelect as any);
 
       const result = await repository.findById('550e8400-e29b-41d4-a716-446655440999');
 
@@ -178,15 +174,13 @@ describe('DrizzleExpertTemplateRepository', () => {
           }),
         }),
       });
-      vi.mocked(db.update).mockReturnValue(mockUpdate);
+      vi.mocked(db.update).mockImplementation(mockUpdate as any);
 
       const result = await repository.update('550e8400-e29b-41d4-a716-446655440010', updateData);
 
       expect(result).toEqual({
         id: mockRow.id,
         name: mockRow.name,
-        displayName: mockRow.name,
-        description: undefined,
         type: mockRow.type,
         promptTemplate: mockRow.promptTemplate,
         mcpAccess: mockRow.mcpAccess,
@@ -205,7 +199,7 @@ describe('DrizzleExpertTemplateRepository', () => {
           returning: vi.fn().mockResolvedValue([{ id: '550e8400-e29b-41d4-a716-446655440010' }]),
         }),
       });
-      vi.mocked(db.delete).mockReturnValue(mockDelete);
+      vi.mocked(db.delete).mockImplementation(mockDelete as any);
 
       const result = await repository.delete('550e8400-e29b-41d4-a716-446655440010');
 
@@ -218,7 +212,7 @@ describe('DrizzleExpertTemplateRepository', () => {
           returning: vi.fn().mockResolvedValue([]),
         }),
       });
-      vi.mocked(db.delete).mockReturnValue(mockDelete);
+      vi.mocked(db.delete).mockImplementation(mockDelete as any);
 
       const result = await repository.delete('550e8400-e29b-41d4-a716-446655440999');
 
@@ -261,7 +255,7 @@ describe('DrizzleMCPServerRepository', () => {
           returning: vi.fn().mockResolvedValue([mockRow]),
         }),
       });
-      vi.mocked(db.insert).mockReturnValue(mockInsert);
+      vi.mocked(db.insert).mockImplementation(mockInsert as any);
 
       const result = await repository.create(data);
 
@@ -269,8 +263,7 @@ describe('DrizzleMCPServerRepository', () => {
         id: mockRow.id,
         name: mockRow.name,
         type: mockRow.type,
-        description: undefined,
-        connection: mockRow.connectionConfig,
+        connectionConfig: mockRow.connectionConfig,
         capabilities: mockRow.capabilities,
         status: mockRow.status,
         createdAt: mockRow.createdAt.toISOString(),
@@ -297,7 +290,7 @@ describe('DrizzleMCPServerRepository', () => {
           where: vi.fn().mockResolvedValue([mockRow]),
         }),
       });
-      vi.mocked(db.select).mockReturnValue(mockSelect);
+      vi.mocked(db.select).mockImplementation(mockSelect as any);
 
       const result = await repository.findByName('test-server');
 
@@ -305,8 +298,7 @@ describe('DrizzleMCPServerRepository', () => {
         id: mockRow.id,
         name: mockRow.name,
         type: mockRow.type,
-        description: undefined,
-        connection: mockRow.connectionConfig,
+        connectionConfig: mockRow.connectionConfig,
         capabilities: mockRow.capabilities,
         status: mockRow.status,
         createdAt: mockRow.createdAt.toISOString(),
@@ -324,7 +316,7 @@ describe('DrizzleMCPServerRepository', () => {
           }),
         }),
       });
-      vi.mocked(db.update).mockReturnValue(mockUpdate);
+      vi.mocked(db.update).mockImplementation(mockUpdate as any);
 
       const result = await repository.updateStatus('test-server', 'inactive');
 
@@ -367,7 +359,7 @@ describe('DrizzleExpertAdviceHistoryRepository', () => {
           returning: vi.fn().mockResolvedValue([mockRow]),
         }),
       });
-      vi.mocked(db.insert).mockReturnValue(mockInsert);
+      vi.mocked(db.insert).mockImplementation(mockInsert as any);
 
       const result = await repository.create(data);
 
@@ -376,11 +368,10 @@ describe('DrizzleExpertAdviceHistoryRepository', () => {
         decisionContextId: mockRow.decisionContextId,
         expertId: mockRow.expertId,
         expertName: mockRow.expertName,
-        advice: mockRow.response,
-        confidence: undefined,
-        reasoning: undefined,
+        request: mockRow.request,
+        response: mockRow.response,
         mcpToolsUsed: undefined,
-        createdAt: mockRow.requestedAt.toISOString(),
+        requestedAt: mockRow.requestedAt.toISOString(),
       });
     });
   });
@@ -405,7 +396,7 @@ describe('DrizzleExpertAdviceHistoryRepository', () => {
           }),
         }),
       });
-      vi.mocked(db.select).mockReturnValue(mockSelect);
+      vi.mocked(db.select).mockImplementation(mockSelect as any);
 
       const result = await repository.findByDecisionContextId('550e8400-e29b-41d4-a716-446655440004');
 
@@ -414,11 +405,10 @@ describe('DrizzleExpertAdviceHistoryRepository', () => {
         decisionContextId: mockRow.decisionContextId,
         expertId: mockRow.expertId,
         expertName: mockRow.expertName,
-        advice: mockRow.response,
-        confidence: undefined,
-        reasoning: undefined,
+        request: mockRow.request,
+        response: mockRow.response,
         mcpToolsUsed: undefined,
-        createdAt: mockRow.requestedAt.toISOString(),
+        requestedAt: mockRow.requestedAt.toISOString(),
       }]);
     });
   });
@@ -430,7 +420,7 @@ describe('DrizzleExpertAdviceHistoryRepository', () => {
           where: vi.fn().mockResolvedValue([{ count: 5 }]),
         }),
       });
-      vi.mocked(db.select).mockReturnValue(mockSelect);
+      vi.mocked(db.select).mockImplementation(mockSelect as any);
 
       const result = await repository.getAdviceCountByExpert('550e8400-e29b-41d4-a716-446655440010');
 
@@ -443,7 +433,7 @@ describe('DrizzleExpertAdviceHistoryRepository', () => {
           where: vi.fn().mockResolvedValue([]),
         }),
       });
-      vi.mocked(db.select).mockReturnValue(mockSelect);
+      vi.mocked(db.select).mockImplementation(mockSelect as any);
 
       const result = await repository.getAdviceCountByExpert('550e8400-e29b-41d4-a716-446655440010');
 

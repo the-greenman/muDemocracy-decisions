@@ -13,15 +13,25 @@ import { randomUUID } from 'crypto';
 describe('DrizzleRawTranscriptRepository', () => {
   let repository: DrizzleRawTranscriptRepository;
   let testMeetingId: string;
+  let otherMeetingId: string;
 
   beforeEach(async () => {
     repository = new DrizzleRawTranscriptRepository();
     testMeetingId = randomUUID();
+    otherMeetingId = randomUUID();
     
     // Create a test meeting to satisfy foreign key constraint
     await db.insert(meetings).values({
       id: testMeetingId,
       title: 'Test Meeting',
+      date: new Date().toISOString(),
+      participants: [],
+      status: 'active',
+    });
+
+    await db.insert(meetings).values({
+      id: otherMeetingId,
+      title: 'Other Meeting',
       date: new Date().toISOString(),
       participants: [],
       status: 'active',
@@ -35,6 +45,8 @@ describe('DrizzleRawTranscriptRepository', () => {
     // Clean up test data
     await db.delete(rawTranscripts).where(eq(rawTranscripts.meetingId, testMeetingId));
     await db.delete(meetings).where(eq(meetings.id, testMeetingId));
+    await db.delete(rawTranscripts).where(eq(rawTranscripts.meetingId, otherMeetingId));
+    await db.delete(meetings).where(eq(meetings.id, otherMeetingId));
   });
 
   describe('create', () => {
@@ -96,7 +108,7 @@ describe('DrizzleRawTranscriptRepository', () => {
 
       // Create a transcript for a different meeting
       await repository.create({
-        meetingId: '11111111-1111-1111-1111-111111111111',
+        meetingId: otherMeetingId,
         source: 'upload',
         format: 'txt',
         content: 'Other transcript',

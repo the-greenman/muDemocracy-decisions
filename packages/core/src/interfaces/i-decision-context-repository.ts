@@ -3,16 +3,7 @@
  * Manages draft state, field locking, and field-specific transcript retrieval
  */
 
-import type { DecisionContext } from '@repo/schema';
-
-export interface CreateDecisionContext {
-  meetingId: string;
-  flaggedDecisionId: string;
-  title: string;
-  templateId: string;
-  activeField?: string;
-  draftData?: Record<string, any>;
-}
+import type { DecisionContext, CreateDecisionContext } from '@repo/schema';
 
 export interface IDecisionContextRepository {
   // Basic CRUD operations

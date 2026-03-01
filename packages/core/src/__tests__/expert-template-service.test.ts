@@ -67,7 +67,7 @@ describe('ExpertTemplateService', () => {
     it('should throw error for invalid template', async () => {
       const data: CreateExpertTemplate = {
         name: '',
-        type: 'technical', // Will be caught by validation
+        type: 'invalid' as any,
         promptTemplate: '',
         mcpAccess: [''],
         isActive: true,
@@ -204,7 +204,7 @@ describe('ExpertTemplateService', () => {
     it('should return errors for invalid template', async () => {
       const data: CreateExpertTemplate = {
         name: '',
-        type: 'technical' as any, // Will pass type check but fail validation
+        type: 'invalid' as any,
         promptTemplate: '',
         mcpAccess: [''],
         outputSchema: 'invalid' as any,

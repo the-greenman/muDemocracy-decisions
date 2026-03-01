@@ -493,53 +493,7 @@ prompts/
 
 ### 8. Implementation
 
-```typescript
-// packages/core/src/services/draft-generation.service.ts
-export class DraftGenerationService {
-  async regenerateField(
-    contextId: string,
-    fieldId: string
-  ): Promise<string> {
-    // 1. Get field definition from library
-    const field = await this.fieldRepo.findById(fieldId);
-    
-    // 2. Get weighted segments
-    const segments = await this.getWeightedSegments(contextId, fieldId);
-    
-    // 3. Use field's extraction prompt
-    const { object } = await generateObject({
-      model: anthropic('claude-3-5-sonnet-latest'),
-      schema: z.object({ value: z.string() }),
-      system: field.extractionPrompt.system,
-      prompt: this.buildFieldPrompt(field, segments)
-    });
-    
-    return object.value;
-  }
-  
-  private buildFieldPrompt(
-    field: DecisionField,
-    segments: TranscriptSegment[]
-  ): string {
-    return `
-${field.extractionPrompt.system}
-
-Constraints:
-${field.extractionPrompt.constraints.join('\n')}
-
-Examples:
-${field.extractionPrompt.examples.map(ex => 
-  `Input: ${ex.input}\nOutput: ${ex.output}`
-).join('\n\n')}
-
-Transcript:
-${segments.map(s => `[${s.sequenceNumber}] ${s.speaker}: ${s.text}`).join('\n')}
-
-Extract the "${field.name}" field:
-    `.trim();
-  }
-}
-```
+> **Implementation Note**: The `DraftGenerationService` and its methods, including `regenerateField`, are defined in Milestone 1 and Milestone 4 of `docs/iterative-implementation-plan.md`. That document is the authoritative source for the implementation, which uses a layered architecture with a dedicated `ILLMService` and `PromptBuilder`.
 
 ### 9. CLI Workflow
 

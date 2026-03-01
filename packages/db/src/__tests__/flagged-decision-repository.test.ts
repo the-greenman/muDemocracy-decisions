@@ -60,8 +60,8 @@ describe('DrizzleFlaggedDecisionRepository', () => {
       expect(result.contextSummary).toBe('This is a test decision about architecture');
       expect(result.confidence).toBe(0.85);
       expect(result.chunkIds).toEqual(data.chunkIds);
-      expect(result.suggestedTemplateId).toBeNull();
-      expect(result.templateConfidence).toBeNull();
+      expect(result.suggestedTemplateId).toBeUndefined();
+      expect(result.templateConfidence).toBeUndefined();
       expect(result.status).toBe('pending');
       expect(result.priority).toBe(5);
       expect(result.createdAt).toBeDefined();
@@ -80,8 +80,8 @@ describe('DrizzleFlaggedDecisionRepository', () => {
       const result = await repository.create(data);
 
       expect(result).toBeDefined();
-      expect(result.suggestedTemplateId).toBeNull();
-      expect(result.templateConfidence).toBeNull();
+      expect(result.suggestedTemplateId).toBeUndefined();
+      expect(result.templateConfidence).toBeUndefined();
       expect(result.status).toBe('pending');
       expect(result.priority).toBe(0);
     });

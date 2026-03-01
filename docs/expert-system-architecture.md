@@ -4,6 +4,13 @@
 **Owns**: expert-system scope, expert data model, MCP integration detail, expert/MCP API and CLI surface
 **Must sync with**: `packages/schema`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
 
+> **Implementation Note (see iterative-implementation-plan.md M5-M7)**:
+> The expert system is implemented in stages.
+> - **M5**: API endpoints for experts and MCP servers are created as stubs.
+> - **M6**: The first expert, the "Decision Detector," is implemented.
+> - **M7+**: The full custom expert and MCP framework is built out.
+> This document describes the final architecture. Refer to the iterative plan for the specific implementation sequence.
+
 ## Overview
 
 The system supports two types of experts:
@@ -515,81 +522,6 @@ decision-logger mcp resources <server-name>
 decision-logger draft expert-advice <expert-name> [--focus <area>]
 ```
 
-## Implementation Flow
-
-### 1. System Initialization
-
-```typescript
-async function initializeExpertSystem() {
-  // Load core experts
-  await seedCoreExperts(CORE_EXPERTS);
-  
-  // Load custom experts from database
-  const customExperts = await db.expertTemplates.findMany({
-    where: { type: 'custom', isActive: true }
-  });
-  
-  // Initialize MCP servers
-  await mcpRegistry.initialize();
-  
-  // Validate expert MCP access
-  for (const expert of [...CORE_EXPERTS, ...customExperts]) {
-    await validateExpertMCPAccess(expert);
-  }
-}
-```
-
-### 2. Expert Advice Request
-
-```typescript
-async function requestExpertAdvice(
-  decisionContextId: string,
-  expertName: string,
-  focusArea?: string
-) {
-  // 1. Get expert (core or custom)
-  const expert = await getExpert(expertName);
-  
-  // 2. Load decision context
-  const context = await getDecisionContext(decisionContextId);
-  
-  // 3. Initialize LLM with MCP access
-  const { llm, mcpClients } = await initializeExpert(expert.id);
-  
-  // 4. Build prompt
-  const prompt = buildPrompt(expert.promptTemplate, {
-    decision_context: context.title,
-    draft_fields: context.draftData,
-    focus_area: focusArea,
-    // ...
-  });
-  
-  // 5. Execute with MCP tool tracking
-  const toolsUsed: string[] = [];
-  const response = await llm.complete(prompt, {
-    onToolCall: async (toolCall) => {
-      toolsUsed.push(toolCall.name);
-      const client = mcpClients.find(c => c.hasTool(toolCall.name));
-      return await client.executeTool(toolCall.name, toolCall.arguments);
-    }
-  });
-  
-  // 6. Parse and validate response
-  const advice = parseExpertResponse(response, expert.outputSchema);
-  
-  // 7. Store in history
-  await db.expertAdviceHistory.create({
-    decisionContextId,
-    expertId: expert.id,
-    expertName: expert.name,
-    request: { focusArea },
-    response: advice,
-    mcpToolsUsed: toolsUsed
-  });
-  
-  return advice;
-}
-```
 
 ## Benefits of Hybrid Approach
 

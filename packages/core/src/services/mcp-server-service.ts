@@ -6,9 +6,9 @@
 import type { 
   MCPServer,
   CreateMCPServer,
-  UpdateMCPServer,
-  IMCPServerRepository
-} from '@repo/core';
+  UpdateMCPServer
+} from '@repo/schema';
+import type { IMCPServerRepository } from '../interfaces/i-mcp-server-repository';
 import { logger } from '../logger';
 
 export interface IMCPServerService {

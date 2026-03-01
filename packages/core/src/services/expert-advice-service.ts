@@ -6,10 +6,9 @@
 import type { 
   ExpertAdvice,
   CreateExpertAdvice,
-  ExpertTemplate,
-  IExpertAdviceHistoryRepository,
-  IExpertTemplateRepository
-} from '@repo/core';
+} from '@repo/schema';
+import type { IExpertAdviceHistoryRepository } from '../interfaces/i-expert-advice-history-repository';
+import type { IExpertTemplateRepository } from '../interfaces/i-expert-template-repository';
 import { logger } from '../logger';
 
 export interface IExpertAdviceService {

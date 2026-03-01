@@ -1,5 +1,6 @@
-import { IMeetingRepository } from '../../interfaces/i-meeting-repository';
-import { Meeting, CreateMeeting, CreateMeetingSchema } from '@repo/schema';
+import type { IMeetingRepository } from '../interfaces/i-meeting-repository';
+import { CreateMeetingSchema } from '@repo/schema';
+import type { Meeting, CreateMeeting } from '@repo/schema';
 
 export class MeetingService {
   constructor(private readonly repo: IMeetingRepository) {}

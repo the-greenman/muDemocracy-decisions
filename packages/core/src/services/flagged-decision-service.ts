@@ -3,10 +3,8 @@
  * Implements business logic and validation
  */
 
-import type {
-  IFlaggedDecisionService,
-  IFlaggedDecisionRepository,
-} from '../interfaces';
+import type { IFlaggedDecisionService } from '../interfaces/i-flagged-decision-service';
+import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository';
 import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
 
 export class FlaggedDecisionService implements IFlaggedDecisionService {
@@ -63,6 +61,9 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     for (let i = 0; i < decisionIds.length; i++) {
       const decisionId = decisionIds[i];
       const priority = priorities[i];
+      if (decisionId === undefined || priority === undefined) {
+        throw new Error('Decision IDs and priorities must have the same length');
+      }
 
       // Check if decision exists
       const existing = await this.repository.findById(decisionId);

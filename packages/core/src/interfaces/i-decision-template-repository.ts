@@ -6,8 +6,7 @@
 import type { 
   DecisionTemplate,
   CreateDecisionTemplate,
-  TemplateFieldAssignment,
-  CreateTemplateFieldAssignment
+  TemplateFieldAssignment
 } from '@repo/schema';
 import type { TemplateFieldAssignmentInsert } from '@repo/db';
 
@@ -35,11 +34,11 @@ export interface ITemplateFieldAssignmentRepository {
   create(data: TemplateFieldAssignmentInsert): Promise<TemplateFieldAssignment>;
   findByTemplateId(templateId: string): Promise<TemplateFieldAssignment[]>;
   findByFieldId(fieldId: string): Promise<TemplateFieldAssignment[]>;
-  update(templateId: string, fieldId: string, data: Partial<CreateTemplateFieldAssignment>): Promise<TemplateFieldAssignment | null>;
+  update(templateId: string, fieldId: string, data: Partial<TemplateFieldAssignmentInsert>): Promise<TemplateFieldAssignment | null>;
   delete(templateId: string, fieldId: string): Promise<boolean>;
   deleteByTemplateId(templateId: string): Promise<boolean>;
   
   // Bulk operations
-  createMany(assignments: CreateTemplateFieldAssignment[]): Promise<TemplateFieldAssignment[]>;
+  createMany(assignments: TemplateFieldAssignmentInsert[]): Promise<TemplateFieldAssignment[]>;
   updateOrder(templateId: string, assignments: { fieldId: string; order: number }[]): Promise<void>;
 }

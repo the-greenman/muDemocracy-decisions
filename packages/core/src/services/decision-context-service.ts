@@ -4,11 +4,11 @@
  */
 
 import type { 
-  IDecisionContextService,
-  IDecisionContextRepository,
   DecisionContext,
   CreateDecisionContext 
-} from '@repo/core';
+} from '@repo/schema';
+import type { IDecisionContextService } from '../interfaces/i-decision-context-service';
+import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
 import { logger } from '../logger';
 
 export class DecisionContextService implements IDecisionContextService {

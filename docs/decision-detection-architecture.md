@@ -4,6 +4,13 @@
 **Owns**: decision-detection prompt design, classification rules, prompt refinement workflow
 **Must sync with**: `packages/schema`, `docs/PLAN.md`, `docs/iterative-implementation-plan.md`
 
+> **Implementation note (see iterative-implementation-plan.md M6)**:
+> Decision detection is **deferred to Milestone 6**. M1–M5 use manual decision flagging only.
+>
+> In M6, detection is implemented as an **expert persona** (the "Decision Detector" expert), not as a standalone `DecisionDetectionService`. It uses `ExpertService.consultStructured()` with a `FlaggedDecisionDetectionSchema` output type. This reuses the expert infrastructure (prompt management, LLM interaction logging, MCP tool access) rather than duplicating it.
+>
+> The standalone `DecisionDetectionService` class shown in the Implementation section below is superseded by this expert-persona approach. The prompt design, patterns, confidence scoring, and test corpus described here remain valid and apply directly to the Decision Detector expert prompt (`prompts/experts/decision-detector.md`).
+
 ## Core Challenge
 
 Decision detection is the **most critical** LLM task in the system. It must catch:
@@ -355,157 +362,3 @@ test-cases/
 └── decision-reversal.json           # Decision made then changed
 ```
 
-## Implementation
-
-### Service Layer
-
-```typescript
-// packages/core/src/services/decision-detection.service.ts
-import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { FlaggedDecisionsSchema } from '@repo/schema';
-import decisionDetectionPrompt from '../../../prompts/decision-detection.md';
-
-export class DecisionDetectionService {
-  async detectDecisions(
-    meetingId: string,
-    segments: TranscriptSegment[]
-  ): Promise<FlaggedDecision[]> {
-    // Load current version of decision detection prompt
-    const prompt = await this.loadPrompt('decision-detection', 'v3');
-    
-    const { object } = await generateObject({
-      model: anthropic('claude-3-5-sonnet-latest'),
-      schema: FlaggedDecisionsSchema,
-      system: prompt.system,
-      prompt: this.buildTranscriptPrompt(segments)
-    });
-    
-    // Filter low-confidence decisions (< 0.5)
-    const decisions = object.decisions.filter(d => d.confidence >= 0.5);
-    
-    // Persist to database
-    return await this.flaggedDecisionRepo.createMany(
-      decisions.map(d => ({
-        ...d,
-        meetingId,
-        status: 'pending'
-      }))
-    );
-  }
-  
-  private buildTranscriptPrompt(segments: TranscriptSegment[]): string {
-    return `
-Transcript:
-${segments.map(s => `[${s.sequenceNumber}] ${s.speaker}: ${s.text}`).join('\n')}
-
-Analyze this transcript and identify ALL decisions, including implicit decisions, decisions not to act, and decisions to defer or reject.
-    `.trim();
-  }
-  
-  private async loadPrompt(name: string, version: string) {
-    // Load from file or database
-    // For now, hardcoded in code
-    return {
-      system: decisionDetectionPrompt.system,
-      version: 3
-    };
-  }
-}
-```
-
-### CLI Workflow
-
-```bash
-# Upload transcript
-decision-logger transcript upload meeting-transcript.json
-
-# LLM automatically detects decisions
-# Output:
-# Analyzing transcript for decisions...
-# Found 3 decisions:
-#   1. [0.89] Defer architecture decision pending alignment (segments 15-17)
-#   2. [0.85] Reject current options and reframe problem (segments 22-24)
-#   3. [0.95] Select PostgreSQL as database (segments 45-47)
-
-# Review flagged decisions
-decision-logger decisions flagged
-# 1. [0.89] Defer architecture decision pending alignment
-#    Template: Standard Decision (confidence: 0.75)
-#    Segments: 15-17
-# 2. [0.85] Reject current options and reframe problem
-#    Template: Standard Decision (confidence: 0.70)
-#    Segments: 22-24
-# 3. [0.95] Select PostgreSQL as database
-#    Template: Technology Selection (confidence: 0.98)
-#    Segments: 45-47
-
-# User can dismiss false positives
-decision-logger decision dismiss flag_1
-
-# Or start working on a decision
-decision-logger context set-decision flag_2
-decision-logger draft generate
-```
-
-### Prompt Refinement Workflow
-
-```bash
-# Test current prompt version
-pnpm test:llm -- --grep="decision detection"
-
-# Results:
-# Precision: 0.82 (18/22 flagged items were real decisions)
-# Recall: 0.75 (18/24 real decisions were flagged)
-# F1: 0.78
-
-# Identify failures
-# - Missed: "Let's table this for now" (implicit defer)
-# - Missed: "I'm not comfortable with any of these" (implicit reject)
-# - False positive: "We could consider X" (speculation, not decision)
-
-# Update prompt (add examples)
-vim prompts/decision-detection.md
-# Increment version to v4
-# Add "table this" pattern to implicit defer section
-# Add "not comfortable with" pattern to implicit reject section
-# Add "we could consider" to NOT decision examples
-
-# Re-test
-pnpm test:llm -- --grep="decision detection"
-
-# Results:
-# Precision: 0.88 (21/24 flagged items were real decisions)
-# Recall: 0.84 (21/25 real decisions were flagged)
-# F1: 0.86 (improved!)
-
-# Commit
-git add prompts/decision-detection.md
-git commit -m "refactor(prompts): improve implicit decision detection (v3→v4)
-
-- Added 'table this' pattern for defer decisions
-- Added 'not comfortable' pattern for reject decisions  
-- Clarified speculation vs decision boundary
-- F1 score: 0.78 → 0.86"
-```
-
-## Key Insights
-
-1. **Decisions not to act are decisions** - Document them explicitly
-2. **Implicit decisions are harder to detect** - Require more examples and patterns
-3. **Confidence scoring is critical** - Filter out low-confidence false positives
-4. **Template suggestion is secondary** - User can always override
-5. **Prompt versioning is essential** - Track improvements over time
-6. **Test-driven refinement** - Use real transcripts to measure quality
-7. **Edge cases matter** - Decision reversals, conditional decisions, multiple decisions
-
-## Success Metrics
-
-**Target metrics** (after prompt refinement):
-- **Precision**: >0.85 (few false positives)
-- **Recall**: >0.80 (catch most real decisions)
-- **F1 Score**: >0.82 (balanced performance)
-
-**User satisfaction**:
-- Users dismiss <20% of flagged decisions (low false positive rate)
-- Users manually flag <10% of missed decisions (high recall)

@@ -3,7 +3,7 @@
  * Contains the 6 core templates as specified in the implementation plan
  */
 
-import type { CreateDecisionTemplate, CreateTemplateFieldAssignment } from '@repo/core';
+import type { CreateDecisionTemplate } from '@repo/core';
 
 // Core decision field IDs (these should match the IDs from the decision fields seed)
 const CORE_FIELD_IDS = {
@@ -396,7 +396,7 @@ export const PROPOSAL_TEMPLATE: CreateDecisionTemplate = {
       order: 5,
       required: false,
       customLabel: 'Required Resources',
-      customDescription: 'What's needed to implement the proposal?',
+      customDescription: "What's needed to implement the proposal?",
     },
     {
       templateId: '',

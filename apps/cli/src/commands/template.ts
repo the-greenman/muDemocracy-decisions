@@ -133,6 +133,11 @@ templateCommand
 
       const template = await templateService.updateTemplate(id, updateData);
 
+      if (!template) {
+        console.error(chalk.red('Template not found'));
+        process.exit(1);
+      }
+
       console.log(chalk.green('✓ Template updated successfully'));
       console.log(chalk.gray(`ID: ${template.id}`));
       console.log(chalk.white(`Name: ${template.name}`));

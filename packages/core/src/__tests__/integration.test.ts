@@ -4,7 +4,10 @@ import { MeetingService } from '@repo/core';
 
 const TEST_DB_URL = 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev';
 
-describe('Meeting Integration Tests', () => {
+const describeWithDb =
+  process.env['RUN_DB_TESTS'] === 'true' ? describe : describe.skip;
+
+describeWithDb('Meeting Integration Tests', () => {
   let repo: DrizzleMeetingRepository;
   let service: MeetingService;
   

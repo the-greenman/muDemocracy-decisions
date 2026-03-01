@@ -4,14 +4,14 @@
  */
 
 import type { 
-  IDecisionTemplateService,
-  IDecisionTemplateRepository,
-  ITemplateFieldAssignmentRepository,
   DecisionTemplate,
   CreateDecisionTemplate,
   TemplateFieldAssignment,
   CreateTemplateFieldAssignment
-} from '@repo/core';
+} from '@repo/schema';
+import type { IDecisionTemplateService } from '../interfaces/i-decision-template-service';
+import type { IDecisionTemplateRepository, ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
+import type { TemplateFieldAssignmentInsert } from '@repo/db';
 
 export class DecisionTemplateService implements IDecisionTemplateService {
   constructor(
@@ -35,9 +35,13 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
     // If fields are provided, create them
     if (fields && fields.length > 0) {
-      const fieldAssignments = fields.map(field => ({
-        ...field,
+      const fieldAssignments: TemplateFieldAssignmentInsert[] = fields.map(field => ({
+        fieldId: field.fieldId,
+        order: field.order,
+        required: field.required,
         templateId: template.id,
+        customLabel: field.customLabel ?? null,
+        customDescription: field.customDescription ?? null,
       }));
       await this.fieldAssignmentRepository.createMany(fieldAssignments);
       
@@ -91,13 +95,17 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     // If fields are provided, update them
     if (fields) {
       // Delete existing field assignments
-      await this.fieldAssignmentRepository.deleteByTemplate(id);
+      await this.fieldAssignmentRepository.deleteByTemplateId(id);
       
       // Create new field assignments
       if (fields.length > 0) {
-        const fieldAssignments = fields.map(field => ({
-          ...field,
+        const fieldAssignments: TemplateFieldAssignmentInsert[] = fields.map(field => ({
+          fieldId: field.fieldId,
+          order: field.order,
+          required: field.required,
           templateId: id,
+          customLabel: field.customLabel ?? null,
+          customDescription: field.customDescription ?? null,
         }));
         await this.fieldAssignmentRepository.createMany(fieldAssignments);
       }
@@ -122,7 +130,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     }
 
     // Delete field assignments first
-    await this.fieldAssignmentRepository.deleteByTemplate(id);
+    await this.fieldAssignmentRepository.deleteByTemplateId(id);
 
     // Delete template
     const success = await this.templateRepository.delete(id);
@@ -161,8 +169,12 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
     // Add field assignment
     return await this.fieldAssignmentRepository.create({
-      ...assignment,
+      fieldId: assignment.fieldId,
+      order: assignment.order,
+      required: assignment.required,
       templateId,
+      customLabel: assignment.customLabel ?? null,
+      customDescription: assignment.customDescription ?? null,
     });
   }
 
@@ -181,7 +193,25 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     fieldId: string,
     data: Partial<CreateTemplateFieldAssignment>
   ): Promise<TemplateFieldAssignment | null> {
-    return await this.fieldAssignmentRepository.update(templateId, fieldId, data);
+    const updateData: Partial<TemplateFieldAssignmentInsert> = {};
+
+    if (data.fieldId !== undefined) {
+      updateData.fieldId = data.fieldId;
+    }
+    if (data.order !== undefined) {
+      updateData.order = data.order;
+    }
+    if (data.required !== undefined) {
+      updateData.required = data.required;
+    }
+    if ('customLabel' in data) {
+      updateData.customLabel = data.customLabel ?? null;
+    }
+    if ('customDescription' in data) {
+      updateData.customDescription = data.customDescription ?? null;
+    }
+
+    return await this.fieldAssignmentRepository.update(templateId, fieldId, updateData);
   }
 
   async getTemplateFields(templateId: string): Promise<TemplateFieldAssignment[]> {
@@ -226,9 +256,13 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
     // Create field assignments
     if (fieldAssignments.length > 0) {
-      const assignments = fieldAssignments.map(field => ({
-        ...field,
+      const assignments: TemplateFieldAssignmentInsert[] = fieldAssignments.map(field => ({
+        fieldId: field.fieldId,
+        order: field.order,
+        required: field.required,
         templateId: template.id,
+        customLabel: field.customLabel ?? null,
+        customDescription: field.customDescription ?? null,
       }));
       await this.fieldAssignmentRepository.createMany(assignments);
     }

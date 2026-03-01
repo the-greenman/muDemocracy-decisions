@@ -130,7 +130,12 @@ describe('DecisionTemplateService', () => {
         fields: [],
       });
       expect(mockFieldAssignmentRepo.createMany).toHaveBeenCalledWith(
-        fields.map(f => ({ ...f, templateId: 'tpl-123' }))
+        fields.map(f => ({
+          ...f,
+          templateId: 'tpl-123',
+          customLabel: f.customLabel ?? null,
+          customDescription: f.customDescription ?? null,
+        }))
       );
     });
 
@@ -360,7 +365,12 @@ describe('DecisionTemplateService', () => {
       expect(result).toEqual(updatedTemplate);
       expect(mockFieldAssignmentRepo.deleteByTemplateId).toHaveBeenCalledWith(templateId);
       expect(mockFieldAssignmentRepo.createMany).toHaveBeenCalledWith(
-        fields.map(f => ({ ...f, templateId }))
+        fields.map(f => ({
+          ...f,
+          templateId,
+          customLabel: f.customLabel ?? null,
+          customDescription: f.customDescription ?? null,
+        }))
       );
     });
   });
@@ -558,8 +568,12 @@ describe('DecisionTemplateService', () => {
       expect(result).toEqual(expectedAssignment);
       expect(mockTemplateRepo.findById).toHaveBeenCalledWith(templateId);
       expect(mockFieldAssignmentRepo.create).toHaveBeenCalledWith({
-        ...assignment,
+        fieldId: assignment.fieldId,
+        order: assignment.order,
+        required: assignment.required,
         templateId: 'tpl-123',
+        customLabel: assignment.customLabel ?? null,
+        customDescription: assignment.customDescription ?? null,
       });
     });
 
@@ -741,7 +755,12 @@ describe('DecisionTemplateService', () => {
       expect(result).toEqual(createdTemplate);
       expect(mockTemplateRepo.create).toHaveBeenCalledWith(templateData);
       expect(mockFieldAssignmentRepo.createMany).toHaveBeenCalledWith(
-        fieldAssignments.map(f => ({ ...f, templateId: 'tpl-123' }))
+        fieldAssignments.map(f => ({
+          ...f,
+          templateId: 'tpl-123',
+          customLabel: f.customLabel ?? null,
+          customDescription: f.customDescription ?? null,
+        }))
       );
     });
 

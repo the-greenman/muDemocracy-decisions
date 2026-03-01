@@ -113,6 +113,7 @@ app.get('/docs', (c) => {
   `);
 });
 
+export { app };
 export default app;
 
 // Start server if not imported (direct run)

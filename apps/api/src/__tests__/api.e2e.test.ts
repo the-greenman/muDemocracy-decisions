@@ -44,7 +44,7 @@ describe('API E2E Tests', () => {
   });
 
   it('GET /api/meetings/:id - should return 404 for non-existent meeting', async () => {
-    const response = await app.request('/api/meetings/non-existent-id');
+    const response = await app.request('/api/meetings/11111111-1111-4111-8111-111111111111');
     
     expect(response.status).toBe(404);
     const data = await response.json();

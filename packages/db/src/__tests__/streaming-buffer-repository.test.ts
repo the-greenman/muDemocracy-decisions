@@ -5,21 +5,29 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DrizzleStreamingBufferRepository } from '../../src/repositories/streaming-buffer-repository';
 import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-transcript-repository';
+import { DrizzleMeetingRepository } from '../../src/repositories/meeting-repository';
 import { db } from '../../src/client';
-import { transcriptChunks } from '../../src/schema';
+import { transcriptChunks, rawTranscripts, meetings } from '../../src/schema';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 describe('DrizzleStreamingBufferRepository', () => {
   let repository: DrizzleStreamingBufferRepository;
   let rawTranscriptRepo: DrizzleRawTranscriptRepository;
+  let meetingRepo: DrizzleMeetingRepository;
   let testMeetingId: string;
   let testRawTranscriptId: string;
 
   beforeEach(async () => {
     repository = new DrizzleStreamingBufferRepository();
     rawTranscriptRepo = new DrizzleRawTranscriptRepository();
-    testMeetingId = randomUUID();
+    meetingRepo = new DrizzleMeetingRepository();
+    const meeting = await meetingRepo.create({
+      title: `Streaming Buffer ${randomUUID()}`,
+      date: new Date().toISOString(),
+      participants: ['Test User'],
+    });
+    testMeetingId = meeting.id;
     
     // Create a raw transcript for testing
     const rawTranscript = await rawTranscriptRepo.create({
@@ -40,6 +48,8 @@ describe('DrizzleStreamingBufferRepository', () => {
   afterEach(async () => {
     // Clean up test data
     await db.delete(transcriptChunks).where(eq(transcriptChunks.meetingId, testMeetingId));
+    await db.delete(rawTranscripts).where(eq(rawTranscripts.meetingId, testMeetingId));
+    await db.delete(meetings).where(eq(meetings.id, testMeetingId));
     await repository.clear(testMeetingId);
   });
 
@@ -103,8 +113,8 @@ describe('DrizzleStreamingBufferRepository', () => {
         data: {
           text: 'This is a streamed message',
           speaker: 'Bob',
-          startTime: '00:02:00',
-          endTime: '00:02:05',
+          startTime: '2026-03-01T00:02:00Z',
+          endTime: '2026-03-01T00:02:05Z',
           rawTranscriptId: testRawTranscriptId,
           contexts: ['meeting:' + testMeetingId],
           topics: ['streaming'],
@@ -116,8 +126,8 @@ describe('DrizzleStreamingBufferRepository', () => {
       expect(chunks).toHaveLength(1);
       expect(chunks[0]!.text).toBe('This is a streamed message');
       expect(chunks[0]!.speaker).toBe('Bob');
-      expect(chunks[0]!.startTime).toBe('00:02:00');
-      expect(chunks[0]!.endTime).toBe('00:02:05');
+      expect(chunks[0]!.startTime).toBe('2026-03-01T00:02:00.000Z');
+      expect(chunks[0]!.endTime).toBe('2026-03-01T00:02:05.000Z');
       expect(chunks[0]!.chunkStrategy).toBe('streaming');
       expect(chunks[0]!.contexts).toContain('meeting:' + testMeetingId);
       expect(chunks[0]!.topics).toEqual(['streaming']);

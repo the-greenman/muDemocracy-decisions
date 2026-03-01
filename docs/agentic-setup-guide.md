@@ -23,16 +23,14 @@ This project is designed to be **agentic-friendly** - structured so AI coding as
 
 **Architecture docs** (read these first):
 - `docs/PLAN.md` - Product spec and finalized architecture (SOURCE OF TRUTH)
-- `docs/architecture-proposal.md` - Technical patterns (Service-Repository, DI, TDD)
-- `docs/agentic-development-standards.md` - Strict architectural guardrails
-- `docs/iterative-implementation-plan.md` - Phase-by-phase implementation roadmap
+- `docs/agentic-development-standards.md` - Strict architectural guardrails (Service-Repository, DI, layering, TDD)
+- `docs/iterative-implementation-plan.md` - Milestone-based implementation plan (M1–M8)
 
 **Domain-specific docs**:
 - `docs/field-library-architecture.md` - Field library + template system
 - `docs/decision-detection-architecture.md` - LLM decision detection with implicit patterns
 - `docs/field-regeneration-strategy.md` - Field-specific prompts strategy
 - `docs/prompt-engineering.md` - Prompt refinement workflow
-- `docs/api-state-visibility-analysis.md` - API completeness analysis
 
 **Why this helps agents**:
 - Agents can read context before making changes
@@ -72,10 +70,10 @@ packages/schema (Zod schemas - SSOT)
 
 ### 5. **Validation Checkpoints**
 
-**Every phase has concrete validation**:
-- Phase 0: `curl POST /api/meetings` returns meeting
-- Phase 2: `pnpm test:coverage` shows >80%
-- Phase 3: `decision-logger decisions flagged` detects implicit decisions
+**Every milestone has concrete validation and exit criteria**:
+- M1: Real LLM generates populated draft; `draft debug` shows prompt; LLM interaction stored in DB
+- M2: Draft versions stored; rollback restores prior draft; auto-tagging works
+- M6: `decisions detect` flags implicit decisions (F1 > 0.77)
 
 **Why this helps agents**:
 - Clear definition of "done"
@@ -84,7 +82,7 @@ packages/schema (Zod schemas - SSOT)
 
 ## Recommended Agentic Workflow
 
-### Phase 0: Context Loading
+### Step 0: Context Loading
 
 **Before starting work, have the agent read**:
 
@@ -96,25 +94,25 @@ packages/schema (Zod schemas - SSOT)
 
 2. **Technical context**:
    ```
-   Read docs/architecture-proposal.md
-   Focus on: Service-Repository pattern, DI, TDD workflow
+   Read docs/agentic-development-standards.md
+   Focus on: Service-Repository pattern, DI, strict layering, TDD workflow
    ```
 
-3. **Current phase**:
+3. **Current milestone**:
    ```
    Read docs/iterative-implementation-plan.md
-   Find: Current phase number and tasks
+   Find: Current milestone (M1–M8) and active tasks
    ```
 
-### Phase 1: Understand the Task
+### Step 1: Understand the Task
 
 **Agent should**:
-1. Identify which phase they're implementing
-2. Read the phase goals and tasks
-3. Understand validation checkpoints
-4. Check for related domain docs (e.g., field-library-architecture.md for Phase 2)
+1. Identify which milestone they're implementing
+2. Read the milestone goals and tasks
+3. Understand validation checkpoints and exit criteria
+4. Check for related domain docs (e.g., field-library-architecture.md for field-related work)
 
-### Phase 2: TDD Implementation
+### Step 2: TDD Implementation
 
 **Agent workflow**:
 
@@ -157,15 +155,15 @@ packages/schema (Zod schemas - SSOT)
    pnpm test --filter=@repo/core  # Should pass
    ```
 
-### Phase 3: Validation
+### Step 3: Validation
 
 **Agent should**:
-1. Run the validation checkpoint from the plan
+1. Run the validation checkpoint from the milestone plan
 2. Verify all tests pass
 3. Check coverage if specified
 4. Test CLI/API manually if required
 
-### Phase 4: Documentation
+### Step 4: Documentation
 
 **Agent should update**:
 - Add JSDoc comments to new functions
@@ -266,7 +264,7 @@ This will verify:
 ### Task: Implement a Service
 
 **Steps**:
-1. Read phase tasks in `docs/iterative-implementation-plan.md`
+1. Read milestone tasks in `docs/iterative-implementation-plan.md`
 2. Define interface in `packages/core/src/interfaces/`
 3. Write unit tests with mock repository
 4. Implement service with DI
@@ -283,8 +281,7 @@ This will verify:
 - `docs/iterative-implementation-plan.md` - How we're building it
 
 **Architecture**:
-- `docs/architecture-proposal.md` - Technical patterns
-- `docs/agentic-development-standards.md` - Strict rules
+- `docs/agentic-development-standards.md` - Service-Repository pattern, strict layering, TDD rules
 
 **Domain knowledge**:
 - `docs/field-library-architecture.md` - Field + template system
@@ -464,24 +461,22 @@ pnpm check:deps              # Check for circular deps
 ### Validation
 
 ```bash
-# Phase 0
-curl -X POST http://localhost:3000/api/meetings -d '{"title":"Test"}'
-decision-logger meeting create "Test" --date 2026-02-27 --participants Alice
+# M1 - LLM draft generation
+pnpm cli draft generate --guidance "Focus on cost and timeline"
+pnpm cli draft debug      # shows prompt segments + response
+pnpm cli draft export --output decision.md
 
-# Phase 2
-pnpm test --filter=@repo/core
-pnpm test:coverage
-decision-logger field list
-decision-logger template list
+# M2 - Versions
+pnpm cli draft versions   # shows snapshots
+pnpm cli draft rollback 1
 
-# Phase 3
-decision-logger transcript upload test-cases/implicit-defer.json
-decision-logger decisions flagged
-pnpm test:llm -- --grep="decision detection"
-
-# Phase 6
+# M5 - API completeness
 curl http://localhost:3000/api/context
 curl http://localhost:3000/docs
+
+# M6 - Decision detection
+pnpm cli decisions detect --meeting-id <id>
+pnpm test:llm -- --grep="decision detection"
 ```
 
 ## Success Metrics for Agents
@@ -504,7 +499,7 @@ curl http://localhost:3000/docs
 
 ## Next Steps for Agentic Setup
 
-### Immediate (Phase 0-1)
+### Immediate (M1)
 
 1. **Create consistency checker**:
    ```bash

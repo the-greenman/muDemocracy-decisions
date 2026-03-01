@@ -2,6 +2,15 @@
 
 This document defines the expert prompt templates used for AI consultation on decision contexts.
 
+> **Implementation note (see iterative-implementation-plan.md M6)**:
+> The expert system is introduced in **Milestone 6**. The initial seeded experts are:
+> - `technical` — Technical architecture expert (`prompts/experts/technical.md`)
+> - `legal` — Legal and compliance expert (`prompts/experts/legal.md`)
+> - `stakeholder` — Stakeholder impact expert (`prompts/experts/stakeholder.md`)
+> - `decision-detector` — Decision detection expert persona (`prompts/experts/decision-detector.md`)
+>
+> The richer expert set described in this document (policy-compliance, risk-assessment, precedent-analysis, financial-review) represents future extensions that can be added as custom experts via `expert create`. The prompt structures and MCP tool patterns defined here remain valid for those future experts.
+
 ## Expert Types
 
 ### 1. Policy Compliance Expert

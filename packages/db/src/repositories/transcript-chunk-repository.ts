@@ -78,6 +78,11 @@ export class DrizzleTranscriptChunkRepository {
   }
 
   private mapToSchema(row: TranscriptChunkSelect): TranscriptChunk {
+    const rawStartTime = row.startTime as unknown;
+    const rawEndTime = row.endTime as unknown;
+    const startTime = rawStartTime instanceof Date ? rawStartTime.toISOString() : row.startTime;
+    const endTime = rawEndTime instanceof Date ? rawEndTime.toISOString() : row.endTime;
+
     return {
       id: row.id,
       meetingId: row.meetingId,
@@ -85,8 +90,8 @@ export class DrizzleTranscriptChunkRepository {
       sequenceNumber: row.sequenceNumber,
       text: row.text,
       speaker: row.speaker || undefined,
-      startTime: row.startTime || undefined,
-      endTime: row.endTime || undefined,
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
       chunkStrategy: row.chunkStrategy,
       tokenCount: row.tokenCount || undefined,
       wordCount: row.wordCount || undefined,

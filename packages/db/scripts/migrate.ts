@@ -4,7 +4,7 @@
  * Runs the SQL migration files directly against PostgreSQL
  */
 
-import { db, client } from '../src/client.js';
+import { client } from '../src/client.js';
 import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -39,9 +39,11 @@ async function applyMigrations() {
         try {
           await client.unsafe(statement + ';');
         } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+
           // Ignore "already exists" errors
-          if (!err.message.includes('already exists')) {
-            console.error(`  ⚠️  ${err.message}`);
+          if (!message.includes('already exists')) {
+            console.error(`  ⚠️  ${message}`);
           }
         }
       }

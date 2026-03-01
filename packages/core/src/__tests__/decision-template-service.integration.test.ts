@@ -14,7 +14,10 @@ import type {
   CreateTemplateFieldAssignment
 } from '../index';
 
-describe('DecisionTemplateService Integration Tests', () => {
+const describeWithDb =
+  process.env['RUN_DB_TESTS'] === 'true' ? describe : describe.skip;
+
+describeWithDb('DecisionTemplateService Integration Tests', () => {
   let service: DecisionTemplateService;
   let templateRepo: DrizzleDecisionTemplateRepository;
   let fieldAssignmentRepo: DrizzleTemplateFieldAssignmentRepository;

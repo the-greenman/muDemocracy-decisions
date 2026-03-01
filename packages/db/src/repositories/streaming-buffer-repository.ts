@@ -148,6 +148,9 @@ export class DrizzleStreamingBufferRepository {
   }
 
   private mapToSchema(row: any): TranscriptChunk {
+    const startTime = row.startTime instanceof Date ? row.startTime.toISOString() : row.startTime;
+    const endTime = row.endTime instanceof Date ? row.endTime.toISOString() : row.endTime;
+
     return {
       id: row.id,
       meetingId: row.meetingId,
@@ -155,8 +158,8 @@ export class DrizzleStreamingBufferRepository {
       sequenceNumber: row.sequenceNumber,
       text: row.text,
       speaker: row.speaker || undefined,
-      startTime: row.startTime || undefined,
-      endTime: row.endTime || undefined,
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
       chunkStrategy: row.chunkStrategy,
       tokenCount: row.tokenCount || undefined,
       wordCount: row.wordCount || undefined,

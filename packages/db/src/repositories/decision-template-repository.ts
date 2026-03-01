@@ -14,8 +14,7 @@ import { eq, and, ilike, asc, inArray } from 'drizzle-orm';
 import type { 
   DecisionTemplate,
   CreateDecisionTemplate,
-  TemplateFieldAssignment,
-  CreateTemplateFieldAssignment
+  TemplateFieldAssignment
 } from '@repo/schema';
 
 // Interface definitions to avoid circular dependency
@@ -115,10 +114,9 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
 
     // Group fields by template
     const fieldsByTemplate = allFields.reduce((acc, field) => {
-      if (!acc[field.templateId]) {
-        acc[field.templateId] = [];
-      }
-      acc[field.templateId].push(this.mapFieldAssignmentToSchema(field));
+      const templateFields = acc[field.templateId] ?? [];
+      templateFields.push(this.mapFieldAssignmentToSchema(field));
+      acc[field.templateId] = templateFields;
       return acc;
     }, {} as Record<string, TemplateFieldAssignment[]>);
 
@@ -219,16 +217,17 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .orderBy(asc(templateFieldAssignments.templateId), asc(templateFieldAssignments.order));
 
     const fieldsByTemplate = fields.reduce((acc, field) => {
-      if (!acc[field.templateId]) {
-        acc[field.templateId] = [];
-      }
-      acc[field.templateId].push({
+      const templateFields = acc[field.templateId] ?? [];
+      templateFields.push({
+        id: field.id,
+        templateId: field.templateId,
         fieldId: field.fieldId,
         order: field.order,
         required: field.required,
-        customLabel: field.customLabel || undefined,
-        customDescription: field.customDescription || undefined,
+        customLabel: field.customLabel ?? undefined,
+        customDescription: field.customDescription ?? undefined,
       });
+      acc[field.templateId] = templateFields;
       return acc;
     }, {} as Record<string, TemplateFieldAssignment[]>);
 
@@ -272,10 +271,9 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       : [];
 
     const fieldsByTemplate = fields.reduce((acc, field) => {
-      if (!acc[field.templateId]) {
-        acc[field.templateId] = [];
-      }
-      acc[field.templateId].push(this.mapFieldAssignmentToSchema(field));
+      const templateFields = acc[field.templateId] ?? [];
+      templateFields.push(this.mapFieldAssignmentToSchema(field));
+      acc[field.templateId] = templateFields;
       return acc;
     }, {} as Record<string, TemplateFieldAssignment[]>);
 
@@ -349,7 +347,7 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
   async update(
     templateId: string,
     fieldId: string,
-    data: Partial<CreateTemplateFieldAssignment>
+    data: Partial<TemplateFieldAssignmentInsert>
   ): Promise<TemplateFieldAssignment | null> {
     const updateData: any = {
       ...data,
@@ -394,12 +392,10 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     return result.length > 0;
   }
 
-  async createMany(assignments: CreateTemplateFieldAssignment[]): Promise<TemplateFieldAssignment[]> {
-    // Note: This assumes templateId is added to each assignment before calling
-    // This is done in the service layer
+  async createMany(assignments: TemplateFieldAssignmentInsert[]): Promise<TemplateFieldAssignment[]> {
     const rows = await db
       .insert(templateFieldAssignments)
-      .values(assignments as any[])
+      .values(assignments)
       .returning();
 
     return rows.map(row => this.mapFieldAssignmentToSchema(row));

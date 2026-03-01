@@ -1,4 +1,5 @@
 import { z } from '@hono/zod-openapi';
+export { z } from '@hono/zod-openapi';
 
 // ============================================================================
 // MEETING SCHEMAS
@@ -384,11 +385,13 @@ export type CreateDecisionField = z.infer<typeof CreateDecisionFieldSchema>;
 // ============================================================================
 
 export const TemplateFieldAssignmentSchema = z.object({
+  id: z.string().uuid().optional(),
+  templateId: z.string().uuid().optional(),
   fieldId: z.string().uuid(),
   order: z.number().int().nonnegative(),
   required: z.boolean().default(true),
-  customLabel: z.string().optional(),
-  customDescription: z.string().optional(),
+  customLabel: z.string().nullable().optional(),
+  customDescription: z.string().nullable().optional(),
 }).openapi('TemplateFieldAssignment', {
   description: 'Assignment of a field to a template',
   example: {

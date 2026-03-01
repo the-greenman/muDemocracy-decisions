@@ -238,7 +238,7 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
       flaggedDecisionId: row.flagged_decision_id || row.flaggedDecisionId,
       title: row.title,
       templateId: row.template_id || row.templateId,
-      activeField: row.active_field || row.activeField, // Keep null from DB, TypeScript will treat as undefined
+      activeField: row.active_field ?? row.activeField ?? null,
       lockedFields: row.locked_fields || row.lockedFields,
       draftData: row.draft_data || row.draftData || undefined,
       status: row.status,

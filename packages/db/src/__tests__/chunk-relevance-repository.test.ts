@@ -6,8 +6,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DrizzleChunkRelevanceRepository } from '../../src/repositories/chunk-relevance-repository';
 import { DrizzleTranscriptChunkRepository } from '../../src/repositories/transcript-chunk-repository';
 import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-transcript-repository';
+import { DrizzleMeetingRepository } from '../../src/repositories/meeting-repository';
 import { db } from '../../src/client';
-import { chunkRelevance } from '../../src/schema';
+import { chunkRelevance, transcriptChunks, rawTranscripts, meetings } from '../../src/schema';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
@@ -15,6 +16,7 @@ describe('DrizzleChunkRelevanceRepository', () => {
   let repository: DrizzleChunkRelevanceRepository;
   let chunkRepo: DrizzleTranscriptChunkRepository;
   let rawTranscriptRepo: DrizzleRawTranscriptRepository;
+  let meetingRepo: DrizzleMeetingRepository;
   let testMeetingId: string;
   let testChunkId: string;
   let testDecisionContextId: string;
@@ -24,8 +26,14 @@ describe('DrizzleChunkRelevanceRepository', () => {
     repository = new DrizzleChunkRelevanceRepository();
     chunkRepo = new DrizzleTranscriptChunkRepository();
     rawTranscriptRepo = new DrizzleRawTranscriptRepository();
+    meetingRepo = new DrizzleMeetingRepository();
     
-    testMeetingId = randomUUID();
+    const meeting = await meetingRepo.create({
+      title: `Chunk Relevance ${randomUUID()}`,
+      date: new Date().toISOString(),
+      participants: ['Test User'],
+    });
+    testMeetingId = meeting.id;
     testChunkId = randomUUID();
     testDecisionContextId = randomUUID();
     testFieldId = randomUUID();
@@ -54,6 +62,9 @@ describe('DrizzleChunkRelevanceRepository', () => {
   afterEach(async () => {
     // Clean up test data
     await db.delete(chunkRelevance).where(eq(chunkRelevance.chunkId, testChunkId));
+    await db.delete(transcriptChunks).where(eq(transcriptChunks.meetingId, testMeetingId));
+    await db.delete(rawTranscripts).where(eq(rawTranscripts.meetingId, testMeetingId));
+    await db.delete(meetings).where(eq(meetings.id, testMeetingId));
   });
 
   describe('upsert', () => {
@@ -188,7 +199,6 @@ describe('DrizzleChunkRelevanceRepository', () => {
       expect(results).toHaveLength(2);
       expect(results[0]!.relevance).toBe(0.8); // Ordered by relevance
       expect(results[1]!.relevance).toBe(0.9);
-      expect(results[1]!.relevance).toBe(0.8);
     });
 
     it('should return empty array for non-existent chunk', async () => {

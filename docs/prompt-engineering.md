@@ -14,14 +14,17 @@ LLM prompts are **code**. They should be:
 
 ```
 prompts/
-├── decision-detection.md       # Detect decisions in transcripts
-├── draft-generation.md         # Generate complete decision draft
-├── field-regeneration.md       # Regenerate single field
-└── experts/
-    ├── technical.md            # Technical expert persona
-    ├── legal.md                # Legal expert persona
-    └── stakeholder.md          # Stakeholder expert persona
+├── draft-generation.md         # Generate complete decision draft (M1)
+└── experts/                    # Expert persona prompts (M6)
+    ├── technical.md            # Technical architecture expert
+    ├── legal.md                # Legal and compliance expert
+    ├── stakeholder.md          # Stakeholder impact expert
+    └── decision-detector.md    # Decision detection expert persona
 ```
+
+> **Note**: `field-regeneration.md` is **not** a file in this directory. Per `docs/field-regeneration-strategy.md`, field-specific extraction prompts live in the **field library database** (`decision_fields.extraction_prompt`), not as files. Each `DecisionField` record contains its own prompt — they are data, not code, and can be updated via `pnpm db:seed` or the API without code changes.
+>
+> `decision-detection.md` is also removed — in M6 the detection prompt is the `decision-detector` expert persona (`prompts/experts/decision-detector.md`), not a standalone file.
 
 ## Prompt Template Format
 
@@ -59,7 +62,7 @@ Each prompt file follows this structure:
 
 ## Refinement Workflow
 
-### 1. Initial Development (Phase 3)
+### 1. Initial Development (M1 for draft generation, M6 for expert + detection prompts)
 - Create prompt based on requirements
 - Implement in code with version reference
 - Test with mock data
@@ -202,24 +205,24 @@ After each real-world usage:
 4. Increment version
 5. Re-test
 
-## Phase-by-Phase Prompt Development
+## Milestone-by-Milestone Prompt Development
 
-### Phase 3: Initial Prompts
-- Decision detection (basic)
-- Draft generation (basic)
-- Field regeneration (basic)
+### M1: Initial Prompts
+- `prompts/draft-generation.md` — Generate decision draft from transcript (v1)
 
-### Phase 4: Refinement Round 1
+### M2–M4: Refinement Round 1
 - Test with real transcripts
 - Fix major issues
-- Add edge case handling
+- Add edge case handling for guidance segments and field locking
 
-### Phase 5: Expert Prompts
-- Develop expert personas
-- Test expert advice quality
-- Refine based on usefulness
+### M6: Expert + Detection Prompts
+- `prompts/experts/technical.md` — Technical architecture expert
+- `prompts/experts/legal.md` — Legal and compliance expert
+- `prompts/experts/stakeholder.md` — Stakeholder impact expert
+- `prompts/experts/decision-detector.md` — Decision detection expert persona (v1)
+- Measure F1 on test corpus; target Precision > 0.80, Recall > 0.75, F1 > 0.77
 
-### Phase 7: Final Polish
+### M7–M8: Final Polish
 - Optimize for speed (shorter prompts)
 - Optimize for cost (fewer tokens)
 - Final quality pass

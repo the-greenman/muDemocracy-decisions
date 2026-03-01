@@ -11,7 +11,7 @@ export class MockMeetingRepository implements IMeetingRepository {
       id: crypto.randomUUID(),
       ...data,
       status: 'active',
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     };
     
     this.meetings.set(meeting.id, meeting);
@@ -24,6 +24,21 @@ export class MockMeetingRepository implements IMeetingRepository {
 
   async findAll(): Promise<Meeting[]> {
     return Array.from(this.meetings.values());
+  }
+
+  async update(id: string, data: Partial<Pick<CreateMeeting, 'title' | 'participants'>>): Promise<Meeting> {
+    const meeting = this.meetings.get(id);
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    const updated: Meeting = {
+      ...meeting,
+      ...data,
+    };
+
+    this.meetings.set(id, updated);
+    return updated;
   }
 
   async updateStatus(id: string, status: 'active' | 'completed'): Promise<Meeting> {

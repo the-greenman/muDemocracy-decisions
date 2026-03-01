@@ -185,7 +185,7 @@ $ decision-logger transcript add \
 $ decision-logger transcript stream < live.txt
 ```
 
-LLM automatically flags potential decisions.
+> **M1–M5**: Transcripts are uploaded but decisions are **manually flagged** (`decisions flag`). Auto-detection via LLM is available from **M6** onward (`decisions detect`).
 
 ### 3. View Flagged Decisions
 ```bash
@@ -1014,115 +1014,22 @@ decision-logger/
 └── package.json
 ```
 
-## Implementation Phases
+## Implementation Milestones
 
-> **Detailed Plan**: See [iterative-implementation-plan.md](./iterative-implementation-plan.md) for the full phased implementation with validation checkpoints.
+> **Detailed Plan**: See [iterative-implementation-plan.md](./iterative-implementation-plan.md) for the full milestone-based implementation plan with validation checkpoints and exit criteria.
 
-The implementation follows an iterative approach with 9 phases (0-8), each with concrete validation checkpoints. Key highlights:
+The implementation follows a milestone-based approach focused on working deliverables. Phases 0–2 are complete. Active milestones:
 
-- **Phase 0**: Vertical Slice - Prove entire stack works end-to-end
-- **Phase 1**: Schema Foundation - Zod-to-All pipeline
-- **Phase 2**: Core Data Services - TDD with >80% coverage
-- **Phase 3**: LLM Integration - Mock-first, provider-agnostic, real remote API optional
-- **Phase 4**: Decision Workflow - Context, drafts, field locking
-- **Phase 5**: Expert System - Domain personas with MCP tools
-- **Phase 6**: API Layer - Complete REST endpoints, including field-level retrieval and expert/MCP management
-- **Phase 7**: CLI Application - Interactive Clack interface plus decision triage, debug verbosity, and expert/MCP commands
-- **Phase 8**: Export & Polish - Documentation and production readiness
+- **M1**: LLM Draft from Transcript — CLI takes a transcript, user manually flags a decision, LLM generates draft from default template, markdown export. Real LLM backend.
+- **M2**: Versions + Ongoing Transcripts — Incremental transcript, draft history, rollback, global context management.
+- **M3**: Field Locking — Ships with M1. Lock fields to preserve them across regenerations.
+- **M4**: Per-Field Updates + Manual Edit — Regenerate single fields with field-level guidance; manual field edits; decision finalization.
+- **M5**: Web Interface — Multi-decision workflow, full API layer, CLI migrated to API client, web UI.
+- **M6**: Expert System + Decision Detection — Domain experts (technical, legal, stakeholder) and LLM-assisted decision detection as first expert persona.
+- **M7**: Decision Logger as MCP Server — Expose all functionality via MCP protocol (stdio + HTTP/SSE). Required before external MCP tools.
+- **M8**: External MCP Tool Integration — Experts consume external MCP servers; Decision Detector optionally promoted to MCP-tool-using expert.
 
-### Phase Summary (Reference)
-
-### Phase 1: Foundation (Week 1)
-- [ ] Initialize Turborepo monorepo structure
-- [ ] Set up `packages/schema` - Single source of truth (Zod)
-- [ ] Implement `@hono/zod-openapi` pipeline in `apps/api`
-- [ ] Automate `openapi.yaml` generation and decommission manual file
-- [ ] Set up `packages/db` with `drizzle-zod` alignment
-- [ ] Define field-library schemas (`DecisionField`, `DecisionTemplate`, `TemplateFieldAssignment`)
-- [ ] Set up `packages/core` with Service-Repository pattern and DI container
-- [ ] Configure PostgreSQL 16+
-- [ ] Configure Vitest for monorepo testing (TDD ready)
-- [ ] Implement shared error handling and domain exceptions in `packages/core`
-
-### Phase 2: Core Data Layer (Week 1-2 - TDD Approach)
-- [ ] TDD: Meeting Repository and Service
-- [ ] TDD: Transcript Segment Repository and Service
-- [ ] TDD: Context Tagging logic and Service
-- [ ] TDD: Chunk relevance and context-window repositories/services
-- [ ] TDD: Flagged decision triage (manual create/update/prioritize/dismiss)
-- [ ] TDD: Shared structured logging and correlation helpers
-- [ ] TDD: Decision Field Repository and Service
-- [ ] TDD: Decision Template Repository and Service
-- [ ] TDD: Field library + core template seeding
-
-### Phase 3: LLM & Expert Integration (Week 2)
-- [ ] Implement provider-agnostic LLM abstraction layer in `@repo/core`
-- [ ] Test: default remote provider connectivity and structured output
-- [ ] Test: decision detection via pluggable detection model
-- [ ] Implement: semantic tagging/topic extraction and field source-chunk attribution
-- [ ] Implement: context-window building for draft generation and expert consultation
-- [ ] Implement: structured LLM and transcript pipeline logging for live diagnostics
-- [ ] Implement: Expert template system with MCP tool injection
-- [ ] Implement: custom experts, MCP server registry, and expert advice history
-- [ ] Test: Field-specific extraction and auto-tagging
-
-### Phase 4: Context Management (Week 2-3)
-- [ ] Test: Set decision context
-- [ ] Implement: Decision context creation
-- [ ] Test: Set field focus
-- [ ] Implement: Field focus tracking
-- [ ] Test: Context state persistence
-- [ ] Implement: Context manager
-- [ ] Test: Context clearing
-- [ ] Implement: Clear operations
-
-### Phase 5: Decision Workflow (Week 3)
-- [ ] Test: Generate draft
-- [ ] Implement: Draft generation with locked fields
-- [ ] Test: Regenerate draft
-- [ ] Implement: Regeneration preserving locks
-- [ ] Test: Lock/unlock fields
-- [ ] Implement: Field locking
-- [ ] Test: Log decision
-- [ ] Implement: Decision logging with method
-- [ ] Test: Decision retrieval
-- [ ] Implement: Decision queries
-
-### Phase 6: API Layer (Week 3-4)
-- [ ] Set up Hono server
-- [ ] Implement: Meeting endpoints
-- [ ] Implement: Transcript endpoints
-- [ ] Implement: Context endpoints
-- [ ] Implement: Decision endpoints
-- [ ] Implement: Manual flagged-decision management endpoints
-- [ ] Implement: Context-window and field-level transcript endpoints
-- [ ] Implement: Template endpoints
-- [ ] Implement: Expert and MCP management endpoints
-- [ ] Add: Request validation (Zod)
-- [ ] Add: Error handling
-- [ ] Test: Integration tests
-
-### Phase 7: CLI (Week 4)
-- [ ] Set up Commander.js routing in `apps/cli`
-- [ ] Integrate Clack for interactive prompts and spinners
-- [ ] Implement: Meeting management commands (interactive)
-- [ ] Implement: Transcript ingestion and streaming UI
-- [ ] Implement: Decision triage commands (manual flag, update, prioritize, dismiss)
-- [ ] Implement: Decision refinement workflow with field locking
-- [ ] Implement: Expert advice consultation and expert/MCP management UI
-- [ ] Implement: `--verbose` and debug-friendly logging surfaces
-- [ ] Test: End-to-end CLI workflows
-
-### Phase 8: Export & Polish (Week 4-5)
-- [ ] Test: Markdown export
-- [ ] Implement: Markdown formatter
-- [ ] Test: JSON export
-- [ ] Implement: JSON formatter
-- [ ] Write: README documentation
-- [ ] Write: API documentation
-- [ ] Write: CLI usage guide
-- [ ] End-to-end testing
-- [ ] Performance optimization
+> **Note on auto-detection**: LLM-based decision detection is deferred to M6. M1–M5 use **manual decision flagging** only. The `decisions flagged` workflow in this spec represents the end-state product; until M6 the `flaggedDecisions` on transcript upload are always `[]`.
 
 ## Success Criteria
 

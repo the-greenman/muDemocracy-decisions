@@ -3,10 +3,8 @@
  * Populates the database with the 6 core decision templates
  */
 
-import { db } from '../client';
 import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository } from '../repositories/decision-template-repository';
 import { prepareTemplatesForSeeding } from '../seed-data/decision-templates';
-import type { CreateDecisionTemplate } from '@repo/core';
 
 async function seedDecisionTemplates(): Promise<void> {
   console.log('Starting to seed decision templates...');
@@ -50,8 +48,13 @@ async function seedDecisionTemplates(): Promise<void> {
 
     // Set the first template (Standard) as default
     if (createdTemplates.length > 0) {
-      await templateRepo.setDefault(createdTemplates[0].id);
-      console.log(`Set "${createdTemplates[0].name}" as the default template`);
+      const [defaultTemplate] = createdTemplates;
+      if (!defaultTemplate) {
+        throw new Error('Expected a default template to be available');
+      }
+
+      await templateRepo.setDefault(defaultTemplate.id);
+      console.log(`Set "${defaultTemplate.name}" as the default template`);
     }
 
     console.log(`Successfully seeded ${createdTemplates.length} decision templates!`);

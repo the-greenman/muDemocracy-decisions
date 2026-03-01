@@ -7,7 +7,7 @@
  * - Sample expert templates
  */
 
-import { db } from '../dist/index.mjs';
+import { db } from '../src/client.js';
 import { 
   decisionFields, 
   decisionTemplates, 
@@ -108,9 +108,9 @@ async function seed() {
 
   // Seed Template Field Assignments
   console.log('\nSeeding template field assignments...');
-  const standardTemplate = templates.find(t => t.name === 'Standard Decision');
-  const decisionStatementField = fields.find(f => f.name === 'decision_statement');
-  const rationaleField = fields.find(f => f.name === 'rationale');
+  const standardTemplate = templates.find((template) => template.name === 'Standard Decision');
+  const decisionStatementField = fields.find((field) => field.name === 'decision_statement');
+  const rationaleField = fields.find((field) => field.name === 'rationale');
 
   if (standardTemplate && decisionStatementField && rationaleField) {
     await db.insert(templateFieldAssignments).values([

@@ -7,8 +7,8 @@ import type {
   ExpertTemplate,
   CreateExpertTemplate,
   UpdateExpertTemplate,
-  IExpertTemplateRepository
-} from '@repo/core';
+} from '@repo/schema';
+import type { IExpertTemplateRepository } from '../interfaces/i-expert-template-repository';
 import { logger } from '../logger';
 
 export interface IExpertTemplateService {
