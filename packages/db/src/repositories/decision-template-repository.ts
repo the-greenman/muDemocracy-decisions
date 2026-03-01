@@ -318,6 +318,10 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     return this.mapFieldAssignmentToSchema(row);
   }
 
+  async findByTemplateId(templateId: string): Promise<TemplateFieldAssignment[]> {
+    return this.findByTemplate(templateId);
+  }
+
   async findByTemplate(templateId: string): Promise<TemplateFieldAssignment[]> {
     const rows = await db
       .select()
@@ -326,6 +330,10 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
       .orderBy(asc(templateFieldAssignments.order));
 
     return rows.map(row => this.mapFieldAssignmentToSchema(row));
+  }
+
+  async findByFieldId(fieldId: string): Promise<TemplateFieldAssignment[]> {
+    return this.findByField(fieldId);
   }
 
   async findByField(fieldId: string): Promise<TemplateFieldAssignment[]> {
@@ -371,6 +379,10 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
       .returning();
 
     return result.length > 0;
+  }
+
+  async deleteByTemplateId(templateId: string): Promise<boolean> {
+    return this.deleteByTemplate(templateId);
   }
 
   async deleteByTemplate(templateId: string): Promise<boolean> {

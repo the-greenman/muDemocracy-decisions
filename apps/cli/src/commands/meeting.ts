@@ -1,11 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { MeetingService } from '@repo/core';
-import { DrizzleMeetingRepository } from '@repo/db';
+import { createMeetingService } from '@repo/core';
 
 // Create service instance
-const repo = new DrizzleMeetingRepository();
-const meetingService = new MeetingService(repo);
+const meetingService = createMeetingService();
 
 export const meetingCommand = new Command('meeting')
   .description('Meeting management commands');

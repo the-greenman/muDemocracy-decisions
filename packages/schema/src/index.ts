@@ -688,3 +688,58 @@ export const CreateExpertAdviceWithCompatSchema = CreateExpertAdviceSchema.trans
 });
 
 export type CreateExpertAdvice = z.infer<typeof CreateExpertAdviceSchema>;
+
+// ============================================================================
+// LLM INTERACTION SCHEMAS
+// ============================================================================
+
+export const PromptSegmentSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('system'), content: z.string() }),
+  z.object({ type: z.literal('transcript'), speaker: z.string().optional(), text: z.string(), tags: z.array(z.string()) }),
+  z.object({ type: z.literal('guidance'), fieldId: z.string().optional(), content: z.string(), source: z.enum(['user_text', 'tagged_transcript']) }),
+  z.object({ type: z.literal('template_fields'), fields: z.array(z.object({ id: z.string(), displayName: z.string(), description: z.string() })) }),
+]);
+
+export type PromptSegmentData = z.infer<typeof PromptSegmentSchema>;
+
+export const LLMInteractionSchema = z.object({
+  id: z.string().uuid(),
+  decisionContextId: z.string().uuid(),
+  fieldId: z.string().uuid().nullable(),
+  operation: z.enum(['generate_draft', 'regenerate_field']),
+  promptSegments: z.array(PromptSegmentSchema),
+  promptText: z.string(),
+  responseText: z.string(),
+  parsedResult: z.record(z.string(), z.any()).nullable(),
+  provider: z.string(),
+  model: z.string(),
+  latencyMs: z.number().int(),
+  tokenCount: z.object({ input: z.number().int(), output: z.number().int() }).nullable(),
+  createdAt: z.string().datetime({ offset: true }),
+}).openapi('LLMInteraction', {
+  description: 'A stored record of an LLM API call with full prompt and response',
+  example: {
+    id: '550e8400-e29b-41d4-a716-446655440099',
+    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
+    fieldId: null,
+    operation: 'generate_draft',
+    promptSegments: [{ type: 'system', content: 'You are an expert...' }],
+    promptText: 'You are an expert...\n\n=== TRANSCRIPT ===\n...',
+    responseText: '{"decision_statement": "Approve cloud migration"}',
+    parsedResult: { decision_statement: 'Approve cloud migration' },
+    provider: 'anthropic',
+    model: 'claude-opus-4-5',
+    latencyMs: 1234,
+    tokenCount: { input: 500, output: 50 },
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+});
+
+export type LLMInteraction = z.infer<typeof LLMInteractionSchema>;
+
+export const CreateLLMInteractionSchema = LLMInteractionSchema.omit({
+  id: true,
+  createdAt: true,
+});
+
+export type CreateLLMInteraction = z.infer<typeof CreateLLMInteractionSchema>;

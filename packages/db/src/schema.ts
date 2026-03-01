@@ -360,6 +360,34 @@ export type ExpertAdviceInsert = typeof expertAdvice.$inferInsert;
 // EXPORTS
 // ============================================================================
 
+// ============================================================================
+// LLM INTERACTIONS
+// ============================================================================
+
+export const llmInteractionOperationEnum = pgEnum('llm_interaction_operation', [
+  'generate_draft',
+  'regenerate_field',
+]);
+
+export const llmInteractions = pgTable('llm_interactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  decisionContextId: uuid('decision_context_id').notNull(),
+  fieldId: uuid('field_id'),  // null = full draft generation
+  operation: llmInteractionOperationEnum('operation').notNull(),
+  promptSegments: jsonb('prompt_segments').notNull().$type<object[]>(),
+  promptText: text('prompt_text').notNull(),
+  responseText: text('response_text').notNull(),
+  parsedResult: jsonb('parsed_result').$type<Record<string, unknown>>(),
+  provider: text('provider').notNull(),
+  model: text('model').notNull(),
+  latencyMs: integer('latency_ms').notNull(),
+  tokenCount: jsonb('token_count').$type<{ input: number; output: number }>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  decisionContextIdx: index('llm_interactions_decision_context_idx').on(table.decisionContextId),
+  fieldIdx: index('llm_interactions_field_idx').on(table.fieldId),
+}));
+
 export const schema = {
   meetings,
   rawTranscripts,
@@ -375,4 +403,5 @@ export const schema = {
   expertTemplates,
   mcpServers,
   expertAdvice,
+  llmInteractions,
 };

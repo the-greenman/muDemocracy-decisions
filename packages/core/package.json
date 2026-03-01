@@ -18,8 +18,11 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.50",
+    "@ai-sdk/openai": "^3.0.37",
     "@repo/db": "workspace:*",
     "@repo/schema": "workspace:*",
+    "ai": "^6.0.105",
     "pino": "^10.3.1"
   },
   "devDependencies": {

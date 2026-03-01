@@ -1,3 +1,8 @@
+// LLM
+export type { ILLMService, GuidanceSegment, GenerateDraftParams, RegenerateFieldParams, DraftResult } from './llm';
+export type { PromptSegment } from './llm';
+export { PromptBuilder, MockLLMService, VercelAILLMService } from './llm';
+
 // Services
 export { MeetingService } from './services/meeting-service';
 export { TranscriptService } from './services/transcript-service';
@@ -9,15 +14,18 @@ export { DecisionTemplateService } from './services/decision-template-service';
 export { ExpertTemplateService } from './services/expert-template-service';
 export { MCPServerService } from './services/mcp-server-service';
 export { ExpertAdviceService } from './services/expert-advice-service';
+export { DraftGenerationService } from './services/draft-generation-service';
 
 // Service Factory
-export { 
-  createDecisionLogService, 
-  createDecisionContextService, 
+export {
+  createMeetingService,
+  createDecisionLogService,
+  createDecisionContextService,
   createTranscriptService,
   createDecisionFieldService,
+  createDraftGenerationService,
   createServices,
-  type ServiceContainer 
+  type ServiceContainer
 } from './service-factory';
 
 // Logger
@@ -26,9 +34,10 @@ export type { LogContext, LoggerConfig, LogLevel, RedactionOptions } from './log
 
 // Interfaces
 export type { IMeetingRepository } from './interfaces/i-meeting-repository';
+export type { ILLMInteractionRepository } from './interfaces/i-llm-interaction-repository';
 export type { IFlaggedDecisionRepository } from './interfaces/i-flagged-decision-repository';
 export type { IFlaggedDecisionService } from './interfaces/i-flagged-decision-service';
-export type { IDecisionContextRepository, CreateDecisionContext } from './interfaces/i-decision-context-repository';
+export type { IDecisionContextRepository } from './interfaces/i-decision-context-repository';
 export type { IDecisionContextService } from './interfaces/i-decision-context-service';
 export type { IDecisionLogRepository } from './interfaces/i-decision-log-repository';
 export type { IDecisionLogService } from './interfaces/i-decision-log-service';
@@ -69,3 +78,4 @@ export type { TemplateFieldAssignment, CreateTemplateFieldAssignment } from '@re
 export type { ExpertTemplate, CreateExpertTemplate, UpdateExpertTemplate } from '@repo/schema';
 export type { MCPServer, CreateMCPServer, UpdateMCPServer } from '@repo/schema';
 export type { ExpertAdvice, CreateExpertAdvice } from '@repo/schema';
+export type { LLMInteraction, CreateLLMInteraction, PromptSegmentData } from '@repo/schema';

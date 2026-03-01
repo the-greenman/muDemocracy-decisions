@@ -25,3 +25,4 @@ export {
   DrizzleMCPServerRepository,
   DrizzleExpertAdviceHistoryRepository
 } from './repositories/expert-mcp-repository';
+export { DrizzleLLMInteractionRepository } from './repositories/llm-interaction-repository';
