@@ -24,6 +24,8 @@ export {
   createTranscriptService,
   createDecisionFieldService,
   createDraftGenerationService,
+  createFlaggedDecisionService,
+  createDecisionTemplateService,
   createServices,
   type ServiceContainer
 } from './service-factory';

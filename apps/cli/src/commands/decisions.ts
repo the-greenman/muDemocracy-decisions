@@ -1,11 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { FlaggedDecisionService } from '@repo/core';
-import { DrizzleFlaggedDecisionRepository } from '@repo/db';
+import { createFlaggedDecisionService } from '@repo/core';
 
 // Create service instance
-const repo = new DrizzleFlaggedDecisionRepository();
-const decisionService = new FlaggedDecisionService(repo);
+const decisionService = createFlaggedDecisionService();
 
 export const decisionsCommand = new Command('decisions')
   .description('Flagged decision management commands');
@@ -17,7 +15,7 @@ decisionsCommand
   .argument('<id>', 'Flagged decision ID')
   .action(async (id) => {
     try {
-      const decision = await repo.findById(id);
+      const decision = await decisionService.getDecisionById(id);
       
       if (!decision) {
         console.error(chalk.red('Decision not found'));
@@ -98,7 +96,7 @@ decisionsCommand
       if (options.title) updateData.suggestedTitle = options.title;
       if (options.status) updateData.status = options.status;
       
-      const decision = await repo.update(id, updateData);
+      const decision = await decisionService.updateDecision(id, updateData);
       
       if (decision) {
         console.log(chalk.green('✓ Decision updated successfully'));
@@ -129,7 +127,7 @@ decisionsCommand
         process.exit(1);
       }
       
-      await repo.updatePriority(id, priority);
+      await decisionService.updateDecisionPriority(id, priority);
       
       console.log(chalk.green(`✓ Priority set to ${priority}`));
       console.log(chalk.gray(`Decision ID: ${id}`));

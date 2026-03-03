@@ -1,12 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { DecisionTemplateService } from '@repo/core';
-import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository } from '@repo/db';
+import { createDecisionTemplateService } from '@repo/core';
 
 // Create service instance
-const templateRepo = new DrizzleDecisionTemplateRepository();
-const fieldAssignmentRepo = new DrizzleTemplateFieldAssignmentRepository();
-const templateService = new DecisionTemplateService(templateRepo, fieldAssignmentRepo);
+const templateService = createDecisionTemplateService();
 
 export const templateCommand = new Command('template')
   .description('Decision template management commands');

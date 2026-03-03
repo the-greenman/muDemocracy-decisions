@@ -11,6 +11,8 @@ import { DecisionContextService } from './services/decision-context-service';
 import { TranscriptService } from './services/transcript-service';
 import { DecisionFieldService } from './services/decision-field-service';
 import { DraftGenerationService } from './services/draft-generation-service';
+import { FlaggedDecisionService } from './services/flagged-decision-service';
+import { DecisionTemplateService } from './services/decision-template-service';
 import { VercelAILLMService } from './llm/vercel-ai-llm-service';
 
 // Import repository implementations from db package
@@ -26,6 +28,8 @@ import {
   DrizzleDecisionFieldRepository,
   DrizzleLLMInteractionRepository,
   DrizzleTemplateFieldAssignmentRepository,
+  DrizzleFlaggedDecisionRepository,
+  DrizzleDecisionTemplateRepository,
 } from '@repo/db';
 
 /**
@@ -93,6 +97,25 @@ export function createDraftGenerationService(): DraftGenerationService {
 }
 
 /**
+ * Creates a FlaggedDecisionService with real repositories
+ */
+export function createFlaggedDecisionService(): FlaggedDecisionService {
+  return new FlaggedDecisionService(
+    new DrizzleFlaggedDecisionRepository()
+  );
+}
+
+/**
+ * Creates a DecisionTemplateService with real repositories
+ */
+export function createDecisionTemplateService(): DecisionTemplateService {
+  return new DecisionTemplateService(
+    new DrizzleDecisionTemplateRepository(),
+    new DrizzleTemplateFieldAssignmentRepository()
+  );
+}
+
+/**
  * Service container for all services
  */
 export interface ServiceContainer {
@@ -102,6 +125,8 @@ export interface ServiceContainer {
   transcriptService: TranscriptService;
   decisionFieldService: DecisionFieldService;
   draftGenerationService: DraftGenerationService;
+  flaggedDecisionService: FlaggedDecisionService;
+  decisionTemplateService: DecisionTemplateService;
 }
 
 /**
@@ -115,5 +140,7 @@ export function createServices(): ServiceContainer {
     transcriptService: createTranscriptService(),
     decisionFieldService: createDecisionFieldService(),
     draftGenerationService: createDraftGenerationService(),
+    flaggedDecisionService: createFlaggedDecisionService(),
+    decisionTemplateService: createDecisionTemplateService(),
   };
 }

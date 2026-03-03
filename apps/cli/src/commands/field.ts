@@ -1,11 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { DecisionFieldService } from '@repo/core';
-import { DrizzleDecisionFieldRepository } from '@repo/db';
+import { createDecisionFieldService } from '@repo/core';
 
 // Create service instance
-const repo = new DrizzleDecisionFieldRepository();
-const fieldService = new DecisionFieldService(repo);
+const fieldService = createDecisionFieldService();
 
 export const fieldCommand = new Command('field')
   .description('Decision field management commands');
