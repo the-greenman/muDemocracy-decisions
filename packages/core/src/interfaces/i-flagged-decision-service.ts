@@ -15,12 +15,27 @@ export interface IFlaggedDecisionService {
   getDecisionsForMeeting(meetingId: string): Promise<FlaggedDecision[]>;
 
   /**
+   * Get a flagged decision by ID
+   */
+  getDecisionById(id: string): Promise<FlaggedDecision | null>;
+
+  /**
+   * Update a flagged decision (title and status only)
+   */
+  updateDecision(id: string, data: { suggestedTitle?: string; status?: FlaggedDecision['status'] }): Promise<FlaggedDecision | null>;
+
+  /**
    * Update the status of a flagged decision
    */
   updateDecisionStatus(
     decisionId: string,
     status: FlaggedDecision['status']
   ): Promise<FlaggedDecision>;
+
+  /**
+   * Update the priority of a single decision
+   */
+  updateDecisionPriority(decisionId: string, priority: number): Promise<void>;
 
   /**
    * Update priorities for multiple decisions

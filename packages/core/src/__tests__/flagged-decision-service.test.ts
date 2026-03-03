@@ -3,21 +3,20 @@
  * Following TDD approach - tests written first
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FlaggedDecisionService } from '../../src/services/flagged-decision-service';
-import type { IFlaggedDecisionRepository } from '@repo/core';
 import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
 import { randomUUID } from 'crypto';
 
 // Mock repository for testing
-const mockRepository: IFlaggedDecisionRepository = {
+const mockRepository = {
   create: vi.fn(),
   findByMeetingId: vi.fn(),
   findById: vi.fn(),
   update: vi.fn(),
   updatePriority: vi.fn(),
   updateStatus: vi.fn(),
-};
+} as any; // Using any for simplicity since we're testing
 
 describe('FlaggedDecisionService', () => {
   let service: FlaggedDecisionService;
@@ -63,6 +62,7 @@ describe('FlaggedDecisionService', () => {
         contextSummary: 'Context',
         confidence: 1.5, // Invalid: > 1
         chunkIds: [randomUUID()],
+        priority: 3,
       };
 
       await expect(service.createFlaggedDecision(data)).rejects.toThrow(
@@ -78,6 +78,7 @@ describe('FlaggedDecisionService', () => {
         contextSummary: 'Context',
         confidence: 0.8,
         chunkIds: [], // Invalid: empty array
+        priority: 3,
       };
 
       await expect(service.createFlaggedDecision(data)).rejects.toThrow(
@@ -186,15 +187,21 @@ describe('FlaggedDecisionService', () => {
       const priorities = [10, 5, 1];
 
       for (let i = 0; i < decisionIds.length; i++) {
+        const decisionId = decisionIds[i];
+        const priority = priorities[i];
+        if (decisionId === undefined || priority === undefined) {
+          throw new Error('Decision IDs and priorities must have the same length');
+        }
+
         const decision: FlaggedDecision = {
-          id: decisionIds[i],
+          id: decisionId,
           meetingId: testMeetingId,
           suggestedTitle: `Decision ${i}`,
           contextSummary: `Context ${i}`,
           confidence: 0.8,
           chunkIds: [randomUUID()],
           status: 'pending',
-          priority: priorities[i],
+          priority: priority,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -221,6 +228,139 @@ describe('FlaggedDecisionService', () => {
       await expect(
         service.prioritizeDecisions(decisionIds, priorities)
       ).rejects.toThrow('Decision IDs and priorities must have the same length');
+    });
+  });
+
+  describe('getDecisionById', () => {
+    it('should return a decision when found', async () => {
+      const decisionId = randomUUID();
+      const expected: FlaggedDecision = {
+        id: decisionId,
+        meetingId: testMeetingId,
+        suggestedTitle: 'Test Decision',
+        contextSummary: 'Test Context',
+        confidence: 0.8,
+        chunkIds: [randomUUID()],
+        status: 'pending',
+        priority: 3,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      mockRepository.findById.mockResolvedValue(expected);
+
+      const result = await service.getDecisionById(decisionId);
+
+      expect(mockRepository.findById).toHaveBeenCalledWith(decisionId);
+      expect(result).toEqual(expected);
+    });
+
+    it('should return null when decision not found', async () => {
+      const decisionId = randomUUID();
+      mockRepository.findById.mockResolvedValue(null);
+
+      const result = await service.getDecisionById(decisionId);
+
+      expect(mockRepository.findById).toHaveBeenCalledWith(decisionId);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateDecision', () => {
+    it('should update only allowed fields', async () => {
+      const decisionId = randomUUID();
+      const existing: FlaggedDecision = {
+        id: decisionId,
+        meetingId: testMeetingId,
+        suggestedTitle: 'Original Title',
+        contextSummary: 'Original Context',
+        confidence: 0.8,
+        chunkIds: [randomUUID()],
+        status: 'pending',
+        priority: 3,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updated: FlaggedDecision = {
+        ...existing,
+        suggestedTitle: 'Updated Title',
+        status: 'accepted',
+        updatedAt: new Date().toISOString(),
+      };
+
+      mockRepository.findById.mockResolvedValue(existing);
+      mockRepository.update.mockResolvedValue(updated);
+
+      const result = await service.updateDecision(decisionId, {
+        suggestedTitle: 'Updated Title',
+        status: 'accepted',
+      });
+
+      expect(mockRepository.findById).toHaveBeenCalledWith(decisionId);
+      expect(mockRepository.update).toHaveBeenCalledWith(decisionId, {
+        suggestedTitle: 'Updated Title',
+        status: 'accepted',
+      });
+      expect(result).toEqual(updated);
+    });
+
+    it('should throw error when decision not found', async () => {
+      const decisionId = randomUUID();
+      mockRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateDecision(decisionId, { suggestedTitle: 'New Title' })
+      ).rejects.toThrow('Decision not found');
+      expect(mockRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateDecisionPriority', () => {
+    it('should update priority of a single decision', async () => {
+      const decisionId = randomUUID();
+      const existing: FlaggedDecision = {
+        id: decisionId,
+        meetingId: testMeetingId,
+        suggestedTitle: 'Test Decision',
+        contextSummary: 'Test Context',
+        confidence: 0.8,
+        chunkIds: [randomUUID()],
+        status: 'pending',
+        priority: 3,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      mockRepository.findById.mockResolvedValue(existing);
+      mockRepository.updatePriority.mockResolvedValue(existing);
+
+      await service.updateDecisionPriority(decisionId, 5);
+
+      expect(mockRepository.findById).toHaveBeenCalledWith(decisionId);
+      expect(mockRepository.updatePriority).toHaveBeenCalledWith(decisionId, 5);
+    });
+
+    it('should throw error for invalid priority', async () => {
+      const decisionId = randomUUID();
+
+      await expect(
+        service.updateDecisionPriority(decisionId, 0)
+      ).rejects.toThrow('Priority must be between 1 and 5');
+
+      await expect(
+        service.updateDecisionPriority(decisionId, 6)
+      ).rejects.toThrow('Priority must be between 1 and 5');
+    });
+
+    it('should throw error when decision not found', async () => {
+      const decisionId = randomUUID();
+      mockRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateDecisionPriority(decisionId, 3)
+      ).rejects.toThrow('Decision not found');
+      expect(mockRepository.updatePriority).not.toHaveBeenCalled();
     });
   });
 });

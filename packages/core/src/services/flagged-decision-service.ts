@@ -29,6 +29,29 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     return await this.repository.findByMeetingId(meetingId);
   }
 
+  async getDecisionById(id: string): Promise<FlaggedDecision | null> {
+    return await this.repository.findById(id);
+  }
+
+  async updateDecision(id: string, data: { suggestedTitle?: string; status?: FlaggedDecision['status'] }): Promise<FlaggedDecision | null> {
+    // Check if decision exists
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new Error('Decision not found');
+    }
+
+    // Only allow updating suggestedTitle and status
+    const updateData: Partial<FlaggedDecision> = {};
+    if (data.suggestedTitle !== undefined) {
+      updateData.suggestedTitle = data.suggestedTitle;
+    }
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+    }
+
+    return await this.repository.update(id, updateData);
+  }
+
   async updateDecisionStatus(
     decisionId: string,
     status: FlaggedDecision['status']
@@ -46,6 +69,25 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     }
 
     return updated;
+  }
+
+  async updateDecisionPriority(decisionId: string, priority: number): Promise<void> {
+    // Validate priority
+    if (priority < 1 || priority > 5) {
+      throw new Error('Priority must be between 1 and 5');
+    }
+
+    // Check if decision exists
+    const existing = await this.repository.findById(decisionId);
+    if (!existing) {
+      throw new Error('Decision not found');
+    }
+
+    // Update priority
+    const updated = await this.repository.updatePriority(decisionId, priority);
+    if (!updated) {
+      throw new Error(`Failed to update priority for decision ${decisionId}`);
+    }
   }
 
   async prioritizeDecisions(
