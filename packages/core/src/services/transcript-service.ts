@@ -70,15 +70,6 @@ export class TranscriptService {
 
     const transcript = await this.rawTranscriptRepo.create(createData);
 
-    // Auto-chunk the uploaded content
-    if (data.format === 'txt') {
-      await this.chunkTranscript(transcript.id, {
-        strategy: 'semantic',
-        maxTokens: 500,
-        overlap: 50,
-      });
-    }
-
     return transcript;
   }
 
@@ -129,56 +120,104 @@ export class TranscriptService {
     const chunks: TranscriptChunk[] = [];
     const { strategy, maxTokens = 500, overlap = 50 } = options;
 
-    // Simple fixed-size chunking for now
-    // In production, this would use more sophisticated strategies
-    const words = rawTranscript.content.split(/\s+/);
-    let currentChunk: string[] = [];
-    let currentTokens = 0;
-    let sequenceNumber = 1;
+    // Two strategies:
+    // - fixed: token/word-count based chunks
+    // - semantic: sentence-boundary aware chunks (still bounded by maxTokens)
+    if (strategy === 'semantic') {
+      const sentences = rawTranscript.content
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    for (const word of words) {
-      currentChunk.push(word);
-      currentTokens++;
+      let currentParts: string[] = [];
+      let currentTokens = 0;
+      let sequenceNumber = 1;
 
-      // Check if we need to create a chunk
-      if (currentTokens >= maxTokens) {
-        const chunkText = currentChunk.join(' ');
-        
+      for (const sentence of sentences) {
+        const sentenceTokens = this.estimateTokens(sentence);
+
+        // If adding this sentence would exceed the chunk budget, flush first.
+        if (currentParts.length > 0 && currentTokens + sentenceTokens > maxTokens) {
+          const chunkText = currentParts.join(' ');
+          const chunk = await this.addChunk({
+            meetingId: rawTranscript.meetingId,
+            rawTranscriptId,
+            sequenceNumber: sequenceNumber++,
+            text: chunkText,
+            chunkStrategy: strategy,
+            tokenCount: this.estimateTokens(chunkText),
+            wordCount: chunkText.split(/\s+/).filter(Boolean).length,
+            contexts: [`meeting:${rawTranscript.meetingId}`],
+          });
+          chunks.push(chunk);
+
+          // Sentence overlap is applied as an approximation using last N sentences.
+          const overlapSentences = Math.max(0, Math.floor(overlap / 25));
+          currentParts = overlapSentences > 0 ? currentParts.slice(-overlapSentences) : [];
+          currentTokens = this.estimateTokens(currentParts.join(' '));
+        }
+
+        currentParts.push(sentence);
+        currentTokens += sentenceTokens;
+      }
+
+      if (currentParts.length > 0) {
+        const chunkText = currentParts.join(' ');
         const chunk = await this.addChunk({
           meetingId: rawTranscript.meetingId,
           rawTranscriptId,
-          sequenceNumber: sequenceNumber++,
+          sequenceNumber,
+          text: chunkText,
+          chunkStrategy: strategy,
+          tokenCount: this.estimateTokens(chunkText),
+          wordCount: chunkText.split(/\s+/).filter(Boolean).length,
+          contexts: [`meeting:${rawTranscript.meetingId}`],
+        });
+        chunks.push(chunk);
+      }
+    } else {
+      const words = rawTranscript.content.split(/\s+/).filter(Boolean);
+      let currentChunk: string[] = [];
+      let currentTokens = 0;
+      let sequenceNumber = 1;
+
+      for (const word of words) {
+        currentChunk.push(word);
+        currentTokens++;
+
+        if (currentTokens >= maxTokens) {
+          const chunkText = currentChunk.join(' ');
+          const chunk = await this.addChunk({
+            meetingId: rawTranscript.meetingId,
+            rawTranscriptId,
+            sequenceNumber: sequenceNumber++,
+            text: chunkText,
+            chunkStrategy: strategy,
+            tokenCount: this.estimateTokens(chunkText),
+            wordCount: currentChunk.length,
+            contexts: [`meeting:${rawTranscript.meetingId}`],
+          });
+          chunks.push(chunk);
+
+          currentChunk = currentChunk.slice(-Math.floor(overlap));
+          currentTokens = currentChunk.length;
+        }
+      }
+
+      if (currentChunk.length > 0) {
+        const chunkText = currentChunk.join(' ');
+        const chunk = await this.addChunk({
+          meetingId: rawTranscript.meetingId,
+          rawTranscriptId,
+          sequenceNumber,
           text: chunkText,
           chunkStrategy: strategy,
           tokenCount: this.estimateTokens(chunkText),
           wordCount: currentChunk.length,
           contexts: [`meeting:${rawTranscript.meetingId}`],
         });
-
         chunks.push(chunk);
-
-        // Handle overlap
-        currentChunk = currentChunk.slice(-Math.floor(overlap));
-        currentTokens = currentChunk.length;
       }
-    }
-
-    // Add remaining words
-    if (currentChunk.length > 0) {
-      const chunkText = currentChunk.join(' ');
-      
-      const chunk = await this.addChunk({
-        meetingId: rawTranscript.meetingId,
-        rawTranscriptId,
-        sequenceNumber,
-        text: chunkText,
-        chunkStrategy: strategy,
-        tokenCount: this.estimateTokens(chunkText),
-        wordCount: currentChunk.length,
-        contexts: [`meeting:${rawTranscript.meetingId}`],
-      });
-
-      chunks.push(chunk);
     }
 
     return chunks;

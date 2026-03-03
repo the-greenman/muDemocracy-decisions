@@ -16,6 +16,7 @@ transcriptCommand
   .description('List all transcripts for a meeting')
   .option('-m, --meeting-id <id>', 'Meeting ID (required)')
   .option('-c, --chunks', 'Show chunks instead of transcripts')
+  .option('-s, --strategy <strategy>', 'Filter chunks by strategy (fixed, semantic, speaker, streaming)')
   .action(async (options) => {
     try {
       if (!options.meetingId) {
@@ -25,7 +26,11 @@ transcriptCommand
 
       if (options.chunks) {
         // Show chunks
-        const chunks = await transcriptService.getChunksByMeeting(options.meetingId);
+        let chunks = await transcriptService.getChunksByMeeting(options.meetingId);
+
+        if (options.strategy) {
+          chunks = chunks.filter((c) => c.chunkStrategy === options.strategy);
+        }
         
         if (chunks.length === 0) {
           console.log(chalk.yellow('No chunks found for this meeting'));
@@ -128,6 +133,9 @@ transcriptCommand
   .requiredOption('-m, --meeting-id <id>', 'Meeting ID')
   .option('-s, --source <source>', 'Source type', 'upload')
   .option('-p, --format <format>', 'File format (json, txt)', 'txt')
+  .option('--chunk-strategy <strategy>', 'Chunking strategy (fixed, semantic)', 'fixed')
+  .option('--chunk-size <tokens>', 'Chunk size (tokens)', '500')
+  .option('--overlap <tokens>', 'Chunk overlap (tokens)', '50')
   .action(async (options) => {
     try {
       const filePath = resolve(options.file);
@@ -174,9 +182,12 @@ transcriptCommand
       
       // Auto-process into chunks
       console.log(chalk.blue('\nProcessing into chunks...'));
+      const maxTokens = parseInt(options.chunkSize);
+      const overlap = parseInt(options.overlap);
       const chunks = await transcriptService.processTranscript(transcript.id, {
-        strategy: 'fixed',
-        maxTokens: 500,
+        strategy: options.chunkStrategy as any,
+        maxTokens: Number.isFinite(maxTokens) ? maxTokens : 500,
+        overlap: Number.isFinite(overlap) ? overlap : 50,
       });
 
       console.log(chalk.green(`✓ Created ${chunks.length} chunks`));

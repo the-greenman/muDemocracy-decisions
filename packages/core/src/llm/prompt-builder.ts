@@ -184,3 +184,48 @@ export function buildFieldRegenerationPrompt(
     text: builder.buildString(),
   };
 }
+
+export async function buildDraftPromptFromTemplate(
+  transcriptChunks: TranscriptChunk[],
+  templateFields: DecisionField[],
+  guidance: GuidanceSegment[] = [],
+  meetingId?: string,
+  decisionTitle?: string,
+  contextSummary?: string,
+): Promise<BuiltPrompt> {
+  // Read the prompt template
+  const fs = await import('fs/promises');
+  const path = await import('path');
+  const templatePath = path.resolve(__dirname, '../../../prompts/draft-generation.md');
+  let promptTemplate = await fs.readFile(templatePath, 'utf-8');
+
+  // Build field list section
+  const fieldListItems = templateFields.map(field => {
+    return `**${field.name}** (ID: ${field.id})\n${field.description || 'No description'}\nExtraction prompt: ${field.extractionPrompt || 'Extract the value for this field'}`;
+  }).join('\n\n');
+
+  // Build guidance section
+  const guidanceText = guidance.length > 0 
+    ? guidance.map(g => `- ${g.content}`).join('\n')
+    : 'No specific guidance provided.';
+
+  // Replace placeholders
+  promptTemplate = promptTemplate
+    .replace('{GUIDANCE_SECTION}', guidanceText)
+    .replace('{MEETING_ID}', meetingId || 'Not specified')
+    .replace('{DECISION_TITLE}', decisionTitle || 'Not specified')
+    .replace('{CONTEXT_SUMMARY}', contextSummary || 'Not specified')
+    .replace('{FIELD_LIST}', fieldListItems);
+
+  const builder = new PromptBuilder();
+  builder.addSystem(promptTemplate);
+
+  for (const chunk of transcriptChunks) {
+    builder.addTranscriptChunk(chunk);
+  }
+
+  return {
+    segments: builder.buildSegments(),
+    text: builder.buildString(),
+  };
+}

@@ -1,12 +1,14 @@
 import type { DecisionContext, DecisionField } from '@repo/schema';
 import type { ILLMService, GuidanceSegment } from '../llm/i-llm-service';
 import type { PromptSegmentData } from '@repo/schema';
-import { buildDraftPrompt, buildFieldRegenerationPrompt } from '../llm/prompt-builder';
+import { buildDraftPrompt, buildFieldRegenerationPrompt, buildDraftPromptFromTemplate } from '../llm/prompt-builder';
 import type { ITranscriptChunkRepository } from '../interfaces/transcript-repositories';
 import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
 import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
 import type { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository';
 import type { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository';
+import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository';
+import type { FlaggedDecision } from '@repo/schema';
 
 /**
  * Orchestrates LLM-based draft generation for a decision context.
@@ -27,6 +29,7 @@ export class DraftGenerationService {
     private fieldRepo: IDecisionFieldRepository,
     private contextRepo: IDecisionContextRepository,
     private llmInteractionRepo: ILLMInteractionRepository,
+    private flaggedDecisionRepo: IFlaggedDecisionRepository,
   ) {}
 
   async generateDraft(decisionContextId: string, guidance?: GuidanceSegment[]): Promise<DecisionContext> {
@@ -45,7 +48,27 @@ export class DraftGenerationService {
 
     const chunks = await this.fetchChunks(context.meetingId, decisionContextId);
 
-    const prompt = buildDraftPrompt(chunks, unlockedFields, guidance ?? []);
+    // Check if we should use the template-based prompt
+    const useTemplatePrompt = process.env['USE_TEMPLATE_PROMPT'] === 'true';
+    
+    let prompt;
+    if (useTemplatePrompt) {
+      // Get additional context for the template
+      const flaggedDecision = await this.findFlaggedDecision(context.flaggedDecisionId);
+      const decisionTitle = flaggedDecision?.suggestedTitle || context.draftData?.decision_statement || 'Untitled Decision';
+      const contextSummary = flaggedDecision?.contextSummary || 'No summary available';
+      
+      prompt = await buildDraftPromptFromTemplate(
+        chunks, 
+        unlockedFields, 
+        guidance ?? [],
+        context.meetingId,
+        decisionTitle,
+        contextSummary
+      );
+    } else {
+      prompt = buildDraftPrompt(chunks, unlockedFields, guidance ?? []);
+    }
 
     const provider = process.env['LLM_PROVIDER'] ?? 'anthropic';
     const model = process.env['LLM_MODEL'] ?? 'claude-opus-4-5';
@@ -164,6 +187,16 @@ export class DraftGenerationService {
       }
     }
     return fields;
+  }
+
+  /**
+   * Find flagged decision by ID.
+   */
+  private async findFlaggedDecision(flaggedDecisionId?: string): Promise<FlaggedDecision | null> {
+    if (!flaggedDecisionId) {
+      return null;
+    }
+    return await this.flaggedDecisionRepo.findById(flaggedDecisionId);
   }
 
   /**
