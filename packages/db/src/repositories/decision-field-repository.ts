@@ -128,6 +128,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
   private mapToSchema(row: any): DecisionField {
     return {
       id: row.id,
+      namespace: row.namespace,
       name: row.name,
       description: row.description,
       category: row.category,

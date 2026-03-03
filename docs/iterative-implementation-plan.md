@@ -29,7 +29,10 @@ Phases 0–2 are complete: Zod schemas, full service layer, Drizzle repositories
 - ✅ M1.5: LLM interaction storage schema and repository implemented
 - ✅ M1.6: Draft generation service implemented with full test coverage
 - ✅ M1.7: Transcript upload and processing commands implemented
-- ⏳ M1.8+: Draft CLI commands, markdown export — in progress
+- ✅ M1.8: Draft CLI commands implemented (generate, show, export, debug, lock/unlock)
+- ✅ M1.9: Markdown export service implemented with full formatting options
+- ✅ M1.10: Draft generation prompt template implemented with runtime injection
+- ⏳ M1.11+: API endpoints — in progress
 
 ---
 
@@ -278,6 +281,20 @@ Implemented the previously stubbed commands:
 - `transcript process <id>` — re-chunks a raw transcript with configurable strategy and chunk size
 - `transcript list --chunks` — shows chunks for a meeting instead of raw transcripts
 
+**Chunking strategies (2 supported):**
+- `fixed` — **default** word/token-count based chunking using `maxTokens` and `overlap`.
+- `semantic` — optional/experimental sentence-boundary aware chunking (tries to keep sentences intact, still bounded by `maxTokens`).
+
+**Selecting a strategy:**
+- Upload-time chunking:
+  - `transcript upload ... --chunk-strategy fixed|semantic --chunk-size 500 --overlap 50`
+- Re-processing an existing raw transcript:
+  - `transcript process --transcript-id <id> --strategy fixed|semantic --chunk-size 500 --overlap 50`
+
+**Filtering chunks when listing:**
+- `transcript list --meeting-id <id> --chunks --strategy fixed`
+- `transcript list --meeting-id <id> --chunks --strategy semantic`
+
 **Added**: `processTranscript()` public method to `TranscriptService` to expose chunking functionality
 
 **Validation**: ✅ Commands work as expected
@@ -289,18 +306,19 @@ pnpm cli transcript process <transcript-id> --strategy fixed --chunk-size 500  #
 
 ---
 
-### M1.8 — Draft CLI Commands
+### M1.8 — Draft CLI Commands ✅ COMPLETE
 
-**New**: `apps/cli/src/commands/draft.ts`
+**File**: `apps/cli/src/commands/draft.ts` - Already implemented
 
-```
-draft generate [--guidance "text"]     — generate/regenerate full draft (respects locks)
-draft show                             — display current draft_data with lock status
-draft export [--output path.md]        — render to markdown (stdout or file)
-draft debug [--context-id <id>]        — print last LLM interaction (prompt + response)
-draft lock-field <field-name>          — lock a field
-draft unlock-field <field-name>        — unlock a field
-```
+Implemented all draft subcommands:
+- `draft generate [--guidance "text"]` — generate/regenerate full draft (respects locks)
+- `draft show` — display current draft_data with lock status
+- `draft export [--output path.md]` — render to markdown (stdout or file)
+- `draft debug [--context-id <id>]` — print last LLM interaction (prompt + response)
+- `draft lock-field <field-name>` — lock a field
+- `draft unlock-field <field-name>` — unlock a field
+
+**Added**: `LLMInteractionService` and `createLLMInteractionService()` factory
 
 `draft show` renders locked fields with `[LOCKED]` prefix:
 ```
@@ -310,23 +328,44 @@ draft unlock-field <field-name>        — unlock a field
 
 ---
 
-### M1.9 — Markdown Export Service
+### M1.9 — Markdown Export Service ✅ COMPLETE
 
-**New**: `packages/core/src/services/markdown-export-service.ts`
-- `export(decisionContextId: string): Promise<string>`
-- Renders fields in template field order (uses `DecisionTemplate` field assignments)
-- Format: `# Decision: {title}\n\n## {fieldDisplayName}\n{fieldValue}\n\n...`
+**File**: `packages/core/src/services/markdown-export-service.ts` - Already implemented
+
+Implemented full markdown export service with features:
+- Export decision drafts to structured markdown format
+- Configurable metadata (timestamps, participants, etc.)
+- Field ordering options (template order or alphabetical)
+- Locked field indicators (prefix, suffix, or none)
+- Support for multiple field types (markdown, list, etc.)
+- Export multiple decisions to single file
+
+**Format**: `# Decision: {title}\n\n## {fieldDisplayName}\n{fieldValue}\n\n...`
 - Includes metadata footer: date, participants, logged-by, decision method
+
+**CLI Integration**: Enhanced `draft export` command with new options:
+- `--no-metadata` - Exclude metadata
+- `--field-order <template|alphabetical>` - Field ordering
+- `--lock-indicator <prefix|suffix|none>` - Lock indicator style
 
 ---
 
-### M1.10 — Draft Generation Prompt
+### M1.10 — Draft Generation Prompt ✅ COMPLETE
 
-**New**: `prompts/draft-generation.md`
+**File**: `prompts/draft-generation.md` - Already implemented
+
+Created comprehensive prompt template for LLM-based draft generation:
 - System prompt instructing LLM to extract structured field values from transcript
 - Guidance injection section clearly marked: `{GUIDANCE_SECTION}`
 - Field list injected at runtime with display names and extraction descriptions
 - v1 — version tracked in filename/header
+- Includes detailed instructions, output format, and examples
+
+**Implementation**: 
+- Added `buildDraftPromptFromTemplate()` function to prompt-builder
+- Integrated into DraftGenerationService with `USE_TEMPLATE_PROMPT=true` flag
+- Fetches additional context (meeting ID, decision title, summary) for template
+- Maintains backward compatibility with existing prompt system
 
 ---
 
@@ -1301,6 +1340,40 @@ pnpm test:llm -- --grep="decision detection mcp"
 - ✅ Non-MCP experts continue working unchanged (no regression)
 - ✅ Decision Detector evaluated: promoted or kept as non-MCP based on F1 + reliability
 - ✅ MCP health check and tool discovery working via CLI and API
+
+---
+
+### M9.1 — Field/Template Definition Registry + Export/Import (Future)
+
+**Goal**: Make decision fields and templates portable, reusable, and stable across environments by introducing namespace-scoped uniqueness and seed-time stable UUIDs.
+
+**DB schema**:
+- `decision_fields.namespace` (default `core`)
+- Uniqueness constraint: `(namespace, name, version)`
+
+**Definition model**:
+- Field identity is **stable** via UUID at definition time (seed-time for canonical/core registry).
+- `name` is the stable programmatic key within a `namespace` (not the user-facing label).
+- Templates reuse fields by `fieldId` (UUID) and customize presentation via `template_field_assignments.customLabel` / `customDescription`.
+
+**Seed/registry**:
+- Canonical fields/templates stored in a registry (constants) with pre-assigned UUIDs.
+- Seeding is idempotent by `id`, with fallback lookup by `(namespace, name, version)`.
+
+**Export/import**:
+- Support exporting a “template package” containing:
+  - Field definitions (UUID + namespace + name + version + prompts)
+  - Template definitions (UUID + version)
+  - Template-field assignments (including custom labels)
+- Import should upsert by UUID, enabling template migration and shared field libraries.
+
+**Validation**:
+```bash
+pnpm db:push
+pnpm db:seed
+pnpm cli field list
+pnpm cli template list --fields
+```
 
 ---
 

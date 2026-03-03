@@ -14,7 +14,7 @@ interface IDecisionContextRepository {
   findById(id: string): Promise<DecisionContext | null>;
   findByMeetingId(meetingId: string): Promise<DecisionContext[]>;
   findByFlaggedDecisionId(flaggedDecisionId: string): Promise<DecisionContext | null>;
-  update(id: string, data: Partial<CreateDecisionContext>): Promise<DecisionContext | null>;
+  update(id: string, data: Partial<DecisionContext>): Promise<DecisionContext | null>;
   lockField(id: string, fieldId: string): Promise<DecisionContext | null>;
   unlockField(id: string, fieldId: string): Promise<DecisionContext | null>;
   lockAllFields(id: string): Promise<DecisionContext | null>;
@@ -81,7 +81,7 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
     return this.mapToSchema(row);
   }
 
-  async update(id: string, data: Partial<CreateDecisionContext>): Promise<DecisionContext | null> {
+  async update(id: string, data: Partial<DecisionContext>): Promise<DecisionContext | null> {
     const updateData: any = {
       ...data,
       updatedAt: new Date(),

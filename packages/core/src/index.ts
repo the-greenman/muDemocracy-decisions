@@ -26,6 +26,12 @@ export {
   createDraftGenerationService,
   createFlaggedDecisionService,
   createDecisionTemplateService,
+  createLLMInteractionService,
+  createMarkdownExportService,
+  createDecisionContextRepository,
+  createDecisionTemplateRepository,
+  createDecisionFieldRepository,
+  createTemplateFieldAssignmentRepository,
   createServices,
   type ServiceContainer
 } from './service-factory';

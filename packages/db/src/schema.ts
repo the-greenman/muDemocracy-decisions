@@ -9,7 +9,7 @@
  * - Version controlled
  */
 
-import { pgTable, uuid, text, date, timestamp, pgEnum, index, integer, jsonb, boolean, real } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, date, timestamp, pgEnum, index, integer, jsonb, boolean, real, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // ============================================================================
 // MEETINGS
@@ -91,7 +91,7 @@ export const transcriptChunks = pgTable('transcript_chunks', {
   chunkStrategy: chunkStrategyEnum('chunk_strategy').notNull(),
   tokenCount: integer('token_count'),
   wordCount: integer('word_count'),
-  contexts: text('contexts').array().notNull().default([]),
+  contexts: text('contexts').array().notNull(),
   topics: text('topics').array(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
@@ -151,6 +151,7 @@ export type DecisionContextWindowInsert = typeof decisionContextWindows.$inferIn
 
 export const decisionFields = pgTable('decision_fields', {
   id: uuid('id').primaryKey().defaultRandom(),
+  namespace: text('namespace').notNull().default('core'),
   name: text('name').notNull(),
   description: text('description').notNull(),
   category: fieldCategoryEnum('category').notNull(),
@@ -162,8 +163,10 @@ export const decisionFields = pgTable('decision_fields', {
   isCustom: boolean('is_custom').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
+  namespaceIdx: index('idx_decision_fields_namespace').on(table.namespace),
   categoryIdx: index('idx_decision_fields_category').on(table.category),
   nameIdx: index('idx_decision_fields_name').on(table.name),
+  namespaceNameVersionUq: uniqueIndex('uq_decision_fields_namespace_name_version').on(table.namespace, table.name, table.version),
 }));
 
 export type DecisionFieldSelect = typeof decisionFields.$inferSelect;
@@ -246,7 +249,7 @@ export const decisionContexts = pgTable('decision_contexts', {
   title: text('title').notNull(),
   templateId: uuid('template_id').notNull().references(() => decisionTemplates.id),
   activeField: uuid('active_field').references(() => decisionFields.id),
-  lockedFields: text('locked_fields').array().notNull().default([]),
+  lockedFields: text('locked_fields').array().notNull(),
   draftData: jsonb('draft_data'),
   status: decisionContextStatusEnum('status').notNull().default('drafting'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -292,7 +295,7 @@ export const expertTemplates = pgTable('expert_templates', {
   name: text('name').notNull(),
   type: expertTypeEnum('type').notNull(),
   promptTemplate: text('prompt_template').notNull(),
-  mcpAccess: text('mcp_access').array().notNull().default([]),
+  mcpAccess: text('mcp_access').array().notNull(),
   outputSchema: jsonb('output_schema'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

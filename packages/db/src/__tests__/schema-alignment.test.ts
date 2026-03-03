@@ -137,6 +137,7 @@ describe('Zod Schema Validation', () => {
   it('should validate DecisionField data correctly', () => {
     const validField = {
       id: '550e8400-e29b-41d4-a716-446655440005',
+      namespace: 'core',
       name: 'decision_statement',
       description: 'The core decision being made',
       category: 'outcome',

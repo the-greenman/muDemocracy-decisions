@@ -11,7 +11,7 @@ export interface IDecisionContextRepository {
   findById(id: string): Promise<DecisionContext | null>;
   findByMeetingId(meetingId: string): Promise<DecisionContext[]>;
   findByFlaggedDecisionId(flaggedDecisionId: string): Promise<DecisionContext | null>;
-  update(id: string, data: Partial<CreateDecisionContext>): Promise<DecisionContext | null>;
+  update(id: string, data: Partial<DecisionContext>): Promise<DecisionContext | null>;
   
   // Field management
   lockField(id: string, fieldId: string): Promise<DecisionContext | null>;

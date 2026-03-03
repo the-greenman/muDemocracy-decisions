@@ -18,8 +18,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push:pg",
+    "db:migrate": "dotenv -e ../../.env -- drizzle-kit up:pg",
+    "db:push": "dotenv -e ../../.env -- drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
     "db:validate": "drizzle-kit check",
     "db:seed": "tsx scripts/seed.ts",
@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "dotenv-cli": "^7.4.4",
     "drizzle-kit": "^0.20.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",

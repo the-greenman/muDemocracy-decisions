@@ -325,6 +325,7 @@ export const ValidationRuleSchema = z.object({
 
 export const DecisionFieldSchema = z.object({
   id: z.string().uuid(),
+  namespace: z.string().default('core'),
   name: z.string(),
   description: z.string(),
   category: z.enum(['context', 'evaluation', 'outcome', 'metadata']),
@@ -339,6 +340,7 @@ export const DecisionFieldSchema = z.object({
   description: 'A field definition for decision templates',
   example: {
     id: '550e8400-e29b-41d4-a716-446655440005',
+    namespace: 'core',
     name: 'decision_statement',
     description: 'The core decision being made',
     category: 'outcome',
@@ -365,6 +367,7 @@ export const CreateDecisionFieldSchema = DecisionFieldSchema.omit({
 }).openapi('CreateDecisionField', {
   description: 'Schema for creating a new decision field',
   example: {
+    namespace: 'core',
     name: 'decision_statement',
     description: 'The core decision being made',
     category: 'outcome',

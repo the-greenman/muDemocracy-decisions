@@ -9,8 +9,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "start": "dotenv -e ../../.env -- node dist/index.js",
     "test": "vitest run --passWithNoTests",
     "type-check": "tsc --noEmit"
   },
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "dotenv-cli": "^7.4.4",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.0",

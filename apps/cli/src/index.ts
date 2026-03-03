@@ -6,6 +6,7 @@ import { decisionCommand } from './commands/decision';
 import { fieldCommand } from './commands/field';
 import { templateCommand } from './commands/template';
 import { decisionsCommand } from './commands/decisions';
+import { draftCommand } from './commands/draft';
 
 const program = new Command();
 
@@ -21,6 +22,7 @@ program.addCommand(decisionCommand);
 program.addCommand(fieldCommand);
 program.addCommand(templateCommand);
 program.addCommand(decisionsCommand);
+program.addCommand(draftCommand);
 
 // Global error handler
 program.configureOutput({
@@ -28,14 +30,14 @@ program.configureOutput({
   writeOut: (str) => process.stdout.write(str),
 });
 
-// Parse arguments
-program.parse();
+async function main() {
+  // Parse arguments (async-aware)
+  await program.parseAsync(process.argv);
 
-// If we reach here, the command completed successfully
-// Give it a moment for any async operations, then exit
-setTimeout(() => {
+  // Force exit after command completes.
+  // Some dependencies (e.g. DB connection pools) keep the event loop alive.
   process.exit(0);
-}, 50);
+}
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
@@ -46,5 +48,10 @@ process.on('uncaughtException', (error) => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error(chalk.red('Unhandled Rejection at:'), promise, 'reason:', reason);
+  process.exit(1);
+});
+
+main().catch((error) => {
+  console.error(chalk.red('Fatal error:'), error);
   process.exit(1);
 });
