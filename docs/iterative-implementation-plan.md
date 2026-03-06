@@ -32,7 +32,7 @@ Phases 0–2 are complete: Zod schemas, full service layer, Drizzle repositories
 - ✅ M1.8: Draft CLI commands implemented (generate, show, export, debug, lock/unlock)
 - ✅ M1.9: Markdown export service implemented with full formatting options
 - ✅ M1.10: Draft generation prompt template implemented with runtime injection
-- ⏳ M1.11+: API endpoints — in progress
+- ✅ M1.11: API endpoints implemented with OpenAPI/Swagger docs, real-DB e2e coverage, and compose-based API/db startup workflow
 
 ---
 
@@ -386,6 +386,8 @@ Created comprehensive prompt template for LLM-based draft generation:
 
 ### M1.11 — API Endpoints (parallel build)
 
+**Status**: ✅ COMPLETE
+
 **New route files** in `apps/api/src/routes/`:
 - `POST /api/meetings/:id/transcripts/upload` — upload + chunk transcript
 - `POST /api/meetings/:id/flagged-decisions` — manually create flagged decision
@@ -397,6 +399,13 @@ Created comprehensive prompt template for LLM-based draft generation:
 - `GET /api/decision-contexts/:id/llm-interactions` — debug/observability
 
 All routes use Zod schemas + `@hono/zod-openapi` (auto-generates OpenAPI spec).
+
+**Delivered**:
+- Route definitions and handlers added in `apps/api/src/routes/decision-workflow.ts` and `apps/api/src/index.ts`
+- Runtime OpenAPI served from `GET /openapi.json`
+- Swagger UI served from `GET /docs`
+- Real-database API e2e coverage added for the M1.11 workflow endpoints
+- Compose/Docker workflow fixed so the API and database can be brought up reliably for iterative testing (`pnpm up:stack`)
 
 ---
 
@@ -426,13 +435,19 @@ cat cloud-migration-decision.md  # Valid markdown, all fields populated
 pnpm cli draft debug    # prints prompt segments + response for last generation
 
 # 5. API endpoint test
-curl -X POST http://localhost:3000/api/decision-contexts/<id>/generate-draft \
+curl -X POST http://localhost:3001/api/decision-contexts/<id>/generate-draft \
   -H "Content-Type: application/json" \
   -d '{"guidance": [{"content": "Focus on cost", "source": "user_text"}]}'
 # Returns updated DecisionContext with populated draft_data
 
-curl http://localhost:3000/api/decision-contexts/<id>/llm-interactions
+curl http://localhost:3001/api/decision-contexts/<id>/llm-interactions
 # Returns stored prompt + response for inspection
+
+# 6. Compose-based API startup
+pnpm up:stack
+curl http://localhost:3001/health
+curl http://localhost:3001/openapi.json
+curl http://localhost:3001/docs
 ```
 
 ### M1 Exit Criteria
@@ -445,9 +460,9 @@ curl http://localhost:3000/api/decision-contexts/<id>/llm-interactions
 - ⏳ Real LLM generates populated draft from sample transcript - pending M1.7 implementation
 - ✅ Locked fields unchanged after regeneration (verified in tests)
 - ✅ LLM interaction stored with prompt segments (implemented in draft service)
-- ⏳ Markdown export renders all fields in template order - pending M1.9 implementation
-- ⏳ `draft debug` shows exact prompt sent to LLM - pending M1.8 implementation
-- ⏳ API endpoint returns same result as CLI path - pending M1.11 implementation
+- ✅ Markdown export renders all fields in template order (implemented in M1.9 and verified via API export endpoint)
+- ✅ `draft debug` shows exact prompt sent to LLM (implemented in M1.8)
+- ✅ API endpoint returns same result as CLI path (implemented and covered with real-DB API tests)
 
 ---
 
@@ -514,6 +529,36 @@ const chunk = await transcriptService.addChunk({ text: 'Three options were discu
 expect(chunk.contexts).toContain('meeting:mtg_1');
 expect(chunk.contexts).toContain('decision:ctx_1');
 expect(chunk.contexts).toContain('decision:ctx_1:options');
+```
+
+---
+
+### M2.2a — Segment Range Selection for Manual Decision Flagging
+
+Improve manual context selection so users can tag chunk ranges without listing every chunk ID.
+
+**Update**: `apps/cli/src/commands/decisions.ts`, `packages/core/src/services/flagged-decision-service.ts`
+- Extend `decisions flag` and `decisions update` to accept sequence-based ranges:
+  - `--segments 12-18,22,25-27`
+  - `--segments all` (or `--all`) to include all chunks in the active/target meeting
+- Resolve ranges by `TranscriptChunk.sequenceNumber` to concrete chunk IDs before persistence.
+- Persist normalized `segmentIds` only (no schema change required).
+- Validate ranges with clear errors:
+  - invalid format (`12-`, `a-b`)
+  - descending range (`18-12`)
+  - out-of-bounds sequence numbers
+  - missing meeting context when `--all` is used
+
+**Behavior note**:
+- A single chunk can be linked to multiple flagged decisions. This is expected and supported by context tagging (`contexts` is an array).
+
+**Validation**:
+```bash
+pnpm cli transcript list --meeting-id <id> --chunks
+pnpm cli decisions flag <meeting-id> --title "Approve vendor" --segments 12-18,22
+pnpm cli decisions flag <meeting-id> --title "Escalate risk controls" --segments 16-20
+# chunk 16-18 may belong to both decisions
+pnpm cli decisions update <flagged-id> --segments all
 ```
 
 ---
@@ -587,6 +632,10 @@ Lay non-breaking seams that allow subsystem extraction later without changing us
 ### M2 Validation
 
 ```bash
+pnpm cli decisions flag <meeting-id> --title "Decision A" --segments 12-18,22
+pnpm cli decisions flag <meeting-id> --title "Decision B" --segments 16-20
+pnpm cli decisions update <flagged-id> --segments all
+
 pnpm cli draft generate                # version 1
 pnpm cli draft versions                # shows v1
 pnpm cli transcript add --text "Additional context about costs..."
@@ -609,6 +658,8 @@ pnpm test --filter=@repo/core
 - ✅ Field-tagged chunks used preferentially in next generation
 - ✅ `transcript add` works incrementally with existing meetings
 - ✅ Context commands (set-meeting, set-decision, set-field) work end-to-end
+- ✅ Manual decision flagging accepts sequence ranges and `all` segment selection
+- ✅ Overlapping segments can be linked to multiple flagged decisions
 - ✅ Interface/barrel seams for transcript/log/events exist and compile
 - ✅ Adapter wiring preserves existing behavior (no API/CLI regressions)
 - ✅ In-process event bus is optional and non-blocking (no required subscribers)
