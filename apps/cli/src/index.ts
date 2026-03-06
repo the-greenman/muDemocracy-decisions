@@ -7,6 +7,7 @@ import { fieldCommand } from './commands/field';
 import { templateCommand } from './commands/template';
 import { decisionsCommand } from './commands/decisions';
 import { draftCommand } from './commands/draft';
+import { contextCommand } from './commands/context';
 
 const program = new Command();
 
@@ -23,6 +24,7 @@ program.addCommand(fieldCommand);
 program.addCommand(templateCommand);
 program.addCommand(decisionsCommand);
 program.addCommand(draftCommand);
+program.addCommand(contextCommand);
 
 // Global error handler
 program.configureOutput({

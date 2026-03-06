@@ -13,6 +13,7 @@ import { DecisionFieldService } from './services/decision-field-service';
 import { DraftGenerationService } from './services/draft-generation-service';
 import { FlaggedDecisionService } from './services/flagged-decision-service';
 import { DecisionTemplateService } from './services/decision-template-service';
+import { GlobalContextService, FileGlobalContextStore } from './services/global-context-service';
 import { LLMInteractionService } from './services/llm-interaction-service';
 import { MarkdownExportService } from './services/markdown-export-service';
 import { VercelAILLMService } from './llm/vercel-ai-llm-service';
@@ -119,6 +120,22 @@ export function createDecisionTemplateService(): DecisionTemplateService {
 }
 
 /**
+ * Creates a GlobalContextService with file-backed persistence for CLI usage.
+ */
+export function createGlobalContextService(): GlobalContextService {
+  return new GlobalContextService(
+    new FileGlobalContextStore(),
+    new DrizzleMeetingRepository(),
+    new FlaggedDecisionService(new DrizzleFlaggedDecisionRepository()),
+    new DecisionContextService(new DrizzleDecisionContextRepository()),
+    new DecisionTemplateService(
+      new DrizzleDecisionTemplateRepository(),
+      new DrizzleTemplateFieldAssignmentRepository()
+    )
+  );
+}
+
+/**
  * Creates an LLMInteractionService with real repository
  */
 export function createLLMInteractionService(): LLMInteractionService {
@@ -180,6 +197,7 @@ export interface ServiceContainer {
   draftGenerationService: DraftGenerationService;
   flaggedDecisionService: FlaggedDecisionService;
   decisionTemplateService: DecisionTemplateService;
+  globalContextService: GlobalContextService;
 }
 
 /**
@@ -195,5 +213,6 @@ export function createServices(): ServiceContainer {
     draftGenerationService: createDraftGenerationService(),
     flaggedDecisionService: createFlaggedDecisionService(),
     decisionTemplateService: createDecisionTemplateService(),
+    globalContextService: createGlobalContextService(),
   };
 }

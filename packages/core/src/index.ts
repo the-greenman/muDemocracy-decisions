@@ -8,6 +8,7 @@ export { MeetingService } from './services/meeting-service';
 export { TranscriptService } from './services/transcript-service';
 export { FlaggedDecisionService } from './services/flagged-decision-service';
 export { DecisionContextService } from './services/decision-context-service';
+export { GlobalContextService, InMemoryGlobalContextStore, FileGlobalContextStore } from './services/global-context-service';
 export { DecisionLogService } from './services/decision-log-service';
 export { DecisionFieldService } from './services/decision-field-service';
 export { DecisionTemplateService } from './services/decision-template-service';
@@ -26,6 +27,7 @@ export {
   createDraftGenerationService,
   createFlaggedDecisionService,
   createDecisionTemplateService,
+  createGlobalContextService,
   createLLMInteractionService,
   createMarkdownExportService,
   createDecisionContextRepository,
@@ -47,6 +49,7 @@ export type { IFlaggedDecisionRepository } from './interfaces/i-flagged-decision
 export type { IFlaggedDecisionService } from './interfaces/i-flagged-decision-service';
 export type { IDecisionContextRepository } from './interfaces/i-decision-context-repository';
 export type { IDecisionContextService } from './interfaces/i-decision-context-service';
+export type { IGlobalContextService, IGlobalContextStore, GlobalContext, GlobalContextState } from './interfaces/i-global-context-service';
 export type { IDecisionLogRepository } from './interfaces/i-decision-log-repository';
 export type { IDecisionLogService } from './interfaces/i-decision-log-service';
 export type { IDecisionFieldRepository } from './interfaces/i-decision-field-repository';
@@ -80,6 +83,7 @@ export type {
 export type { Meeting, CreateMeeting, UpdateMeeting } from '@repo/schema';
 export type { DecisionLog, CreateDecisionLog } from '@repo/schema';
 export type { DecisionContext, CreateDecisionContext } from '@repo/schema';
+export type { FlaggedDecision } from '@repo/schema';
 export type { DecisionField, CreateDecisionField } from '@repo/schema';
 export type { DecisionTemplate, CreateDecisionTemplate } from '@repo/schema';
 export type { TemplateFieldAssignment, CreateTemplateFieldAssignment } from '@repo/schema';
