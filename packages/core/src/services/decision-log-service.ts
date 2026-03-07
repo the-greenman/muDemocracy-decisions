@@ -14,6 +14,8 @@ import type { IChunkRelevanceRepository } from '../interfaces/transcript-reposit
 import type { IDecisionTemplateRepository, ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
 import { logger, withContext } from '../logger';
 
+const FIELD_META_KEY = '__fieldMeta';
+
 export interface LogDecisionOptions {
   /**
    * The ID of the user logging the decision
@@ -88,7 +90,9 @@ export class DecisionLogService implements IDecisionLogService {
           throw new Error('Decision template not found');
         }
 
-        const draftFields = context.draftData || {};
+        const draftFields = Object.fromEntries(
+          Object.entries(context.draftData || {}).filter(([fieldId]) => fieldId !== FIELD_META_KEY)
+        );
         const templateFields = await this.templateFieldAssignmentRepository.findByTemplateId(context.templateId);
         const missingRequiredFields = templateFields
           .filter((field) => field.required)

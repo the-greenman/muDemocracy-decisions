@@ -8,9 +8,13 @@ import type {
   IDecisionContextRepository,
   DecisionContext,
   CreateDecisionContext,
-  IDecisionContextService
+  IDecisionContextService,
+  ITemplateFieldAssignmentRepository,
+  TemplateFieldAssignment,
 } from '@repo/core';
 import { DecisionContextService } from '../services/decision-context-service';
+
+const FIELD_META_KEY = '__fieldMeta';
 
 // Mock repository for testing
 class MockDecisionContextRepository implements IDecisionContextRepository {
@@ -23,6 +27,7 @@ class MockDecisionContextRepository implements IDecisionContextRepository {
       status: 'drafting',
       lockedFields: [],
       activeField: undefined,
+      draftVersions: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -129,21 +134,41 @@ class MockDecisionContextRepository implements IDecisionContextRepository {
     this.contexts.set(id, updated);
     return updated;
   }
+
+  seed(context: DecisionContext) {
+    this.contexts.set(context.id, context);
+  }
 }
 
 describe('DecisionContextService', () => {
   let repository: IDecisionContextRepository;
   let service: IDecisionContextService;
+  let templateFieldAssignmentRepository: ITemplateFieldAssignmentRepository;
   let testMeetingId: string;
   let testFlaggedDecisionId: string;
   let testTemplateId: string;
+  let assignedFields: TemplateFieldAssignment[];
 
   beforeEach(() => {
     repository = new MockDecisionContextRepository();
-    service = new DecisionContextService(repository);
     testMeetingId = crypto.randomUUID();
     testFlaggedDecisionId = crypto.randomUUID();
     testTemplateId = crypto.randomUUID();
+    assignedFields = [
+      { fieldId: 'field1', order: 0, required: true },
+      { fieldId: 'field2', order: 1, required: false },
+    ];
+    templateFieldAssignmentRepository = {
+      create: async () => ({ fieldId: 'field1', order: 0, required: true }),
+      findByTemplateId: async () => assignedFields,
+      findByFieldId: async () => [],
+      update: async () => null,
+      delete: async () => true,
+      deleteByTemplateId: async () => true,
+      createMany: async () => assignedFields,
+      updateOrder: async () => undefined,
+    };
+    service = new DecisionContextService(repository, templateFieldAssignmentRepository);
   });
 
   describe('createContext', () => {
@@ -162,6 +187,7 @@ describe('DecisionContextService', () => {
       expect(result.status).toBe('drafting');
       expect(result.lockedFields).toEqual([]);
       expect(result.activeField).toBeUndefined();
+      expect(result.draftVersions).toEqual([]);
     });
 
     it('should create context with initial draft data', async () => {
@@ -176,6 +202,75 @@ describe('DecisionContextService', () => {
       const result = await service.createContext(data);
 
       expect(result.draftData).toEqual({ field1: 'value1' });
+      expect(result.draftVersions).toEqual([]);
+    });
+  });
+
+  describe('version management', () => {
+    it('should save a snapshot of the current draft data', async () => {
+      const context = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Versioned Context',
+        templateId: testTemplateId,
+        draftData: { field1: 'current', field2: 'draft' },
+      });
+
+      const result = await service.saveSnapshot(context.id);
+
+      expect(result).toBeDefined();
+      expect(result!.draftVersions).toHaveLength(1);
+      expect(result!.draftVersions[0]!.version).toBe(1);
+      expect(result!.draftVersions[0]!.draftData).toEqual({ field1: 'current', field2: 'draft' });
+    });
+
+    it('should list saved versions with field counts', async () => {
+      const context = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Versioned Context',
+        templateId: testTemplateId,
+        draftData: { field1: 'current' },
+      });
+
+      await service.saveSnapshot(context.id);
+
+      const versions = await service.listVersions(context.id);
+
+      expect(versions).toEqual([
+        expect.objectContaining({ version: 1, fieldCount: 1 }),
+      ]);
+    });
+
+    it('should rollback draft data to a saved version', async () => {
+      const context = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Versioned Context',
+        templateId: testTemplateId,
+        draftData: { field1: 'original' },
+      });
+
+      await service.saveSnapshot(context.id);
+      await service.updateDraftData(context.id, { field1: 'modified', field2: 'new value' });
+
+      const rolledBack = await service.rollback(context.id, 1);
+
+      expect(rolledBack).toBeDefined();
+      expect(rolledBack!.draftData).toEqual({ field1: 'original' });
+      expect(rolledBack!.draftVersions).toHaveLength(1);
+    });
+
+    it('should throw when rolling back to a missing version', async () => {
+      const context = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Versioned Context',
+        templateId: testTemplateId,
+        draftData: { field1: 'original' },
+      });
+
+      await expect(service.rollback(context.id, 99)).rejects.toThrow('Draft version 99 not found');
     });
   });
 
@@ -209,6 +304,51 @@ describe('DecisionContextService', () => {
 
       expect(result).toBeDefined();
       expect(result!.draftData).toEqual({ field1: 'original' });
+    });
+  });
+
+  describe('setFieldValue', () => {
+    it('should set a single field value directly on the draft data', async () => {
+      const context = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Editable Context',
+        templateId: testTemplateId,
+        draftData: { field1: 'original', field2: 'existing' },
+      });
+
+      const result = await service.setFieldValue(context.id, 'field1', 'manually edited');
+
+      expect(result).toBeDefined();
+      expect(result!.draftData).toEqual({
+        field1: 'manually edited',
+        field2: 'existing',
+        [FIELD_META_KEY]: {
+          field1: {
+            manuallyEdited: true,
+          },
+        },
+      });
+      expect(result!.lockedFields).toEqual([]);
+    });
+
+    it('should reject fields not assigned to the active template', async () => {
+      const context = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Editable Context',
+        templateId: testTemplateId,
+      });
+
+      await expect(service.setFieldValue(context.id, 'field3', 'value')).rejects.toThrow(
+        `Field field3 is not assigned to template ${testTemplateId}`
+      );
+    });
+
+    it('should return null when setting a field on a missing context', async () => {
+      const result = await service.setFieldValue(crypto.randomUUID(), 'field1', 'value');
+
+      expect(result).toBeNull();
     });
   });
 

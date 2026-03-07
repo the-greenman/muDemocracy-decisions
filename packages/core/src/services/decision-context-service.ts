@@ -5,14 +5,23 @@
 
 import type { 
   DecisionContext,
+  DraftVersion,
   CreateDecisionContext 
 } from '@repo/schema';
 import type { IDecisionContextService } from '../interfaces/i-decision-context-service';
 import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
+import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
 import { logger } from '../logger';
 
+const FIELD_META_KEY = '__fieldMeta';
+
+type FieldMetaRecord = Record<string, { manuallyEdited?: boolean }>;
+
 export class DecisionContextService implements IDecisionContextService {
-  constructor(private repository: IDecisionContextRepository) {}
+  constructor(
+    private repository: IDecisionContextRepository,
+    private templateFieldAssignmentRepository?: ITemplateFieldAssignmentRepository,
+  ) {}
 
   async createContext(data: CreateDecisionContext): Promise<DecisionContext> {
     logger.info('Creating decision context', { 
@@ -42,6 +51,79 @@ export class DecisionContextService implements IDecisionContextService {
     }
 
     return await this.repository.update(id, { draftData: updatedDraft });
+  }
+
+  async setFieldValue(id: string, fieldId: string, value: unknown): Promise<DecisionContext | null> {
+    const context = await this.repository.findById(id);
+    if (!context) {
+      return null;
+    }
+
+    await this.assertFieldAssignedToTemplate(context.templateId, fieldId);
+
+    const currentDraft = context.draftData ?? {};
+    const fieldMeta = this.getFieldMeta(currentDraft);
+    return await this.repository.update(id, {
+      draftData: {
+        ...currentDraft,
+        [fieldId]: value,
+        [FIELD_META_KEY]: {
+          ...fieldMeta,
+          [fieldId]: {
+            ...fieldMeta[fieldId],
+            manuallyEdited: true,
+          },
+        },
+      },
+    });
+  }
+
+  async saveSnapshot(id: string): Promise<DecisionContext | null> {
+    const context = await this.repository.findById(id);
+    if (!context) {
+      return null;
+    }
+
+    const draftVersions = context.draftVersions ?? [];
+
+    const snapshot: DraftVersion = {
+      version: draftVersions.length + 1,
+      draftData: { ...(context.draftData ?? {}) },
+      savedAt: new Date().toISOString(),
+    };
+
+    return await this.repository.update(id, {
+      draftVersions: [...draftVersions, snapshot],
+    });
+  }
+
+  async rollback(id: string, version: number): Promise<DecisionContext | null> {
+    const context = await this.repository.findById(id);
+    if (!context) {
+      return null;
+    }
+
+    const snapshot = (context.draftVersions ?? []).find((entry) => entry.version === version);
+    if (!snapshot) {
+      throw new Error(`Draft version ${version} not found`);
+    }
+
+    return await this.repository.update(id, {
+      draftData: { ...snapshot.draftData },
+    });
+  }
+
+  async listVersions(id: string): Promise<Array<{ version: number; savedAt: string; fieldCount: number }>> {
+    const context = await this.repository.findById(id);
+    if (!context) {
+      return [];
+    }
+
+    return (context.draftVersions ?? []).map((entry) => ({
+      version: entry.version,
+      savedAt: entry.savedAt,
+      fieldCount: this.getDraftFieldKeys(entry.draftData).length,
+    }));
   }
 
   async lockField(id: string, fieldId: string): Promise<DecisionContext | null> {
@@ -146,7 +228,7 @@ export class DecisionContextService implements IDecisionContextService {
     logger.info('Approving and locking context', { 
       id, 
       title: context.title,
-      totalFields: Object.keys(context.draftData || {}).length,
+      totalFields: this.getDraftFieldKeys(context.draftData).length,
       currentlyLocked: context.lockedFields.length 
     });
 
@@ -186,5 +268,30 @@ export class DecisionContextService implements IDecisionContextService {
 
   async getAllContextsForMeeting(meetingId: string): Promise<DecisionContext[]> {
     return await this.repository.findByMeetingId(meetingId);
+  }
+
+  private async assertFieldAssignedToTemplate(templateId: string, fieldId: string): Promise<void> {
+    if (!this.templateFieldAssignmentRepository) {
+      return;
+    }
+
+    const assignments = await this.templateFieldAssignmentRepository.findByTemplateId(templateId);
+    const isAssigned = assignments.some((assignment) => assignment.fieldId === fieldId);
+    if (!isAssigned) {
+      throw new Error(`Field ${fieldId} is not assigned to template ${templateId}`);
+    }
+  }
+
+  private getDraftFieldKeys(draftData?: Record<string, unknown>): string[] {
+    return Object.keys(draftData ?? {}).filter((key) => key !== FIELD_META_KEY);
+  }
+
+  private getFieldMeta(draftData: Record<string, unknown>): FieldMetaRecord {
+    const meta = draftData[FIELD_META_KEY];
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+      return {};
+    }
+
+    return meta as FieldMetaRecord;
   }
 }

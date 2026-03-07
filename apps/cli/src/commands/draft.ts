@@ -5,6 +5,10 @@ import { createDecisionContextRepository, createDecisionTemplateRepository, crea
 import { writeFile } from 'fs/promises';
 import { resolve } from 'path';
 
+const FIELD_META_KEY = '__fieldMeta';
+
+type FieldMetaRecord = Record<string, { manuallyEdited?: boolean }>;
+
 // Create service instances
 const draftService = createDraftGenerationService();
 const contextService = createDecisionContextService();
@@ -16,6 +20,36 @@ const contextRepo = createDecisionContextRepository();
 const templateRepo = createDecisionTemplateRepository();
 const fieldRepo = createDecisionFieldRepository();
 const fieldAssignmentRepo = createTemplateFieldAssignmentRepository();
+
+async function resolveTemplateField(contextId: string, fieldName: string) {
+  const context = await contextRepo.findById(contextId);
+  if (!context) {
+    throw new Error('Decision context not found');
+  }
+
+  const assignments = await fieldAssignmentRepo.findByTemplateId(context.templateId);
+  for (const assignment of assignments) {
+    const field = await fieldRepo.findById(assignment.fieldId);
+    if (field?.name === fieldName) {
+      return { context, field };
+    }
+  }
+
+  throw new Error(`Field "${fieldName}" not found on the decision context template`);
+}
+
+function getFieldMeta(draftData: Record<string, unknown>): FieldMetaRecord {
+  const meta = draftData[FIELD_META_KEY];
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return {};
+  }
+
+  return meta as FieldMetaRecord;
+}
+
+function getVisibleDraftEntries(draftData: Record<string, unknown>): Array<[string, unknown]> {
+  return Object.entries(draftData).filter(([fieldId]) => fieldId !== FIELD_META_KEY);
+}
 
 export const draftCommand = new Command('draft')
   .description('Draft generation and management commands');
@@ -50,6 +84,13 @@ draftCommand
           newDraftData[key] = value;
         }
       }
+      const existingFieldMeta = getFieldMeta(oldDraftData);
+      const filteredFieldMeta = Object.fromEntries(
+        Object.entries(existingFieldMeta).filter(([fieldId]) => allowedFieldIds.has(fieldId))
+      );
+      if (Object.keys(filteredFieldMeta).length > 0) {
+        newDraftData[FIELD_META_KEY] = filteredFieldMeta;
+      }
 
       const oldLockedFields = context.lockedFields || [];
       const newLockedFields = oldLockedFields.filter((fieldId) => allowedFieldIds.has(fieldId));
@@ -58,7 +99,7 @@ draftCommand
         ? context.activeField
         : undefined;
 
-      const removedDraftKeys = Object.keys(oldDraftData).length - Object.keys(newDraftData).length;
+      const removedDraftKeys = getVisibleDraftEntries(oldDraftData).length - getVisibleDraftEntries(newDraftData).length;
       const removedLocked = oldLockedFields.length - newLockedFields.length;
 
       const updated = await contextRepo.update(context.id, {
@@ -107,13 +148,68 @@ draftCommand
       // Show draft summary
       const draftData = updatedContext.draftData || {};
       const lockedFields = updatedContext.lockedFields || [];
+      const fieldMeta = getFieldMeta(draftData);
       
       console.log(chalk.white('\nDraft Summary:'));
-      Object.entries(draftData).forEach(([fieldId, value]) => {
+      getVisibleDraftEntries(draftData).forEach(([fieldId, value]) => {
         const isLocked = lockedFields.includes(fieldId);
-        const prefix = isLocked ? chalk.red('[LOCKED] ') : chalk.green('          ');
+        const isManuallyEdited = fieldMeta[fieldId]?.manuallyEdited === true;
+        const indicators = [isLocked ? '[LOCKED]' : null, isManuallyEdited ? '[MANUALLY EDITED]' : null]
+          .filter(Boolean)
+          .join(' ');
+        const prefix = indicators ? `${indicators} ` : '';
         console.log(`${prefix}${fieldId}: ${value}`);
       });
+    } catch (error) {
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+      throw error;
+    }
+  });
+
+draftCommand
+  .command('regenerate-field')
+  .description('Regenerate a single draft field with optional guidance')
+  .argument('<field-name>', 'Template field name to regenerate')
+  .requiredOption('-c, --context-id <id>', 'Decision context ID')
+  .option('-g, --guidance <text>', 'Additional field-specific guidance text')
+  .action(async (fieldName, options) => {
+    try {
+      const { field } = await resolveTemplateField(options.contextId, fieldName);
+      const guidance = options.guidance ? [{
+        fieldId: field.id,
+        content: options.guidance,
+        source: 'user_text' as const,
+      }] : undefined;
+
+      const value = await draftService.regenerateField(options.contextId, field.id, guidance);
+
+      console.log(chalk.green(`✓ Regenerated field ${field.name}`));
+      console.log(chalk.gray(`Field ID: ${field.id}`));
+      console.log(chalk.white(value));
+    } catch (error) {
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+      throw error;
+    }
+  });
+
+draftCommand
+  .command('edit-field')
+  .description('Set a single draft field value manually')
+  .argument('<field-name>', 'Template field name to edit')
+  .requiredOption('-c, --context-id <id>', 'Decision context ID')
+  .requiredOption('-v, --value <value>', 'New field value')
+  .action(async (fieldName, options) => {
+    try {
+      const { field } = await resolveTemplateField(options.contextId, fieldName);
+      const updated = await contextService.setFieldValue(options.contextId, field.id, options.value);
+      if (!updated) {
+        console.error(chalk.red('Decision context not found'));
+        return;
+      }
+
+      console.log(chalk.green(`✓ Updated field ${field.name}`));
+      console.log(chalk.gray(`Field ID: ${field.id}`));
+      console.log(chalk.white(String(updated.draftData?.[field.id] ?? '')));
     } catch (error) {
       console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
       throw error;
@@ -140,8 +236,9 @@ draftCommand
 
       const draftData = context.draftData || {};
       const lockedFields = context.lockedFields || [];
+      const fieldMeta = getFieldMeta(draftData);
       
-      if (Object.keys(draftData).length === 0) {
+      if (getVisibleDraftEntries(draftData).length === 0) {
         console.log(chalk.yellow('No draft data yet. Use "draft generate" to create a draft.'));
         return;
       }
@@ -160,10 +257,14 @@ draftCommand
       }
 
       console.log(chalk.white('Draft Fields:'));
-      Object.entries(draftData).forEach(([fieldId, value]) => {
+      getVisibleDraftEntries(draftData).forEach(([fieldId, value]) => {
         const isLocked = lockedFields.includes(fieldId);
+        const isManuallyEdited = fieldMeta[fieldId]?.manuallyEdited === true;
         const fieldName = fieldMap.get(fieldId) || fieldId;
-        const prefix = isLocked ? chalk.red('[LOCKED] ') : chalk.green('          ');
+        const indicators = [isLocked ? '[LOCKED]' : null, isManuallyEdited ? '[MANUALLY EDITED]' : null]
+          .filter(Boolean)
+          .join(' ');
+        const prefix = indicators ? `${indicators} ` : '';
         const displayValue = value || chalk.gray('(awaiting generation)');
         console.log(`${prefix}${fieldName}: ${displayValue}`);
       });
@@ -253,6 +354,60 @@ draftCommand
         console.log(chalk.blue('\n--- PARSED RESULT ---'));
         console.log(JSON.stringify(interaction.parsedResult, null, 2));
       }
+    } catch (error) {
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+      throw error;
+    }
+  });
+
+// List draft versions command
+draftCommand
+  .command('versions')
+  .description('List saved draft snapshots with timestamps and field counts')
+  .requiredOption('-c, --context-id <id>', 'Decision context ID')
+  .action(async (options) => {
+    try {
+      const versions = await contextService.listVersions(options.contextId);
+      if (versions.length === 0) {
+        console.log(chalk.yellow('No draft versions saved yet'));
+        return;
+      }
+
+      console.log(chalk.white(`Draft Versions for Context: ${options.contextId}`));
+      console.log('');
+      versions.forEach((version) => {
+        console.log(chalk.gray(`v${version.version}`));
+        console.log(chalk.white(`  Saved At: ${version.savedAt}`));
+        console.log(chalk.white(`  Field Count: ${version.fieldCount}`));
+      });
+    } catch (error) {
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+      throw error;
+    }
+  });
+
+// Rollback draft command
+draftCommand
+  .command('rollback')
+  .description('Restore draft data from a saved version')
+  .argument('<version>', 'Draft version number to restore')
+  .requiredOption('-c, --context-id <id>', 'Decision context ID')
+  .action(async (version, options) => {
+    try {
+      const parsedVersion = Number.parseInt(version, 10);
+      if (!Number.isInteger(parsedVersion) || parsedVersion < 1) {
+        throw new Error('Version must be a positive integer');
+      }
+
+      const updated = await contextService.rollback(options.contextId, parsedVersion);
+      if (!updated) {
+        console.error(chalk.red('Decision context not found'));
+        return;
+      }
+
+      console.log(chalk.green(`✓ Restored draft version ${parsedVersion}`));
+      console.log(chalk.gray(`Context ID: ${updated.id}`));
+      console.log(chalk.gray(`Updated: ${updated.updatedAt}`));
     } catch (error) {
       console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
       throw error;

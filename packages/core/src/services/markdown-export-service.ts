@@ -9,6 +9,10 @@ import { IDecisionFieldRepository } from '../interfaces/i-decision-field-reposit
 import { IMeetingRepository } from '../interfaces/i-meeting-repository';
 import type { TemplateFieldAssignment, DecisionField } from '@repo/schema';
 
+const FIELD_META_KEY = '__fieldMeta';
+
+type FieldMetaRecord = Record<string, { manuallyEdited?: boolean }>;
+
 export interface MarkdownExportOptions {
   includeMetadata?: boolean;
   includeTimestamps?: boolean;
@@ -110,10 +114,12 @@ export class MarkdownExportService {
     // Fields section
     const draftData = context.draftData || {};
     const lockedFields = context.lockedFields || [];
+    const fieldMeta = this.getFieldMeta(draftData);
 
     for (const { field } of sortedFields) {
       const value = draftData[field.id] || '';
       const isLocked = lockedFields.includes(field.id);
+      const isManuallyEdited = fieldMeta[field.id]?.manuallyEdited === true;
       
       // Field name with lock indicator
       let fieldName = field.name;
@@ -121,6 +127,9 @@ export class MarkdownExportService {
         fieldName = `[LOCKED] ${fieldName}`;
       } else if (isLocked && lockedFieldIndicator === 'suffix') {
         fieldName = `${fieldName} [LOCKED]`;
+      }
+      if (isManuallyEdited) {
+        fieldName = `[MANUALLY EDITED] ${fieldName}`;
       }
       
       markdown += `## ${fieldName}\n\n`;
@@ -159,6 +168,15 @@ export class MarkdownExportService {
     }
 
     return markdown;
+  }
+
+  private getFieldMeta(draftData: Record<string, unknown>): FieldMetaRecord {
+    const meta = draftData[FIELD_META_KEY];
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+      return {};
+    }
+
+    return meta as FieldMetaRecord;
   }
 
   /**

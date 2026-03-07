@@ -411,15 +411,21 @@ app.openapi(updateFieldValueRoute, async (c) => {
     return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
   }
 
-  const { id, fieldId } = c.req.valid('param');
-  const { value } = c.req.valid('json');
-  const context = await services.decisionContextService.setFieldValue(id, fieldId, value);
+  try {
+    const { id, fieldId } = c.req.valid('param');
+    const { value } = c.req.valid('json');
+    const context = await services.decisionContextService.setFieldValue(id, fieldId, value);
 
-  if (!context) {
-    return c.json({ error: 'Decision context not found' }, 404);
+    if (!context) {
+      return c.json({ error: 'Decision context not found' }, 404);
+    }
+
+    return c.json(context);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, status as 400 | 404);
   }
-
-  return c.json(context);
 });
 
 app.openapi(getFieldTranscriptRoute, async (c) => {
@@ -495,25 +501,7 @@ app.openapi(exportDecisionLogRoute, async (c) => {
     return c.json({ format, content: decision });
   }
 
-  const markdown = [
-    `# Decision: ${String(decision.fields.decision_statement ?? decision.fields.decision ?? 'Untitled Decision')}`,
-    '',
-    `**Decision ID:** ${decision.id}`,
-    `**Meeting ID:** ${decision.meetingId}`,
-    `**Decision Context ID:** ${decision.decisionContextId}`,
-    `**Template:** ${decision.templateId} (v${decision.templateVersion})`,
-    `**Logged By:** ${decision.loggedBy}`,
-    `**Logged At:** ${decision.loggedAt}`,
-    '',
-    '---',
-    '',
-    ...Object.entries(decision.fields).flatMap(([fieldId, value]) => [
-      `## ${fieldId}`,
-      '',
-      typeof value === 'string' ? value : JSON.stringify(value, null, 2),
-      '',
-    ]),
-  ].join('\n');
+  const markdown = await services.markdownExportService.exportToMarkdown(decision.decisionContextId);
 
   return c.json({ format, content: markdown });
 });

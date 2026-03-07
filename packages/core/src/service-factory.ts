@@ -96,7 +96,8 @@ export function createDecisionLogGenerator(): IDecisionLogGenerator {
  */
 export function createDecisionContextService(): DecisionContextService {
   return new DecisionContextService(
-    new DrizzleDecisionContextRepository()
+    new DrizzleDecisionContextRepository(),
+    new DrizzleTemplateFieldAssignmentRepository()
   );
 }
 
@@ -179,7 +180,10 @@ export function createGlobalContextService(): GlobalContextService {
       new DrizzleFlaggedDecisionRepository(),
       new DrizzleTranscriptChunkRepository()
     ),
-    new DecisionContextService(new DrizzleDecisionContextRepository()),
+    new DecisionContextService(
+      new DrizzleDecisionContextRepository(),
+      new DrizzleTemplateFieldAssignmentRepository()
+    ),
     new DecisionTemplateService(
       new DrizzleDecisionTemplateRepository(),
       new DrizzleTemplateFieldAssignmentRepository()

@@ -232,6 +232,29 @@ describe('API E2E Tests', () => {
     const data = await response.json();
     expect(data.id).toBe(createdContextId);
     expect(data.draftData?.[createdFieldId]).toBe('Manually edited decision statement');
+    expect(data.draftData?.__fieldMeta?.[createdFieldId]?.manuallyEdited).toBe(true);
+  });
+
+  it('PATCH /api/decision-contexts/:id/fields/:fieldId - should reject fields not assigned to the template', async () => {
+    const unassignedField = await createDecisionFieldService().createField({
+      namespace: 'test',
+      name: `unassigned_field_${Date.now()}`,
+      description: 'Unassigned field for negative API E2E test',
+      category: 'context',
+      extractionPrompt: 'Should not be used',
+      fieldType: 'textarea',
+      placeholder: 'Unused',
+    });
+
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/fields/${unassignedField.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: 'Should fail' }),
+    });
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toContain(`Field ${unassignedField.id} is not assigned to template ${createdTemplateId}`);
   });
 
   it('GET /api/decision-contexts/:id/fields/:fieldId/transcript - should return field transcript chunks', async () => {

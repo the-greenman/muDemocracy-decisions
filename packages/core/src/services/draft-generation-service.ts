@@ -10,6 +10,8 @@ import type { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-
 import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository';
 import type { FlaggedDecision } from '@repo/schema';
 
+const FIELD_META_KEY = '__fieldMeta';
+
 /**
  * Orchestrates LLM-based draft generation for a decision context.
  *
@@ -46,7 +48,7 @@ export class DraftGenerationService {
       return context;
     }
 
-    const chunks = await this.fetchChunks(context.meetingId, decisionContextId);
+    const chunks = await this.fetchDraftChunks(context.meetingId, decisionContextId);
 
     // Check if we should use the template-based prompt
     const useTemplatePrompt = process.env['USE_TEMPLATE_PROMPT'] === 'true';
@@ -99,9 +101,22 @@ export class DraftGenerationService {
     const currentDraft = context.draftData ?? {};
     const updatedDraft: Record<string, unknown> = { ...currentDraft };
     for (const [fieldId, value] of Object.entries(draftResult)) {
-      if (!context.lockedFields.includes(fieldId)) {
+      if (!context.lockedFields.includes(fieldId) && fieldId !== FIELD_META_KEY) {
         updatedDraft[fieldId] = value;
       }
+    }
+
+    if (this.getPersistedFieldEntries(currentDraft).length > 0) {
+      await this.contextRepo.update(decisionContextId, {
+        draftVersions: [
+          ...context.draftVersions,
+          {
+            version: context.draftVersions.length + 1,
+            draftData: { ...currentDraft },
+            savedAt: new Date().toISOString(),
+          },
+        ],
+      });
     }
 
     const updated = await this.contextRepo.update(decisionContextId, { draftData: updatedDraft });
@@ -133,7 +148,7 @@ export class DraftGenerationService {
     }
 
     // Field-tagged chunks get priority (fetched with context tag for this field)
-    const chunks = await this.fetchChunks(context.meetingId, decisionContextId);
+    const chunks = await this.fetchFieldChunks(context.meetingId, decisionContextId, fieldId);
 
     const prompt = buildFieldRegenerationPrompt(chunks, field, fieldId, guidance ?? []);
 
@@ -165,9 +180,13 @@ export class DraftGenerationService {
 
     // Persist the updated field value
     const currentDraft = context.draftData ?? {};
-    await this.contextRepo.update(decisionContextId, {
+    const updated = await this.contextRepo.update(decisionContextId, {
       draftData: { ...currentDraft, [fieldId]: value },
     });
+
+    if (!updated) {
+      throw new Error(`Failed to persist regenerated field ${fieldId} for context: ${decisionContextId}`);
+    }
 
     return value;
   }
@@ -203,10 +222,9 @@ export class DraftGenerationService {
    * Fetch transcript chunks for the meeting, ordered by specificity:
    * decision-context-tagged chunks are most relevant.
    */
-  private async fetchChunks(meetingId: string, decisionContextId: string) {
+  private async fetchDraftChunks(meetingId: string, decisionContextId: string) {
     const allChunks = await this.transcriptRepo.findByMeetingId(meetingId);
 
-    // Sort: decision-tagged first, then meeting-wide
     const decisionTag = `decision:${decisionContextId}`;
     return allChunks.sort((a, b) => {
       const aTagged = a.contexts.some(c => c.startsWith(decisionTag));
@@ -215,5 +233,42 @@ export class DraftGenerationService {
       if (!aTagged && bTagged) return 1;
       return a.sequenceNumber - b.sequenceNumber;
     });
+  }
+
+  private async fetchFieldChunks(meetingId: string, decisionContextId: string, fieldId: string) {
+    const allChunks = await this.transcriptRepo.findByMeetingId(meetingId);
+    const fieldTag = `decision:${decisionContextId}:${fieldId}`;
+    const decisionTag = `decision:${decisionContextId}`;
+    const meetingTag = `meeting:${meetingId}`;
+
+    return [...allChunks].sort((a, b) => {
+      const rankA = this.getChunkWeight(a.contexts, fieldTag, decisionTag, meetingTag);
+      const rankB = this.getChunkWeight(b.contexts, fieldTag, decisionTag, meetingTag);
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+
+      return a.sequenceNumber - b.sequenceNumber;
+    });
+  }
+
+  private getChunkWeight(contexts: string[], fieldTag: string, decisionTag: string, meetingTag: string): number {
+    if (contexts.includes(fieldTag)) {
+      return 0;
+    }
+
+    if (contexts.some((context) => context === decisionTag || context.startsWith(`${decisionTag}:`))) {
+      return 1;
+    }
+
+    if (contexts.includes(meetingTag)) {
+      return 2;
+    }
+
+    return 3;
+  }
+
+  private getPersistedFieldEntries(draftData: Record<string, unknown>): Array<[string, unknown]> {
+    return Object.entries(draftData).filter(([fieldId]) => fieldId !== FIELD_META_KEY);
   }
 }

@@ -9,6 +9,8 @@ import { db } from '../client';
 import { eq, sql } from 'drizzle-orm';
 import { DecisionContext, CreateDecisionContext } from '@repo/schema';
 
+const FIELD_META_KEY = '__fieldMeta';
+
 interface IDecisionContextRepository {
   create(data: CreateDecisionContext): Promise<DecisionContext>;
   findById(id: string): Promise<DecisionContext | null>;
@@ -33,6 +35,7 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
         templateId: data.templateId,
         activeField: data.activeField || null,
         draftData: data.draftData || null,
+        draftVersions: [],
         status: 'drafting',
         lockedFields: [],
       })
@@ -160,7 +163,7 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
     }
 
     // Get all field IDs from draft data
-    const allFields = Object.keys(current.draftData || {});
+    const allFields = Object.keys(current.draftData || {}).filter((fieldId) => fieldId !== FIELD_META_KEY);
     
     // Combine with currently locked fields to ensure we don't lose any
     const lockedFields = [...new Set([...current.lockedFields, ...allFields])];
@@ -241,6 +244,7 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
       activeField: row.active_field ?? row.activeField ?? null,
       lockedFields: row.locked_fields || row.lockedFields,
       draftData: row.draft_data || row.draftData || undefined,
+      draftVersions: row.draft_versions || row.draftVersions || [],
       status: row.status,
       createdAt: (row.created_at || row.createdAt).toISOString(),
       updatedAt: (row.updated_at || row.updatedAt).toISOString(),

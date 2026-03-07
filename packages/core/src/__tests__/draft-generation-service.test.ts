@@ -7,12 +7,14 @@ import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decisio
 import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
 import type { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository';
 import type { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository';
+import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 function makeField(id: string, name: string): DecisionField {
   return {
     id,
+    namespace: 'core',
     name,
     description: `Description for ${name}`,
     category: 'outcome',
@@ -55,6 +57,7 @@ function makeContext(overrides: Partial<DecisionContext> = {}): DecisionContext 
     status: 'drafting',
     lockedFields: [],
     draftData: {},
+    draftVersions: [],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,
@@ -121,7 +124,27 @@ function makeRepos(context: DecisionContext, chunks: TranscriptChunk[], fields: 
     findByField: vi.fn(),
   };
 
-  return { contextRepo, transcriptRepo, fieldAssignmentRepo, fieldRepo, llmInteractionRepo };
+  const flaggedDecisionRepo: IFlaggedDecisionRepository = {
+    create: vi.fn(),
+    findByMeetingId: vi.fn(),
+    findById: vi.fn().mockResolvedValue({
+      id: 'flag-1',
+      meetingId: 'meeting-1',
+      suggestedTitle: 'Flagged Decision',
+      contextSummary: 'Flagged decision summary',
+      confidence: 0.9,
+      chunkIds: ['chunk-1'],
+      status: 'pending',
+      priority: 0,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }),
+    update: vi.fn(),
+    updatePriority: vi.fn(),
+    updateStatus: vi.fn(),
+  };
+
+  return { contextRepo, transcriptRepo, fieldAssignmentRepo, fieldRepo, llmInteractionRepo, flaggedDecisionRepo };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -153,6 +176,7 @@ describe('DraftGenerationService', () => {
       repos.fieldRepo,
       repos.contextRepo,
       repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
     );
   });
 
@@ -184,6 +208,38 @@ describe('DraftGenerationService', () => {
     );
   });
 
+  it('saves a draft snapshot before overwriting existing draft data', async () => {
+    repos = makeRepos(
+      makeContext({ draftData: { 'field-statement': 'Previous decision' } }),
+      chunks,
+      fields,
+    );
+    service = new DraftGenerationService(
+      llm,
+      repos.transcriptRepo,
+      repos.fieldAssignmentRepo,
+      repos.fieldRepo,
+      repos.contextRepo,
+      repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
+    );
+
+    await service.generateDraft('ctx-1');
+
+    expect(repos.contextRepo.update).toHaveBeenNthCalledWith(
+      1,
+      'ctx-1',
+      expect.objectContaining({
+        draftVersions: [
+          expect.objectContaining({
+            version: 1,
+            draftData: { 'field-statement': 'Previous decision' },
+          }),
+        ],
+      }),
+    );
+  });
+
   it('does not regenerate locked fields', async () => {
     const contextWithLock = makeContext({ lockedFields: ['field-statement'] });
     repos = makeRepos(contextWithLock, chunks, fields);
@@ -194,6 +250,7 @@ describe('DraftGenerationService', () => {
       repos.fieldRepo,
       repos.contextRepo,
       repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
     );
 
     await service.generateDraft('ctx-1');
@@ -218,6 +275,7 @@ describe('DraftGenerationService', () => {
       repos.fieldRepo,
       repos.contextRepo,
       repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
     );
 
     const result = await service.generateDraft('ctx-1');
@@ -247,6 +305,44 @@ describe('DraftGenerationService', () => {
     );
   });
 
+  it('regenerateField prioritizes field-tagged chunks over decision-tagged and meeting-tagged chunks', async () => {
+    const weightedChunks = [
+      makeChunk('meeting-only', []),
+      makeChunk('decision-tagged', ['decision:ctx-1']),
+      makeChunk('field-tagged', ['decision:ctx-1:field-options']),
+    ];
+    repos = makeRepos(makeContext(), weightedChunks, fields);
+    service = new DraftGenerationService(
+      llm,
+      repos.transcriptRepo,
+      repos.fieldAssignmentRepo,
+      repos.fieldRepo,
+      repos.contextRepo,
+      repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
+    );
+
+    const llmSpy = vi.spyOn(llm, 'regenerateField');
+
+    await service.regenerateField('ctx-1', 'field-options');
+
+    const transcriptChunks = llmSpy.mock.calls[0]?.[0].transcriptChunks;
+    expect(transcriptChunks?.map((chunk) => chunk.id)).toEqual([
+      'field-tagged',
+      'decision-tagged',
+      'meeting-only',
+    ]);
+  });
+
+  it('regenerateField throws when persistence fails after LLM completion', async () => {
+    llm.setFieldResponse('field-options', 'AWS, Azure');
+    vi.mocked(repos.contextRepo.update).mockResolvedValue(null);
+
+    await expect(service.regenerateField('ctx-1', 'field-options')).rejects.toThrow(
+      'Failed to persist regenerated field field-options for context: ctx-1'
+    );
+  });
+
   it('regenerateField throws when field is locked', async () => {
     const lockedCtx = makeContext({ lockedFields: ['field-options'] });
     repos = makeRepos(lockedCtx, chunks, fields);
@@ -257,6 +353,7 @@ describe('DraftGenerationService', () => {
       repos.fieldRepo,
       repos.contextRepo,
       repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
     );
 
     await expect(service.regenerateField('ctx-1', 'field-options'))
