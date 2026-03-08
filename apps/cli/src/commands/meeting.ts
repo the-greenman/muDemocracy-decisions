@@ -23,7 +23,7 @@ meetingCommand
       }
 
       const participants = options.participants.split(',').map((p: string) => p.trim());
-      const date = new Date(options.date).toISOString();
+      const date = `${options.date}T00:00:00Z`;
       
       const meeting = await meetingService.create({
         title,

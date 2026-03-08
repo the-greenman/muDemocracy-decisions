@@ -9,6 +9,19 @@ import { db } from '../client';
 import { meetings, MeetingSelect, MeetingInsert } from '../schema';
 import { Meeting, CreateMeeting } from '@repo/schema';
 
+function toMeetingIsoDate(value: string | Date): string {
+  if (value instanceof Date) {
+    return `${value.toISOString().split('T')[0]}T00:00:00Z`;
+  }
+
+  const datePart = value.split('T')[0];
+  if (!datePart) {
+    throw new Error('Invalid stored meeting date');
+  }
+
+  return `${datePart}T00:00:00Z`;
+}
+
 export class DrizzleMeetingRepository {
   async create(data: CreateMeeting): Promise<Meeting> {
     // Extract date portion from ISO datetime string
@@ -91,7 +104,7 @@ export class DrizzleMeetingRepository {
     return {
       id: dbMeeting.id,
       title: dbMeeting.title,
-      date: `${dbMeeting.date}T00:00:00Z`, // Convert date string to ISO
+      date: toMeetingIsoDate(dbMeeting.date),
       participants: dbMeeting.participants,
       status: dbMeeting.status,
       createdAt: dbMeeting.createdAt.toISOString(),
