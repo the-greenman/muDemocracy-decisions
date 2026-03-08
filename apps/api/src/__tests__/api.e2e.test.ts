@@ -81,6 +81,47 @@ describe('API E2E Tests', () => {
     createdMeetingId = data.id;
   });
 
+  it('PATCH /api/meetings/:id - should update meeting metadata', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Updated Test Meeting',
+        participants: ['Alice', 'Bob', 'Charlie'],
+        status: 'active',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.id).toBe(createdMeetingId);
+    expect(data.title).toBe('Updated Test Meeting');
+    expect(data.participants).toEqual(['Alice', 'Bob', 'Charlie']);
+    expect(data.status).toBe('active');
+  });
+
+  it('POST /api/context/meeting - should set the active meeting context', async () => {
+    const response = await app.request('/api/context/meeting', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meetingId: createdMeetingId }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.activeMeetingId).toBe(createdMeetingId);
+    expect(data.activeMeeting?.id).toBe(createdMeetingId);
+  });
+
+  it('GET /api/context - should return current context state', async () => {
+    const response = await app.request('/api/context');
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.activeMeetingId).toBe(createdMeetingId);
+    expect(data.activeMeeting?.id).toBe(createdMeetingId);
+  });
+
   it('GET /api/meetings - should list all meetings', async () => {
     const response = await app.request('/api/meetings');
     
@@ -139,6 +180,44 @@ describe('API E2E Tests', () => {
     createdDecisionId = data.id;
   });
 
+  it('GET /api/meetings/:id/flagged-decisions - should list flagged decisions for a meeting', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/flagged-decisions`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.decisions).toBeInstanceOf(Array);
+    expect(data.decisions.some((decision: { id: string }) => decision.id === createdDecisionId)).toBe(true);
+  });
+
+  it('PATCH /api/flagged-decisions/:id - should update a flagged decision', async () => {
+    const response = await app.request(`/api/flagged-decisions/${createdDecisionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'accepted',
+        priority: 3,
+        contextSummary: 'Promoted to agenda for active drafting.',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.id).toBe(createdDecisionId);
+    expect(data.status).toBe('accepted');
+    expect(data.priority).toBe(3);
+    expect(data.contextSummary).toBe('Promoted to agenda for active drafting.');
+  });
+
+  it('GET /api/meetings/:id/flagged-decisions?status=accepted - should filter flagged decisions by status', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/flagged-decisions?status=accepted`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.decisions).toBeInstanceOf(Array);
+    expect(data.decisions.some((decision: { id: string }) => decision.id === createdDecisionId)).toBe(true);
+    expect(data.decisions.every((decision: { status: string }) => decision.status === 'accepted')).toBe(true);
+  });
+
   it('POST /api/decision-contexts - should create a decision context', async () => {
     const response = await app.request('/api/decision-contexts', {
       method: 'POST',
@@ -160,6 +239,61 @@ describe('API E2E Tests', () => {
     expect(data.lockedFields).toEqual([]);
 
     createdContextId = data.id;
+  });
+
+  it('GET /api/meetings/:id/decision-contexts - should list decision contexts for a meeting', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/decision-contexts`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.contexts).toBeInstanceOf(Array);
+    expect(data.contexts.some((context: { id: string }) => context.id === createdContextId)).toBe(true);
+  });
+
+  it('GET /api/meetings/:id/summary - should return meeting workflow summary', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/summary`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.decisionCount).toBeGreaterThanOrEqual(1);
+    expect(data.draftCount).toBeGreaterThanOrEqual(1);
+    expect(data.loggedCount).toBeGreaterThanOrEqual(0);
+  });
+
+  it('GET /api/flagged-decisions/:id/context - should return the decision context for a flagged decision', async () => {
+    const response = await app.request(`/api/flagged-decisions/${createdDecisionId}/context`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.id).toBe(createdContextId);
+    expect(data.flaggedDecisionId).toBe(createdDecisionId);
+  });
+
+  it('POST /api/meetings/:id/context/decision - should set the active decision context', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/context/decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flaggedDecisionId: createdDecisionId }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.activeMeetingId).toBe(createdMeetingId);
+    expect(data.activeDecisionId).toBe(createdDecisionId);
+    expect(data.activeDecisionContextId).toBe(createdContextId);
+  });
+
+  it('POST /api/meetings/:id/context/field - should set the active field context', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/context/field`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fieldId: createdFieldId }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.activeField).toBe(createdFieldId);
+    expect(data.activeDecisionContext?.activeField).toBe(createdFieldId);
   });
 
   it('POST /api/supplementary-content - should create supplementary content', async () => {
@@ -453,13 +587,47 @@ describe('API E2E Tests', () => {
     expect(listData.items.some((item: { id: string }) => item.id === createdSupplementaryContentId)).toBe(false);
   });
 
+  it('DELETE /api/meetings/:id/context/field - should clear the active field context', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/context/field`, {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.activeField).toBeUndefined();
+    expect(data.activeDecisionId).toBe(createdDecisionId);
+  });
+
+  it('DELETE /api/meetings/:id/context/decision - should clear the active decision context', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/context/decision`, {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.activeMeetingId).toBe(createdMeetingId);
+    expect(data.activeDecisionId).toBeUndefined();
+    expect(data.activeDecisionContextId).toBeUndefined();
+  });
+
+  it('DELETE /api/context/meeting - should clear the active meeting context', async () => {
+    const response = await app.request('/api/context/meeting', {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.activeMeetingId).toBeUndefined();
+    expect(data.activeDecisionId).toBeUndefined();
+  });
+
   it('GET /api/meetings/:id - should get a specific meeting', async () => {
     const response = await app.request(`/api/meetings/${createdMeetingId}`);
     
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.id).toBe(createdMeetingId);
-    expect(data.title).toBe('Test Meeting');
+    expect(data.title).toBe('Updated Test Meeting');
   });
 
   it('GET /api/meetings/:id - should return 404 for non-existent meeting', async () => {
@@ -487,7 +655,13 @@ describe('API E2E Tests', () => {
     const pathKeys = Object.keys(data.paths ?? {});
     expect(data.openapi).toBe('3.0.0');
     expect(data.paths).toHaveProperty('/api/meetings');
+    expect(pathKeys).toContain('/api/context');
+    expect(pathKeys).toContain('/api/context/meeting');
+    expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/context/decision'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/context/field'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/transcripts/upload'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/summary'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/decision-contexts'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/versions'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/rollback'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.includes('/fields/') && path.endsWith('/regenerate'))).toBe(true);
@@ -496,6 +670,9 @@ describe('API E2E Tests', () => {
     expect(pathKeys.some((path) => path.includes('/api/decisions/') && !path.endsWith('/export'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/api/decisions/') && path.endsWith('/export'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/llm-interactions'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/flagged-decisions'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/api/flagged-decisions/') && !path.endsWith('/context'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/api/flagged-decisions/') && path.endsWith('/context'))).toBe(true);
     expect(pathKeys).toContain('/api/supplementary-content');
     expect(pathKeys.some((path) => path.includes('/api/supplementary-content/') && path !== '/api/supplementary-content')).toBe(true);
   });

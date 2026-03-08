@@ -77,13 +77,12 @@ export class GlobalContextService implements IGlobalContextService {
       throw new Error('Flagged decision not found');
     }
 
-    const resolvedTemplateId = templateId ?? (await this.getDefaultTemplateId());
     const existing = await this.decisionContextService.getContextByFlaggedDecision(flaggedDecisionId);
     const context = existing ?? await this.decisionContextService.createContext({
       meetingId: decision.meetingId,
       flaggedDecisionId,
       title: decision.suggestedTitle,
-      templateId: resolvedTemplateId,
+      templateId: templateId ?? (await this.getDefaultTemplateId()),
     });
 
     await this.store.save({
@@ -161,6 +160,7 @@ export class GlobalContextService implements IGlobalContextService {
       : undefined;
 
     const context: GlobalContext = {};
+    const resolvedActiveField = state.activeField ?? activeDecisionContext?.activeField ?? undefined;
     if (state.activeMeetingId !== undefined) {
       context.activeMeetingId = state.activeMeetingId;
     }
@@ -171,7 +171,6 @@ export class GlobalContextService implements IGlobalContextService {
     if (resolvedDecisionContextId !== undefined) {
       context.activeDecisionContextId = resolvedDecisionContextId;
     }
-    const resolvedActiveField = state.activeField ?? activeDecisionContext?.activeField;
     if (resolvedActiveField !== undefined) {
       context.activeField = resolvedActiveField;
     }

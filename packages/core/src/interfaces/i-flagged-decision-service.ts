@@ -26,7 +26,9 @@ export interface IFlaggedDecisionService {
     id: string,
     data: {
       suggestedTitle?: string;
+      contextSummary?: string;
       status?: FlaggedDecision['status'];
+      priority?: number;
       chunkIds?: string[];
     }
   ): Promise<FlaggedDecision | null>;

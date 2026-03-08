@@ -39,7 +39,13 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
 
   async updateDecision(
     id: string,
-    data: { suggestedTitle?: string; status?: FlaggedDecision['status']; chunkIds?: string[] }
+    data: {
+      suggestedTitle?: string;
+      contextSummary?: string;
+      status?: FlaggedDecision['status'];
+      priority?: number;
+      chunkIds?: string[];
+    }
   ): Promise<FlaggedDecision | null> {
     // Check if decision exists
     const existing = await this.repository.findById(id);
@@ -55,8 +61,14 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     if (data.suggestedTitle !== undefined) {
       updateData.suggestedTitle = data.suggestedTitle;
     }
+    if (data.contextSummary !== undefined) {
+      updateData.contextSummary = data.contextSummary;
+    }
     if (data.status !== undefined) {
       updateData.status = data.status;
+    }
+    if (data.priority !== undefined) {
+      updateData.priority = data.priority;
     }
     if (data.chunkIds !== undefined) {
       updateData.chunkIds = data.chunkIds;

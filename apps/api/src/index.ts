@@ -3,8 +3,11 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import {
   createMeetingRoute,
+  getMeetingSummaryRoute,
   listMeetingsRoute,
+  listMeetingDecisionContextsRoute,
   getMeetingRoute,
+  updateMeetingRoute,
 } from './routes/meetings';
 import {
   createDecisionLogGenerator,
@@ -14,6 +17,7 @@ import {
   createDecisionFieldService,
   createDraftGenerationService,
   createFlaggedDecisionService,
+  createGlobalContextService,
   createSupplementaryContentService,
   type GuidanceSegment,
   createLLMInteractionService,
@@ -26,16 +30,27 @@ import {
 import { DrizzleMeetingRepository } from '@repo/db';
 import { MockMeetingRepository } from './mock-repository';
 import {
+  clearDecisionContextRoute,
+  clearFieldContextRoute,
+  clearMeetingContextRoute,
+  getContextRoute,
+  setDecisionContextRoute,
+  setFieldContextRoute,
+  setMeetingContextRoute,
+} from './routes/context';
+import {
   createDecisionContextRoute,
   createSupplementaryContentRoute,
   createFlaggedDecisionRoute,
   deleteSupplementaryContentRoute,
   exportDecisionLogRoute,
   exportMarkdownRoute,
+  getFlaggedDecisionContextRoute,
   getDecisionLogRoute,
   getFieldTranscriptRoute,
   generateDraftRoute,
   listDraftVersionsRoute,
+  listFlaggedDecisionsRoute,
   listLLMInteractionsRoute,
   listSupplementaryContentRoute,
   logDecisionRoute,
@@ -43,6 +58,7 @@ import {
   regenerateFieldRoute,
   rollbackDraftRoute,
   unlockFieldRoute,
+  updateFlaggedDecisionRoute,
   updateFieldValueRoute,
   uploadTranscriptRoute,
 } from './routes/decision-workflow';
@@ -64,6 +80,7 @@ const decisionContextService = useDatabase ? createDecisionContextService() : nu
 const decisionLogService = useDatabase ? createDecisionLogService() : null;
 const decisionLogGenerator = useDatabase ? createDecisionLogGenerator() : null;
 const draftGenerationService = useDatabase ? createDraftGenerationService() : null;
+const globalContextService = useDatabase ? createGlobalContextService() : null;
 const supplementaryContentService = useDatabase ? createSupplementaryContentService() : null;
 const markdownExportService = useDatabase ? createMarkdownExportService() : null;
 const llmInteractionService = useDatabase ? createLLMInteractionService() : null;
@@ -153,6 +170,114 @@ app.use('*', cors());
 app.use('*', logger());
 
 // Routes
+app.openapi(getContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const context = await globalContextService.getContext();
+  return c.json(context);
+});
+
+app.openapi(setMeetingContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  try {
+    const { meetingId } = c.req.valid('json');
+    await globalContextService.setActiveMeeting(meetingId);
+    return c.json(await globalContextService.getContext());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, status as 400 | 404);
+  }
+});
+
+app.openapi(clearMeetingContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  await globalContextService.clearMeeting();
+  return c.json(await globalContextService.getContext());
+});
+
+app.openapi(setDecisionContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  try {
+    const { id } = c.req.valid('param');
+    const { flaggedDecisionId, templateId } = c.req.valid('json');
+    await globalContextService.setActiveMeeting(id);
+    const decisionContext = await globalContextService.setActiveDecision(flaggedDecisionId, templateId);
+    if (decisionContext.meetingId !== id) {
+      return c.json({ error: 'Flagged decision not found' }, 404);
+    }
+
+    return c.json(await globalContextService.getContext());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, status as 400 | 404);
+  }
+});
+
+app.openapi(clearDecisionContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const context = await globalContextService.getContext();
+  if (context.activeMeetingId !== undefined && context.activeMeetingId !== id) {
+    return c.json({ error: 'Active meeting does not match requested meeting' }, 400);
+  }
+
+  await globalContextService.clearDecision();
+  return c.json(await globalContextService.getContext());
+});
+
+app.openapi(setFieldContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  try {
+    const { id } = c.req.valid('param');
+    const { fieldId } = c.req.valid('json');
+    const context = await globalContextService.getContext();
+    if (context.activeMeetingId !== undefined && context.activeMeetingId !== id) {
+      return c.json({ error: 'Active meeting does not match requested meeting' }, 400);
+    }
+
+    await globalContextService.setActiveField(fieldId);
+    return c.json(await globalContextService.getContext());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, status as 400 | 404);
+  }
+});
+
+app.openapi(clearFieldContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const context = await globalContextService.getContext();
+  if (context.activeMeetingId !== undefined && context.activeMeetingId !== id) {
+    return c.json({ error: 'Active meeting does not match requested meeting' }, 400);
+  }
+
+  await globalContextService.clearField();
+  return c.json(await globalContextService.getContext());
+});
+
 app.openapi(createMeetingRoute, async (c) => {
   try {
     const data = c.req.valid('json');
@@ -179,6 +304,84 @@ app.openapi(getMeetingRoute, async (c) => {
   }
   
   return c.json(meeting);
+});
+
+app.openapi(updateMeetingRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const data = c.req.valid('json');
+
+    if (data.status !== undefined) {
+      const meeting = await meetingService.updateStatus(id, data.status);
+
+      if (data.title === undefined && data.participants === undefined) {
+        return c.json(meeting);
+      }
+    }
+
+    const updatePayload: {
+      title?: string;
+      participants?: string[];
+    } = {};
+
+    if (data.title !== undefined) {
+      updatePayload.title = data.title;
+    }
+    if (data.participants !== undefined) {
+      updatePayload.participants = data.participants;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      const meeting = await meetingService.findById(id);
+      if (!meeting) {
+        return c.json({ error: 'Meeting not found' }, 404);
+      }
+      return c.json(meeting);
+    }
+
+    const meeting = await meetingService.update(id, updatePayload);
+    if (data.status !== undefined && meeting.status !== data.status) {
+      const updatedStatusMeeting = await meetingService.updateStatus(id, data.status);
+      return c.json(updatedStatusMeeting);
+    }
+
+    return c.json(meeting);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, status as 400 | 404);
+  }
+});
+
+app.openapi(getMeetingSummaryRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const [decisions, contexts, stats] = await Promise.all([
+    services.flaggedDecisionService.getDecisionsForMeeting(id),
+    services.decisionContextService.getAllContextsForMeeting(id),
+    services.decisionLogService.getMeetingDecisionStats(id),
+  ]);
+
+  return c.json({
+    decisionCount: decisions.length,
+    draftCount: contexts.filter((context) => context.status !== 'logged').length,
+    loggedCount: stats.totalDecisions,
+  });
+});
+
+app.openapi(listMeetingDecisionContextsRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const contexts = await services.decisionContextService.getAllContextsForMeeting(id);
+  return c.json({ contexts });
 });
 
 app.openapi(uploadTranscriptRoute, async (c) => {
@@ -340,6 +543,81 @@ app.openapi(createFlaggedDecisionRoute, async (c) => {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ error: message }, 400);
   }
+});
+
+app.openapi(listFlaggedDecisionsRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const { status } = c.req.valid('query');
+  const decisions = await services.flaggedDecisionService.getDecisionsForMeeting(id);
+  const filtered = status ? decisions.filter((decision) => decision.status === status) : decisions;
+  return c.json({ decisions: filtered });
+});
+
+app.openapi(updateFlaggedDecisionRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  try {
+    const { id } = c.req.valid('param');
+    const data = c.req.valid('json');
+    const updatePayload: {
+      suggestedTitle?: string;
+      contextSummary?: string;
+      status?: 'pending' | 'accepted' | 'rejected' | 'dismissed';
+      priority?: number;
+      chunkIds?: string[];
+    } = {};
+
+    if (data.suggestedTitle !== undefined) {
+      updatePayload.suggestedTitle = data.suggestedTitle;
+    }
+    if (data.contextSummary !== undefined) {
+      updatePayload.contextSummary = data.contextSummary;
+    }
+    if (data.status !== undefined) {
+      updatePayload.status = data.status;
+    }
+    if (data.priority !== undefined) {
+      updatePayload.priority = data.priority;
+    }
+    if (data.chunkIds !== undefined) {
+      updatePayload.chunkIds = data.chunkIds;
+    }
+
+    const decision = await services.flaggedDecisionService.updateDecision(id, updatePayload);
+
+    if (!decision) {
+      return c.json({ error: 'Flagged decision not found' }, 404);
+    }
+
+    return c.json(decision);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, status as 400 | 404);
+  }
+});
+
+app.openapi(getFlaggedDecisionContextRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const context = await services.decisionContextService.getContextByFlaggedDecision(id);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
+  return c.json(context);
 });
 
 app.openapi(createDecisionContextRoute, async (c) => {

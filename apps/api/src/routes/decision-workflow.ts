@@ -149,6 +149,22 @@ const SupplementaryContentListResponseSchema = z.object({
   items: z.array(SupplementaryContentSchema),
 }).openapi('SupplementaryContentListResponse');
 
+const FlaggedDecisionStatusQuerySchema = z.object({
+  status: z.enum(['pending', 'accepted', 'rejected', 'dismissed']).optional(),
+});
+
+const FlaggedDecisionListResponseSchema = z.object({
+  decisions: z.array(FlaggedDecisionSchema),
+}).openapi('FlaggedDecisionListResponse');
+
+const UpdateFlaggedDecisionRequestSchema = z.object({
+  suggestedTitle: z.string().min(1).optional(),
+  contextSummary: z.string().min(1).optional(),
+  status: z.enum(['pending', 'accepted', 'rejected', 'dismissed']).optional(),
+  priority: z.number().int().optional(),
+  chunkIds: z.array(z.string().uuid()).min(1).optional(),
+}).openapi('UpdateFlaggedDecisionRequest');
+
 export const uploadTranscriptRoute = createRoute({
   method: 'post',
   path: '/api/meetings/:id/transcripts/upload',
@@ -327,6 +343,119 @@ export const createFlaggedDecisionRoute = createRoute({
         },
       },
       description: 'Invalid request data',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listFlaggedDecisionsRoute = createRoute({
+  method: 'get',
+  path: '/api/meetings/:id/flagged-decisions',
+  tags: ['flagged-decisions'],
+  request: {
+    params: MeetingIdParamSchema,
+    query: FlaggedDecisionStatusQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: FlaggedDecisionListResponseSchema,
+        },
+      },
+      description: 'Flagged decisions returned successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const updateFlaggedDecisionRoute = createRoute({
+  method: 'patch',
+  path: '/api/flagged-decisions/:id',
+  tags: ['flagged-decisions'],
+  request: {
+    params: UuidParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateFlaggedDecisionRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: FlaggedDecisionSchema,
+        },
+      },
+      description: 'Flagged decision updated successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid request data',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Flagged decision not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const getFlaggedDecisionContextRoute = createRoute({
+  method: 'get',
+  path: '/api/flagged-decisions/:id/context',
+  tags: ['flagged-decisions'],
+  request: {
+    params: UuidParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionContextSchema,
+        },
+      },
+      description: 'Decision context returned successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
     },
     503: {
       content: {

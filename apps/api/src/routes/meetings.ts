@@ -1,5 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { CreateMeetingSchema, MeetingSchema } from '@repo/schema';
+import { CreateMeetingSchema, DecisionContextSchema, MeetingSchema } from '@repo/schema';
 
 // Extend schemas with OpenAPI metadata
 const CreateMeetingRequestSchema = CreateMeetingSchema.openapi({
@@ -9,6 +9,30 @@ const CreateMeetingRequestSchema = CreateMeetingSchema.openapi({
     participants: ['Alice', 'Bob'],
   },
 });
+
+const MeetingIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const ErrorResponseSchema = z.object({
+  error: z.string(),
+});
+
+const UpdateMeetingRequestSchema = z.object({
+  title: z.string().min(1).optional(),
+  participants: z.array(z.string()).min(1).optional(),
+  status: z.enum(['active', 'completed']).optional(),
+}).openapi('UpdateMeetingRequest');
+
+const MeetingSummaryResponseSchema = z.object({
+  decisionCount: z.number().int().min(0),
+  draftCount: z.number().int().min(0),
+  loggedCount: z.number().int().min(0),
+}).openapi('MeetingSummaryResponse');
+
+const MeetingDecisionContextsResponseSchema = z.object({
+  contexts: z.array(DecisionContextSchema),
+}).openapi('MeetingDecisionContextsResponse');
 
 const MeetingResponseSchema = MeetingSchema.openapi({
   example: {
@@ -82,9 +106,7 @@ export const getMeetingRoute = createRoute({
   path: '/api/meetings/:id',
   tags: ['meetings'],
   request: {
-    params: z.object({
-      id: z.string().uuid(),
-    }),
+    params: MeetingIdParamSchema,
   },
   responses: {
     200: {
@@ -104,6 +126,102 @@ export const getMeetingRoute = createRoute({
         },
       },
       description: 'Meeting not found',
+    },
+  },
+});
+
+export const updateMeetingRoute = createRoute({
+  method: 'patch',
+  path: '/api/meetings/:id',
+  tags: ['meetings'],
+  request: {
+    params: MeetingIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateMeetingRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: MeetingResponseSchema,
+        },
+      },
+      description: 'Meeting updated successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid request data',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Meeting not found',
+    },
+  },
+});
+
+export const getMeetingSummaryRoute = createRoute({
+  method: 'get',
+  path: '/api/meetings/:id/summary',
+  tags: ['meetings'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: MeetingSummaryResponseSchema,
+        },
+      },
+      description: 'Meeting summary returned successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listMeetingDecisionContextsRoute = createRoute({
+  method: 'get',
+  path: '/api/meetings/:id/decision-contexts',
+  tags: ['meetings'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: MeetingDecisionContextsResponseSchema,
+        },
+      },
+      description: 'Meeting decision contexts returned successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
     },
   },
 });
