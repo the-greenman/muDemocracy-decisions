@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Decision Logger - Projection Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f7f7f7;
+        --text: #111111;
+        --muted: #444444;
+        --line: #222222;
+        --high: #0b6e2d;
+        --mid: #8a5a00;
+        --low: #8b1a1a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Atkinson Hyperlegible", Verdana, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #ffffff, var(--bg));
+      }
+
+      .app {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 18px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 4px solid var(--line);
+        padding-bottom: 10px;
+      }
+
+      .title {
+        font-size: clamp(1.5rem, 2.5vw, 2.4rem);
+        font-weight: 700;
+      }
+
+      .subtitle {
+        font-size: clamp(1rem, 1.5vw, 1.2rem);
+        color: var(--muted);
+      }
+
+      .screen {
+        margin-top: 16px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .screen h2 {
+        margin: 0 0 12px;
+        font-size: clamp(1.3rem, 2vw, 1.9rem);
+      }
+
+      .hint {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 1rem;
+      }
+
+      .candidate-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .candidate-shell {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+        gap: 14px;
+      }
+
+      .candidate-row {
+        width: 100%;
+        border: 3px solid var(--line);
+        border-left-width: 14px;
+        background: #ffffff;
+        text-align: left;
+        border-radius: 8px;
+        padding: 12px 14px;
+        cursor: pointer;
+        font-size: 1.12rem;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .candidate-row small {
+        display: block;
+        margin-top: 4px;
+        font-weight: 400;
+        font-size: 0.96rem;
+        color: var(--muted);
+      }
+
+      .candidate-row.high { border-left-color: var(--high); }
+      .candidate-row.mid { border-left-color: var(--mid); }
+      .candidate-row.low { border-left-color: var(--low); }
+      .candidate-row.active {
+        box-shadow: 0 0 0 4px #d9d9d9 inset;
+      }
+
+      .candidate-config {
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 12px;
+      }
+
+      .candidate-config h3 {
+        margin: 0 0 10px;
+        font-size: 1.1rem;
+      }
+
+      .candidate-config label {
+        display: block;
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-top: 8px;
+      }
+
+      .candidate-config input,
+      .candidate-config textarea,
+      .candidate-config select {
+        width: 100%;
+        margin-top: 6px;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        padding: 10px;
+        font: inherit;
+        background: #fff;
+      }
+
+      .icon-set {
+        display: flex;
+        gap: 8px;
+      }
+
+      .icon-btn,
+      .mini-icon {
+        border: 2px solid var(--line);
+        background: #fff;
+        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .mini-icon { width: 34px; height: 34px; border-width: 1px; }
+
+      .icon {
+        width: 18px;
+        height: 18px;
+        stroke: var(--text);
+        fill: none;
+        stroke-width: 2;
+      }
+
+      .action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      button,
+      .text-btn {
+        border: 3px solid var(--line);
+        background: #ffffff;
+        color: var(--text);
+        border-radius: 8px;
+        font-size: 1.03rem;
+        font-weight: 700;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .primary { border-color: var(--high); }
+      .warn { border-color: var(--mid); }
+      .danger { border-color: var(--low); }
+
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .detail-grid label {
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .detail-grid input,
+      .detail-grid textarea,
+      .toolbar input {
+        width: 100%;
+        margin-top: 6px;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        padding: 10px;
+        font: inherit;
+        background: #ffffff;
+        color: var(--text);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr 140px 140px auto;
+        gap: 10px;
+        align-items: end;
+        margin-bottom: 10px;
+      }
+
+      .toolbar label {
+        font-size: 0.94rem;
+        font-weight: 700;
+      }
+
+      .segment-list {
+        border-top: 3px solid var(--line);
+        margin-top: 8px;
+        padding-top: 10px;
+      }
+
+      .segment-row {
+        display: grid;
+        grid-template-columns: 64px 1fr 90px;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #d8d8d8;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .segment-row.selected {
+        background: #eef8f0;
+      }
+
+      .segment-row.suggested {
+        background: #fff9eb;
+      }
+
+      .segment-id {
+        font-weight: 700;
+      }
+
+      .speaker {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .segment-text {
+        font-size: 1.01rem;
+        line-height: 1.35;
+      }
+
+      .overlap {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .seg-flags {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .flag {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 0.75rem;
+        padding: 1px 7px;
+        color: var(--muted);
+      }
+
+      .pager {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+      }
+
+      .workspace-controls {
+        display: grid;
+        grid-template-columns: 1fr 220px auto;
+        gap: 10px;
+        align-items: end;
+      }
+
+      .workspace-controls label {
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+
+      .workspace-controls select {
+        width: 100%;
+        margin-top: 6px;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        padding: 10px;
+        font: inherit;
+        background: #fff;
+      }
+
+      .fields-scroll {
+        margin-top: 14px;
+        border-top: 3px solid var(--line);
+        max-height: 56vh;
+        overflow: auto;
+      }
+
+      .field-row {
+        border-bottom: 1px solid #d8d8d8;
+        padding: 12px 0;
+      }
+
+      .field-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .field-name {
+        font-size: 1.06rem;
+        font-weight: 700;
+      }
+
+      .field-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .field-value {
+        margin-top: 8px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .field-value.empty {
+        color: #777;
+        font-style: italic;
+      }
+
+      .field-locked .field-name::after {
+        content: " [LOCKED]";
+        color: var(--low);
+      }
+
+      @media (max-width: 860px) {
+        .candidate-shell {
+          grid-template-columns: 1fr;
+        }
+        .toolbar {
+          grid-template-columns: 1fr 1fr;
+        }
+        .segment-row {
+          grid-template-columns: 54px 1fr;
+        }
+        .overlap {
+          display: none;
+        }
+        .workspace-controls {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position:absolute">
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M14 6l4 4"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 13l5 5L20 7"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M8 7l1 13h6l1-13"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14l4-4"/><path d="M8 8l-2 2a3 3 0 004 4l2-2"/><path d="M16 16l2-2a3 3 0 00-4-4l-2 2"/></symbol>
+      <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/></symbol>
+      <symbol id="i-view" viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v10H6z"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+      <symbol id="i-unlock" viewBox="0 0 24 24"><path d="M6 11h12v10H6z"/><path d="M8 11V8a4 4 0 017-2"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 10-3 6.7"/><path d="M21 3v7h-7"/></symbol>
+      <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L21 21"/></symbol>
+    </svg>
+
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <div class="title">Decision Logger</div>
+          <div class="subtitle">Secure File Transfer Review (Mar 7, 2026)</div>
+        </div>
+        <div class="subtitle">Candidate Review</div>
+      </header>
+
+      <section id="screen-candidates" class="screen">
+        <h2>Detected Decision Candidates</h2>
+        <p class="hint">Select candidate -> choose template -> generate initial draft.</p>
+
+        <div class="candidate-shell">
+          <div class="candidate-list">
+            <button class="candidate-row high active" data-id="1" data-title="Choose primary secure storage backend" data-summary="Team converged on deciding storage backend first before access method details.">
+              <span>
+                Choose primary secure storage backend
+                <small>High confidence</small>
+              </span>
+              <span class="icon-set" aria-hidden="true">
+                <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
+                <span class="mini-icon"><svg class="icon"><use href="#i-edit"/></svg></span>
+              </span>
+            </button>
+
+            <button class="candidate-row mid" data-id="2" data-title="Separate storage decision from access-method decision" data-summary="Team noted storage and access pattern choices should be tracked as separate decisions.">
+              <span>
+                Separate storage decision from access-method decision
+                <small>Medium confidence</small>
+              </span>
+              <span class="icon-set" aria-hidden="true">
+                <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
+                <span class="mini-icon"><svg class="icon"><use href="#i-edit"/></svg></span>
+              </span>
+            </button>
+
+            <button class="candidate-row low" data-id="3" data-title="Define baseline data classification for secure transfer" data-summary="Team discussed defining classification levels to decide when secure transfer path is required.">
+              <span>
+                Define baseline data classification for secure transfer
+                <small>Lower confidence</small>
+              </span>
+              <span class="icon-set" aria-hidden="true">
+                <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
+                <span class="mini-icon"><svg class="icon"><use href="#i-edit"/></svg></span>
+              </span>
+            </button>
+          </div>
+
+          <aside class="candidate-config">
+            <h3>Generate Decision Draft</h3>
+            <label>
+              Candidate title
+              <input id="candidate-title" type="text" />
+            </label>
+            <label>
+              Candidate summary (LLM instruction seed)
+              <textarea id="candidate-summary" rows="5"></textarea>
+            </label>
+            <label>
+              Template
+              <select id="candidate-template-select">
+                <option value="standard">Standard Decision</option>
+                <option value="technology">Technology Selection</option>
+                <option value="policy">Policy Change</option>
+              </select>
+            </label>
+            <div class="action-row">
+              <button id="generate-from-candidate" class="primary">
+                <svg class="icon" style="vertical-align:middle"><use href="#i-refresh"/></svg>
+                Generate initial draft
+              </button>
+              <button id="open-manual-create">Manual path</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="screen-create" class="screen hidden">
+        <h2>Create Decision</h2>
+        <p class="hint">Add title and summary, then optionally ask AI to suggest relevant segments for review.</p>
+
+        <div class="detail-grid">
+          <label>
+            Title
+            <input id="decision-title" type="text" />
+          </label>
+          <label>
+            Summary
+            <textarea id="decision-summary" rows="4"></textarea>
+          </label>
+        </div>
+
+        <div class="action-row">
+          <button id="back-btn">Back</button>
+          <button id="ai-suggest-btn" class="warn">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-view"/></svg>
+            AI suggest segments
+          </button>
+          <button id="segment-btn" class="warn">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-filter"/></svg>
+            Select manually
+          </button>
+          <button id="promote-btn" class="primary">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-check"/></svg>
+            Promote to decision
+          </button>
+          <button class="danger">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-trash"/></svg>
+            Dismiss
+          </button>
+        </div>
+      </section>
+
+      <section id="screen-segments" class="screen hidden">
+        <h2>Segment Selection</h2>
+        <p class="hint">Built for long meetings. Filter by text or sequence range, then click-and-drag (or touch-and-drag) across rows to select many segments quickly. Overlap icon marks segments linked to other candidates.</p>
+
+        <div class="toolbar">
+          <label>
+            Search text
+            <input id="search-input" placeholder="Find words in transcript..." />
+          </label>
+          <label>
+            From seq
+            <input id="from-seq" type="number" min="1" />
+          </label>
+          <label>
+            To seq
+            <input id="to-seq" type="number" min="1" />
+          </label>
+          <button id="overlap-only" class="text-btn" title="Show overlap only">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-link"/></svg>
+            Overlap only
+          </button>
+        </div>
+
+        <div id="segment-list" class="segment-list"></div>
+
+        <div class="pager">
+          <button id="prev-page">Previous</button>
+          <div id="page-label" class="subtitle"></div>
+          <button id="next-page">Next</button>
+        </div>
+
+        <div class="action-row">
+          <button id="segments-back">Back to decision</button>
+          <button id="save-segments" class="primary">Save selected segments</button>
+        </div>
+      </section>
+
+      <section id="screen-workspace" class="screen hidden">
+        <h2>Decision Workspace</h2>
+        <p class="hint">Choose template, generate initial draft, then scroll full decision to lock/regenerate fields or zoom into one field.</p>
+
+        <div class="workspace-controls">
+          <label>
+            Template
+            <select id="template-select">
+              <option value="standard">Standard Decision</option>
+              <option value="technology">Technology Selection</option>
+              <option value="policy">Policy Change</option>
+            </select>
+          </label>
+          <button id="generate-draft" class="primary">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-refresh"/></svg>
+            Generate initial draft
+          </button>
+          <button id="workspace-back">Back</button>
+        </div>
+
+        <div id="fields-scroll" class="fields-scroll"></div>
+      </section>
+
+      <section id="screen-field-focus" class="screen hidden">
+        <h2>Field Focus</h2>
+        <p class="hint">Zoomed field editing view.</p>
+        <div class="detail-grid">
+          <label>
+            Field
+            <input id="focus-field-name" type="text" readonly />
+          </label>
+          <label>
+            Value
+            <textarea id="focus-field-value" rows="7"></textarea>
+          </label>
+        </div>
+        <div class="action-row">
+          <button id="focus-back">Back to full decision</button>
+          <button id="focus-lock" class="warn">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-lock"/></svg>
+            Toggle lock
+          </button>
+          <button id="focus-regen" class="primary">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-refresh"/></svg>
+            Regenerate field
+          </button>
+          <button id="focus-save" class="primary">Save field</button>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const candidateScreen = document.getElementById("screen-candidates");
+      const createScreen = document.getElementById("screen-create");
+      const segmentsScreen = document.getElementById("screen-segments");
+      const workspaceScreen = document.getElementById("screen-workspace");
+      const focusScreen = document.getElementById("screen-field-focus");
+
+      const titleInput = document.getElementById("decision-title");
+      const summaryInput = document.getElementById("decision-summary");
+      const backBtn = document.getElementById("back-btn");
+      const aiSuggestBtn = document.getElementById("ai-suggest-btn");
+      const segmentBtn = document.getElementById("segment-btn");
+      const promoteBtn = document.getElementById("promote-btn");
+      const segmentsBackBtn = document.getElementById("segments-back");
+      const saveSegmentsBtn = document.getElementById("save-segments");
+      const candidateTitleInput = document.getElementById("candidate-title");
+      const candidateSummaryInput = document.getElementById("candidate-summary");
+      const candidateTemplateSelect = document.getElementById("candidate-template-select");
+      const generateFromCandidateBtn = document.getElementById("generate-from-candidate");
+      const openManualCreateBtn = document.getElementById("open-manual-create");
+      const workspaceBackBtn = document.getElementById("workspace-back");
+      const generateDraftBtn = document.getElementById("generate-draft");
+      const templateSelect = document.getElementById("template-select");
+      const fieldsScroll = document.getElementById("fields-scroll");
+      const focusFieldName = document.getElementById("focus-field-name");
+      const focusFieldValue = document.getElementById("focus-field-value");
+      const focusBackBtn = document.getElementById("focus-back");
+      const focusLockBtn = document.getElementById("focus-lock");
+      const focusRegenBtn = document.getElementById("focus-regen");
+      const focusSaveBtn = document.getElementById("focus-save");
+
+      const searchInput = document.getElementById("search-input");
+      const fromSeq = document.getElementById("from-seq");
+      const toSeq = document.getElementById("to-seq");
+      const overlapOnlyBtn = document.getElementById("overlap-only");
+      const segmentList = document.getElementById("segment-list");
+      const pageLabel = document.getElementById("page-label");
+      const prevPageBtn = document.getElementById("prev-page");
+      const nextPageBtn = document.getElementById("next-page");
+
+      const pageSize = 16;
+      let currentPage = 1;
+      let overlapOnly = false;
+      let dragSelecting = false;
+      let dragTargetValue = false;
+      const touchedIds = new Set();
+      let reviewMode = "manual";
+      let activeFieldId = null;
+      let selectedCandidateId = "1";
+      const fieldDrafts = [
+        { id: "decision_statement", name: "Decision Statement", value: "", locked: false },
+        { id: "decision_context", name: "Decision Context", value: "", locked: false },
+        { id: "options", name: "Options Considered", value: "", locked: false },
+        { id: "criteria", name: "Evaluation Criteria", value: "", locked: false },
+        { id: "risks", name: "Risks", value: "", locked: false },
+        { id: "next_steps", name: "Next Steps", value: "", locked: false },
+      ];
+
+      const segments = Array.from({ length: 180 }, (_, i) => {
+        const seq = i + 1;
+        const overlapCount = seq % 17 === 0 ? 2 : seq % 11 === 0 ? 1 : 0;
+        return {
+          id: `seg-${seq}`,
+          seq,
+          speaker: seq % 5 === 0 ? null : `Speaker ${((seq % 3) + 1)}`,
+          text: `Segment ${seq}: discussion excerpt about storage, access controls, and compliance decisions.`,
+          overlapCount,
+          selected: seq >= 142 && seq <= 155,
+          suggested: false,
+        };
+      });
+
+      function switchScreen(next) {
+        candidateScreen.classList.add("hidden");
+        createScreen.classList.add("hidden");
+        segmentsScreen.classList.add("hidden");
+        workspaceScreen.classList.add("hidden");
+        focusScreen.classList.add("hidden");
+        next.classList.remove("hidden");
+      }
+
+      function setActiveCandidate(button) {
+        document.querySelectorAll(".candidate-row").forEach((row) => row.classList.remove("active"));
+        button.classList.add("active");
+        selectedCandidateId = button.dataset.id || "1";
+        candidateTitleInput.value = button.dataset.title || "";
+        candidateSummaryInput.value = button.dataset.summary || "";
+      }
+
+      function renderFields() {
+        fieldsScroll.innerHTML = fieldDrafts
+          .map((f) => `
+            <article class="field-row ${f.locked ? "field-locked" : ""}" data-field-id="${f.id}">
+              <div class="field-head">
+                <div class="field-name">${f.name}</div>
+                <div class="field-actions">
+                  <button class="mini-icon field-lock" title="Lock/unlock">
+                    <svg class="icon"><use href="${f.locked ? "#i-unlock" : "#i-lock"}"/></svg>
+                  </button>
+                  <button class="mini-icon field-regen" title="Regenerate">
+                    <svg class="icon"><use href="#i-refresh"/></svg>
+                  </button>
+                  <button class="mini-icon field-zoom" title="Zoom field">
+                    <svg class="icon"><use href="#i-zoom"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="field-value ${f.value ? "" : "empty"}">${f.value || "No value yet. Generate initial draft."}</div>
+            </article>
+          `)
+          .join("");
+      }
+
+      function applyTemplateDraft(templateId) {
+        const templateValues = {
+          standard: {
+            decision_statement:
+              "Select S3 as the primary storage backend for secure file transfer, while explicitly separating this storage decision from later access-pattern and workflow-surface decisions. The team agreed that making the storage layer decision first reduces architectural ambiguity and gives a stable base for policy and operational controls.",
+            decision_context:
+              "The meeting compared three paths: direct S3 upload, a self-hosted transfer node, and an S3 proxy service. Discussion repeatedly returned to compliance evidence, regional data handling, audit trail completeness, and long-term maintenance burden. Members emphasized that while several implementation details remain open, locking the primary storage direction now enables clearer downstream choices on credentials, file lifecycle policy, and user journey design.",
+            options:
+              "1) Direct S3 upload with constrained IAM credentials and strict bucket policies. 2) Self-hosted transfer node with internal storage lifecycle controls and externally issued retrieval links. 3) Proxy service that provides a user-friendly intake layer while writing to S3 as the system of record. The team noted the proxy model could combine low user friction with centralized storage controls, but adds another managed component that must be monitored and audited.",
+            criteria:
+              "Primary criteria discussed were: demonstrable security controls at rest and in transit, confidence in UK-region constraints, operational simplicity for a small team, reliability under larger file sizes, and ability to produce clear audit evidence when handling uncertain or sensitive inbound datasets. Secondary criteria included onboarding friction for external parties, expected support load, and ability to evolve implementation later without rewriting policy documentation.",
+            risks:
+              "Top concerns were policy drift (bucket/IAM configuration changing over time), accidental over-permissioning, ambiguity around ownership of security controls across teams, and mismatch between intended and actual ingestion behavior under edge conditions. Additional concerns included lock-in optics, untested operational playbooks for incident response, and the risk of teams bypassing the intended transfer path if initial setup is too complex.",
+            next_steps:
+              "Define minimum control baseline for the chosen storage path, including encryption, access policy template, lifecycle rules, and audit log retention. Draft a one-page decision note for stakeholders. Run a pilot with one realistic dataset and verify the full ingest-to-access trail. Document unresolved follow-up decisions (access workflow, credential issuance model, and user-facing upload experience) as separate tracked decision candidates."
+          },
+          technology: {
+            decision_statement:
+              "Adopt an S3-backed architecture as the default storage platform for secure transfer workflows, with the explicit intent to standardize control points for encryption, retention, and access auditability while minimizing bespoke infrastructure overhead.",
+            decision_context:
+              "The technical review centered on balancing strong control guarantees against maintenance cost. Participants compared managed platform controls with self-hosted flexibility and noted that the organization currently lacks capacity for operating custom transfer infrastructure at high assurance. The team therefore prioritized a managed baseline that can still support stricter controls through configuration and policy layering.",
+            options:
+              "S3 direct upload pathway, self-hosted transfer node with manual lifecycle handling, and a hybrid proxy-to-S3 approach that decouples user intake from storage controls. The hybrid path was considered attractive for future UX evolution but was judged as an incremental step after proving the base S3 control model.",
+            criteria:
+              "Reliability under large object transfer, cryptographic guarantees in transit/at rest, policy expressiveness, audit integration, and operational effort were all scored as core technical criteria. Portability and vendor abstraction were noted but deprioritized relative to immediate implementation reliability and control transparency.",
+            risks:
+              "Potential lock-in concerns, policy misconfiguration over time, and accidental expansion of access scope were the most significant technical risks. Operationally, the team flagged that insufficient automation around policy validation could weaken assurances over time if control checks remain manual.",
+            next_steps:
+              "Create a reference architecture with required security controls, build infrastructure policy templates, run a controlled pilot with representative data, and establish recurring validation checks for policy compliance and access scope boundaries."
+          },
+          policy: {
+            decision_statement:
+              "Establish a policy requiring the secure transfer path for all datasets meeting defined classification thresholds, with a clear governance model for exceptions and a documented process for uncertain classifications at intake.",
+            decision_context:
+              "The meeting emphasized governance consistency and practical enforceability. Members observed that teams currently make ad hoc decisions about transfer channels, creating uneven audit quality and uncertainty in incident review. A policy baseline was seen as necessary to ensure the same decision criteria are applied across projects and contributors.",
+            options:
+              "Option A: mandatory secure path for all inbound external data regardless of classification. Option B: classification-based routing where only medium/high sensitivity data must use secure transfer. Option C: staged approach with a broad default rule and a controlled exception process while classification maturity improves.",
+            criteria:
+              "Policy clarity, enforceability, burden on contributors, compatibility with existing workflows, and audit defensibility were prioritized. The group also considered the cost of training, likelihood of accidental non-compliance, and the operational effort needed to sustain consistent interpretation across teams.",
+            risks:
+              "Main risks include unclear classification at point of intake, inconsistent policy interpretation, and undocumented exceptions that erode trust in controls. The group also highlighted change-management risk: if policy rollout is too heavy, teams may bypass the intended workflow, undermining both governance and evidence quality.",
+            next_steps:
+              "Define classification tiers with practical examples, publish a concise operating procedure, assign policy ownership, and schedule a short implementation phase with feedback checkpoints. Add monitoring to capture adoption, exception frequency, and areas where policy language remains ambiguous."
+          }
+        };
+
+        const selected = templateValues[templateId] || templateValues.standard;
+        fieldDrafts.forEach((f) => {
+          if (!f.locked) f.value = selected[f.id] || "";
+        });
+      }
+
+      function getFieldById(id) {
+        return fieldDrafts.find((f) => f.id === id);
+      }
+
+      function refreshFocusButtons() {
+        const field = getFieldById(activeFieldId);
+        if (!field) return;
+        focusLockBtn.classList.toggle("danger", field.locked);
+      }
+
+      function getFilteredSegments() {
+        const q = searchInput.value.trim().toLowerCase();
+        const from = Number(fromSeq.value) || 1;
+        const to = Number(toSeq.value) || 99999;
+
+        return segments.filter((s) => {
+          if (s.seq < from || s.seq > to) return false;
+          if (overlapOnly && s.overlapCount === 0) return false;
+          if (q && !s.text.toLowerCase().includes(q)) return false;
+          return true;
+        });
+      }
+
+      function renderSegments() {
+        const filtered = getFilteredSegments();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const start = (currentPage - 1) * pageSize;
+        const current = filtered.slice(start, start + pageSize);
+
+        segmentList.innerHTML = current
+          .map((s) => {
+            const speaker = s.speaker ? `<span class=\"speaker\">${s.speaker}</span>` : "<span class=\"speaker\">Speaker unknown</span>";
+            const overlap = s.overlapCount > 0
+              ? `<span class=\"overlap\"><svg class=\"icon\" style=\"width:14px;height:14px\"><use href=\"#i-link\"/></svg>${s.overlapCount}</span>`
+              : "<span class=\"overlap\">-</span>";
+
+            return `
+              <div class=\"segment-row ${s.selected ? "selected" : ""} ${s.suggested ? "suggested" : ""}\" data-seg-id=\"${s.id}\">
+                <span class=\"segment-id\">#${s.seq}</span>
+                <div>
+                  <div class=\"seg-flags\">
+                    ${speaker}
+                    ${s.suggested ? '<span class=\"flag\">AI</span>' : ''}
+                  </div>
+                  <div class=\"segment-text\">${s.text}</div>
+                </div>
+                ${overlap}
+              </div>
+            `;
+          })
+          .join("");
+
+        const selectedCount = segments.filter((s) => s.selected).length;
+        pageLabel.textContent = `Page ${currentPage} / ${totalPages} (${filtered.length} shown, ${selectedCount} selected)`;
+        prevPageBtn.disabled = currentPage === 1;
+        nextPageBtn.disabled = currentPage === totalPages;
+      }
+
+      function findSegmentById(id) {
+        return segments.find((s) => s.id === id);
+      }
+
+      function setSegmentSelection(segId, value) {
+        const target = findSegmentById(segId);
+        if (!target || target.selected === value) return;
+        target.selected = value;
+
+        const row = segmentList.querySelector(`[data-seg-id="${segId}"]`);
+        if (row) row.classList.toggle("selected", value);
+      }
+
+      function runAiSuggestion() {
+        const title = titleInput.value.trim().toLowerCase();
+        const summary = summaryInput.value.trim().toLowerCase();
+        const query = `${title} ${summary}`;
+
+        segments.forEach((s) => {
+          s.suggested = false;
+          s.selected = false;
+        });
+
+        // Prototype heuristic for AI suggestion behavior.
+        const anchor = query.includes("classification")
+          ? [148, 149, 150, 151, 152, 201]
+          : query.includes("access")
+            ? [143, 144, 145, 146, 147, 154]
+            : [142, 143, 154, 155, 156, 157];
+
+        anchor.forEach((seq) => {
+          const seg = segments.find((s) => s.seq === seq);
+          if (!seg) return;
+          seg.suggested = true;
+          seg.selected = true;
+        });
+      }
+
+      function applyDragSelectionFromPoint(clientX, clientY) {
+        const el = document.elementFromPoint(clientX, clientY);
+        if (!el) return;
+        const row = el.closest(".segment-row");
+        if (!row) return;
+
+        const segId = row.dataset.segId;
+        if (!segId || touchedIds.has(segId)) return;
+        touchedIds.add(segId);
+        setSegmentSelection(segId, dragTargetValue);
+      }
+
+      document.querySelectorAll(".candidate-row").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          setActiveCandidate(btn);
+        });
+      });
+
+      // Initial selection state.
+      const firstCandidateBtn = document.querySelector('.candidate-row[data-id="1"]');
+      if (firstCandidateBtn) setActiveCandidate(firstCandidateBtn);
+
+      backBtn.addEventListener("click", () => switchScreen(candidateScreen));
+      segmentBtn.addEventListener("click", () => {
+        reviewMode = "manual";
+        currentPage = 1;
+        renderSegments();
+        switchScreen(segmentsScreen);
+      });
+      aiSuggestBtn.addEventListener("click", () => {
+        reviewMode = "ai";
+        runAiSuggestion();
+        currentPage = 1;
+        renderSegments();
+        switchScreen(segmentsScreen);
+      });
+      segmentsBackBtn.addEventListener("click", () => switchScreen(createScreen));
+      saveSegmentsBtn.addEventListener("click", () => switchScreen(createScreen));
+      generateFromCandidateBtn.addEventListener("click", () => {
+        titleInput.value = candidateTitleInput.value;
+        summaryInput.value = candidateSummaryInput.value;
+        templateSelect.value = candidateTemplateSelect.value;
+        applyTemplateDraft(templateSelect.value);
+        renderFields();
+        switchScreen(workspaceScreen);
+      });
+      openManualCreateBtn.addEventListener("click", () => {
+        titleInput.value = candidateTitleInput.value;
+        summaryInput.value = candidateSummaryInput.value;
+        switchScreen(createScreen);
+      });
+      promoteBtn.addEventListener("click", () => {
+        renderFields();
+        switchScreen(workspaceScreen);
+      });
+      workspaceBackBtn.addEventListener("click", () => switchScreen(createScreen));
+      generateDraftBtn.addEventListener("click", () => {
+        applyTemplateDraft(templateSelect.value);
+        renderFields();
+      });
+
+      [searchInput, fromSeq, toSeq].forEach((el) => {
+        el.addEventListener("input", () => {
+          currentPage = 1;
+          renderSegments();
+        });
+      });
+
+      overlapOnlyBtn.addEventListener("click", () => {
+        overlapOnly = !overlapOnly;
+        overlapOnlyBtn.classList.toggle("warn", overlapOnly);
+        currentPage = 1;
+        renderSegments();
+      });
+
+      prevPageBtn.addEventListener("click", () => {
+        currentPage -= 1;
+        renderSegments();
+      });
+
+      nextPageBtn.addEventListener("click", () => {
+        currentPage += 1;
+        renderSegments();
+      });
+
+      segmentList.addEventListener("pointerdown", (event) => {
+        const row = event.target.closest(".segment-row");
+        if (!row) return;
+
+        const segId = row.dataset.segId;
+        const target = segId ? findSegmentById(segId) : null;
+        if (!target) return;
+
+        dragSelecting = true;
+        dragTargetValue = !target.selected;
+        touchedIds.clear();
+        setSegmentSelection(segId, dragTargetValue);
+        touchedIds.add(segId);
+
+        row.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      });
+
+      segmentList.addEventListener("pointermove", (event) => {
+        if (!dragSelecting) return;
+        applyDragSelectionFromPoint(event.clientX, event.clientY);
+      });
+
+      function endDragSelection() {
+        if (!dragSelecting) return;
+        dragSelecting = false;
+        touchedIds.clear();
+        const filtered = getFilteredSegments();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        const selectedCount = segments.filter((s) => s.selected).length;
+        pageLabel.textContent = `Page ${currentPage} / ${totalPages} (${filtered.length} shown, ${selectedCount} selected)`;
+      }
+
+      segmentList.addEventListener("pointerup", endDragSelection);
+      segmentList.addEventListener("pointercancel", endDragSelection);
+
+      fieldsScroll.addEventListener("click", (event) => {
+        const row = event.target.closest(".field-row");
+        if (!row) return;
+        const fieldId = row.dataset.fieldId;
+        const field = getFieldById(fieldId);
+        if (!field) return;
+
+        if (event.target.closest(".field-lock")) {
+          field.locked = !field.locked;
+          renderFields();
+          return;
+        }
+
+        if (event.target.closest(".field-regen")) {
+          if (field.locked) return;
+          field.value = `${field.name} regenerated at ${new Date().toLocaleTimeString()}.`;
+          renderFields();
+          return;
+        }
+
+        if (event.target.closest(".field-zoom")) {
+          activeFieldId = field.id;
+          focusFieldName.value = field.name;
+          focusFieldValue.value = field.value;
+          refreshFocusButtons();
+          switchScreen(focusScreen);
+        }
+      });
+
+      focusBackBtn.addEventListener("click", () => {
+        renderFields();
+        switchScreen(workspaceScreen);
+      });
+
+      focusLockBtn.addEventListener("click", () => {
+        const field = getFieldById(activeFieldId);
+        if (!field) return;
+        field.locked = !field.locked;
+        refreshFocusButtons();
+      });
+
+      focusRegenBtn.addEventListener("click", () => {
+        const field = getFieldById(activeFieldId);
+        if (!field || field.locked) return;
+        field.value = `${field.name} regenerated at ${new Date().toLocaleTimeString()}.`;
+        focusFieldValue.value = field.value;
+      });
+
+      focusSaveBtn.addEventListener("click", () => {
+        const field = getFieldById(activeFieldId);
+        if (!field) return;
+        field.value = focusFieldValue.value;
+        renderFields();
+        switchScreen(workspaceScreen);
+      });
+    </script>
+  </body>
+</html>
