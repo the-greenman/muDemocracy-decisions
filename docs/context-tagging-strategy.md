@@ -1,12 +1,78 @@
 # Context Tagging Strategy
 
 **Status**: authoritative
-**Owns**: chunk tagging model, chunk relevance model, field-level retrieval and regeneration API details
-**Must sync with**: `packages/schema`, `docs/transcript-context-management.md`, `docs/OVERVIEW.md`, `docs/plans/iterative-implementation-plan.md`
+**Owns**: chunk tagging model, chunk relevance model, field-level retrieval and regeneration API details, supplementary content model
+**Must sync with**: `packages/schema`, `docs/transcript-context-management.md`, `docs/OVERVIEW.md`, `docs/plans/iterative-implementation-plan.md`, `docs/ux-workflow-examples.md`
 
 ## Overview
 
-Context tags enable precise retrieval of transcript chunks for specific decision fields. When refining a field like "options" or "stakeholders", we need to retrieve only the relevant transcript chunks, not the entire meeting.
+Context tags enable precise retrieval of content for specific decision fields. The tagging model applies to two parallel content stores:
+
+1. **Transcript chunks** — derived from uploaded meeting transcripts via semantic chunking
+2. **Supplementary content** — non-transcript text items added manually by the facilitator (pasted comparison tables, background notes, reference material)
+
+Both stores use the same `{scope}:{id}[:{field}]` tag hierarchy and participate in the same retrieval queries. The context builder queries both by tag and feeds the combined results to the LLM. The `source_type` field (`transcript` | `manual`) distinguishes origin but does not affect retrieval priority.
+
+When refining a field like "options" or "stakeholders", we need to retrieve only the relevant content for that field — not the entire meeting — from both sources.
+
+## Supplementary Content Model
+
+### What it is
+
+A `supplementary_content` table holding free-form text items created by the facilitator. Items can be:
+- A pasted comparison table from a pre-meeting document
+- A reference to a prior decision (quoted text)
+- A background note written during the session
+- Any non-transcript text the facilitator wants the LLM to incorporate
+
+### Tagging granularity
+
+Items are tagged at creation time based on where they are added:
+
+| UI entry point | Auto-tag applied |
+|---|---|
+| Meeting setup / background material | `meeting:{id}` |
+| Decision workspace (context level) | `decision:{contextId}` |
+| Field zoom | `decision:{contextId}:{fieldId}` |
+
+Tags can also be adjusted manually after creation.
+
+### Schema (planned)
+
+```sql
+CREATE TABLE supplementary_content (
+  id          UUID PRIMARY KEY,
+  meeting_id  UUID NOT NULL REFERENCES meetings(id),
+  label       TEXT,                          -- Optional human-readable name
+  body        TEXT NOT NULL,                 -- The pasted/typed text
+  source_type TEXT NOT NULL DEFAULT 'manual',
+  contexts    TEXT[] NOT NULL DEFAULT '{}',  -- Same tag format as transcript chunks
+  created_by  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_supcontent_meeting ON supplementary_content(meeting_id);
+CREATE INDEX idx_supcontent_contexts ON supplementary_content USING GIN(contexts);
+```
+
+### API (planned)
+
+```yaml
+POST /api/supplementary-content
+  Body: { meetingId, label?, body, contexts[] }
+
+GET /api/supplementary-content?context={tag}
+  # Returns all items whose contexts array contains the tag
+  # Used by context builder alongside transcript chunk retrieval
+
+DELETE /api/supplementary-content/:id
+```
+
+### Context builder integration
+
+The context builder currently queries transcript chunks by tag. It must be extended to also query `supplementary_content` by the same tags and merge results before sending to the LLM. The LLM receives both without needing to know which source each item came from.
+
+This extension should be planned before M5.1 so the field context window is complete from the first live regeneration.
 
 ## Two Types of Tagging
 

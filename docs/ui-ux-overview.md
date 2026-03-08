@@ -2,7 +2,7 @@
 
 **Status**: authoritative
 **Owns**: page-level UX goals, core user journeys, display-mode rules (projection vs facilitator), uncluttered meeting-first interaction principles
-**Must sync with**: `docs/OVERVIEW.md`, `docs/web-ui-plan.md`, `docs/web-ui-design-system.md`, `docs/transcript-reading-and-segment-selection-architecture.md`, `docs/manual-decision-workflow.md`, `docs/decision-detection-implementation-reference.md`, `docs/plans/iterative-implementation-plan.md`
+**Must sync with**: `docs/OVERVIEW.md`, `docs/web-ui-plan.md`, `docs/web-ui-design-system.md`, `docs/ux-workflow-examples.md`, `docs/transcript-reading-and-segment-selection-architecture.md`, `docs/manual-decision-workflow.md`, `docs/decision-detection-implementation-reference.md`, `docs/plans/iterative-implementation-plan.md`
 
 ## Purpose
 
@@ -58,7 +58,7 @@ This is a structural guarantee: shared display components contain zero mutation 
 
 ## Route and Screen Catalog
 
-The web app has five routes. Routes 1 and 3–5 are facilitator-operated. Route 2 is projected to the group.
+The web app has five production routes, plus a dev-only `/prototype` gallery route that is not part of the shipped product. Routes 1, 3, and 4 are facilitator-operated. Route 2 is projected to the group. Route 5 is available to both — suitable for projection at the end of a meeting or as post-meeting reference.
 Full user stories and API dependencies: `docs/web-ui-plan.md`.
 
 ### Route 1 — Meeting List (`/`)
@@ -125,13 +125,16 @@ Primary goal: select transcript evidence quickly and accurately for a specific d
 Key user stories:
 - As a facilitator, I can read the transcript in a clean non-overlapping view (reading mode) by default.
 - As a facilitator, I can search by text and narrow by sequence range.
-- As a facilitator, I can drag-select a range of rows with mouse or touch.
-- As a facilitator, I can see compact overlap indicators (hidden by default, toggle to reveal).
-- As a facilitator, I can toggle to include transcript from other meetings.
+- As a facilitator, I can jump directly to a specific sequence number (G3).
+- As a facilitator, I can drag-select a range of rows with mouse or touch. *(planned — prototype uses click-to-toggle)*
+- As a facilitator, I can see compact overlap indicators (hidden by default, toggle to reveal). *(planned — not in prototype)*
+- As a facilitator, I can toggle to include transcript from other meetings. *(planned — not in prototype)*
 - As a facilitator, I can confirm my selection — persisted with reading-row IDs and resolved chunk IDs.
-- As a facilitator, I can use AI-suggested segments as a starting point, then adjust before confirming.
+- As a facilitator, I can use AI-suggested segments as a starting point, then adjust before confirming. *(planned — M5.1b)*
 
 Mode implications: facilitator only — not linked from Route 2. Overlap indicators hidden by default.
+
+**Prototype vs plan**: the current `TranscriptPage.tsx` prototype implements click-to-toggle row selection, text search, row count display, and jump-to-row. Drag-select, overlap indicators, cross-meeting transcript toggle, and AI suggestions are planned capabilities (Phase 3 / M5.1a–b) not yet in the prototype.
 
 ### Route 5 — Logged Decision View (`/decisions/:id`)
 

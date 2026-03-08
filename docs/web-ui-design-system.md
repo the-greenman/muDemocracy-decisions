@@ -439,27 +439,184 @@ Components reference `var(--show-controls)` to show/hide control rows without co
 
 ---
 
-## Icon Set
+## Iconography
 
-Use **Lucide React** — consistent, clean, MIT licensed, tree-shakeable.
+### Library
 
-| Icon | Usage |
+**Lucide React** (`lucide-react`) — the sole icon library for this project.
+
+Rationale:
+- Single consistent 24px grid across all icons — shapes align without manual adjustment
+- MIT licensed, no attribution required
+- Fully tree-shakeable — only imported icons are bundled
+- Ships as typed React components — no additional wrappers or SVG management needed
+- Semantic naming makes intent clear at the callsite (`Lock`, not `icon-094`)
+
+**Rule**: no other icon library, custom SVG, or emoji may substitute for a Lucide icon in the UI. If a required concept has no suitable Lucide icon, add it to the "Pending" section below and discuss before using an alternative.
+
+### Size system
+
+| Context | Size | Stroke width |
+|---|---|---|
+| Display density — agenda dots | 10px | 2.5 |
+| Facilitator density — inline field controls | 15px | 2 |
+| Facilitator density — panel/section headers | 16px | 2 |
+| Facilitator density — header action strip | 16px | 2 |
+| Display density — any visible icon | 20px | 2 |
+| Empty states | 32px | 1.5 |
+
+### Colour rules
+
+Icons inherit `currentColor` from their parent text by default. Exceptions:
+
+| Context | Colour |
 |---|---|
-| `Lock` / `Unlock` | Field lock toggle (facilitator) |
-| `RefreshCw` | Regenerate field / regenerate all |
-| `Maximize2` | Zoom to field focus view |
-| `Tag` | Tag management |
-| `Link` | Relations |
-| `CheckCircle2` | Finalise / logged state |
-| `Circle` | Pending agenda item |
-| `Loader2` (spinning) | Generating spinner (facilitator) |
-| `GripVertical` | Drag handle for agenda reorder |
-| `X` | Dismiss candidate / remove tag |
-| `Plus` | Add tag / add relation |
-| `ChevronRight` | Navigation arrow |
-| `Download` | Export |
+| Settled/locked indicator | `settled` (`#34d399`) |
+| Active/generating indicator | `accent` (`#6c8ef7`) |
+| Danger action (dismiss, delete) | `danger` (`#f87171`) |
+| Muted / decorative | `text-muted` (`#4a5578`) |
+| Drag handle | `text-muted` — always |
 
-All icons at `16px` in facilitator density, `20px` in display density where they appear.
+### Accessibility rules
+
+- **Decorative icons** (used alongside visible text): `aria-hidden="true"`, no label
+- **Icon-only buttons** (facilitator field controls): `aria-label` required, e.g. `aria-label="Lock field"`
+- **Status indicators** (agenda dots, lock dot): use a visually hidden `<span>` for screen readers, e.g. `<span className="sr-only">Locked</span>`
+- Do not rely on icon colour alone to convey state — always pair with shape change or position
+
+---
+
+### Complete icon vocabulary
+
+#### Navigation and layout
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `ChevronRight` | navigation | Forward / expand |
+| `ChevronLeft` | navigation | Back |
+| `ChevronDown` | navigation | Expand dropdown / collapsed section |
+| `ChevronUp` | navigation | Collapse section |
+| `PanelRightClose` / `PanelRightOpen` | layout | Collapse / expand right sidebar (LLM log, field versions) |
+| `Menu` | layout | Mobile nav toggle (if needed) |
+
+#### Meeting management
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `Calendar` | meeting | Meeting date indicator |
+| `Users` | meeting | Participant count / participant list |
+| `UserPlus` | meeting | Add participant |
+| `Play` | meeting | Start meeting / open active session |
+| `Archive` | meeting | Archive / close completed meeting |
+| `MoreHorizontal` | meeting | Meeting row actions overflow menu |
+
+#### Candidate and agenda
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `GripVertical` | agenda | Drag handle for agenda reordering |
+| `ListOrdered` | agenda | Agenda panel heading icon |
+| `Lightbulb` | candidate | Suggested / new flag indicator |
+| `CircleDashed` | agenda item | Status: pending (not yet started) |
+| `Circle` | agenda item | Status: drafted (in progress) — filled with accent colour via CSS |
+| `CheckCircle2` | agenda item | Status: logged (finalised) — filled with settled colour |
+| `ArrowUpToLine` | candidate | Promote to agenda |
+| `X` | candidate | Dismiss candidate |
+| `Search` | candidate | Search open contexts to link |
+
+#### Decision field states and actions
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `Lock` | FieldCard | Field is locked / settled — icon is settled colour |
+| `LockOpen` | FieldCard | Field is unlocked — icon is text-secondary |
+| `RefreshCw` | FieldCard | Regenerate this field |
+| `RotateCcw` | FieldCard | Regenerate all unlocked fields (full draft) |
+| `Maximize2` | FieldCard | Zoom to field focus view |
+| `Minimize2` | FieldFocus | Return from field focus |
+| `Pencil` | FieldCard | Manual edit mode |
+| `Check` | FieldCard | Confirm manual edit |
+| `History` | FieldVersions | View field version history |
+| `Undo2` | FieldVersions | Restore a prior field version |
+| `MessageSquare` | FieldCard | Expand inline guidance input |
+| `Loader2` | generating | Spinner animation during LLM generation (facilitator only) |
+
+#### Transcript and evidence
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `FileText` | transcript | Transcript source indicator |
+| `Highlighter` | segment | Selected / confirmed segment |
+| `SplitSquareHorizontal` | segment | Overlap indicator (segments from multiple meetings) |
+| `Filter` | transcript | Filter toolbar |
+| `TextSearch` | transcript | Text search in reading mode |
+| `Layers` | transcript | Multi-meeting source toggle |
+| `MousePointerClick` | segment | Drag-to-select instruction (empty state) |
+
+#### Tags and relations
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `Tag` | TagPill | Tag category icon (generic — used when no category-specific icon is needed) |
+| `Hash` | TagPill | topic category |
+| `Users2` | TagPill | team category |
+| `FolderKanban` | TagPill | project category |
+| `Plus` | TagPill | Add tag input trigger |
+| `Link2` | RelationsList | Relation indicator — generic |
+| `ArrowRight` | RelationsList | Outgoing relation (`supersedes`, `depends_on`, `blocks`) |
+| `ArrowLeft` | RelationsList | Incoming relation |
+| `ArrowLeftRight` | RelationsList | Bidirectional relation (`related_to`) |
+| `Unlink` | RelationsList | Remove relation |
+
+#### Finalisation and export
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `Gavel` | finalise | Finalise decision button |
+| `FileCheck2` | decision log | Logged decision header icon |
+| `Download` | export | Export button |
+| `FileJson` | export | JSON export format |
+| `FileType2` | export | Markdown export format |
+| `Copy` | export | Copy to clipboard |
+
+#### LLM and observability (facilitator sidebar)
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `BrainCircuit` | LLM log | LLM interaction log panel header |
+| `Zap` | LLM log | Single LLM call row |
+| `Clock` | LLM log | Latency display |
+| `AlertTriangle` | LLM log | LLM error or warning |
+
+#### Feedback and system states
+
+| Icon name | Component | Usage |
+|---|---|---|
+| `Info` | tooltip | Information tooltip trigger |
+| `AlertCircle` | error | Error state |
+| `CheckCheck` | success | Confirmation of completed action |
+| `Ban` | empty state | Dismissed / rejected state |
+| `Inbox` | empty state | Empty candidate queue |
+
+---
+
+### Pending (no icon assigned yet)
+
+Items that need a Lucide icon but have not yet been mapped. Do not use a substitute — leave the icon slot empty or use a placeholder until resolved.
+
+| Concept | Notes |
+|---|---|
+| Template category badges | Considered using emoji initially in the prototype — should use icons instead. May need `Layers2`, `Code2`, `DollarSign`, `Shield`, `ScrollText`, `ThumbsUp` per template category. Confirm per-category mapping before implementing. |
+
+---
+
+### Prohibited patterns
+
+- Do not import from `react-icons`, `heroicons`, `phosphor-icons`, or any other icon library
+- Do not use emoji as icons in the UI (they are not accessible and render inconsistently)
+- Do not use custom SVG files unless a Lucide icon genuinely does not exist for the concept — document the gap in "Pending" first
+- Do not use the same icon for two different semantic meanings (e.g. do not reuse `RefreshCw` for both "regenerate field" and "reload page")
+- Do not render an icon without either accompanying text or an `aria-label` — icons must never be the sole communication channel for an action
 
 ---
 

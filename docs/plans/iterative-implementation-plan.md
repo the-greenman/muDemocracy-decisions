@@ -1096,19 +1096,61 @@ Add the architectural seam for decisions that are prepared over time, not only i
   - the participant snapshot at finalization time
   - the active visible field state at that moment
 
-**Likely implementation options**:
-- Add `decision_context_meetings` as a join table.
-- Or add a broader decision-work-item concept above `DecisionContext` and keep contexts as draft projections.
+**Chosen implementation**: `decision_context_meetings` join table. A broader decision-work-item abstraction above `DecisionContext` is not required for v1.
 
-**Recommendation for now**:
-- Do not block field-version work on the full multi-meeting redesign.
-- Preserve current `meetingId` for compatibility.
-- Add the planning/design work now so Phase A/B versioning does not hard-code single-meeting assumptions into new APIs and schema.
+**Schema addition** (`packages/db/src/schema.ts`):
+
+```sql
+decision_context_meetings (
+  id          uuid PRIMARY KEY,
+  contextId   uuid NOT NULL REFERENCES decision_contexts(id),
+  meetingId   uuid NOT NULL REFERENCES meetings(id),
+  status      text NOT NULL DEFAULT 'active',  -- 'active' | 'deferred' | 'completed'
+  addedAt     timestamptz NOT NULL DEFAULT NOW(),
+  addedBy     text,
+  UNIQUE (contextId, meetingId)
+)
+INDEX on (meetingId, status)
+INDEX on (contextId)
+```
+
+`status` values:
+- `active` — context is on this meeting's current decision agenda
+- `deferred` — context was removed from this meeting's agenda without being logged; it remains open and can be added to a future meeting's agenda via the normal G6 flow
+- `completed` — context was logged (decision made) during this meeting
+
+`DecisionContext.meetingId` is retained as origin-meeting metadata for compatibility but is no longer the sole meeting association.
+
+**Deferred contexts** (G11 from `docs/ux-workflow-examples.md` Flow 2):
+- Deferral sets the `status` to `'deferred'` on the meeting-context association for the current meeting.
+- The context itself remains `status: 'open'` — it is not closed or deleted.
+- No future meeting ID is assigned at deferral time. The facilitator of a future meeting uses the G6 flow (add existing context to agenda) to resume it.
+- The deferred context is browsable from the meeting list or a dedicated "open decisions" view.
+
+**Cross-meeting context loading** (G6 from `docs/ux-workflow-examples.md` Flow 2):
+- Any open `DecisionContext` (status `'open'`, not yet logged) can be added to a new meeting's agenda.
+- Sub-committee contexts prepared outside a meeting follow the same path.
+- Adding a context to a meeting creates a new `decision_context_meetings` row with `status: 'active'`.
+- The context is not cloned; field history, versions, transcript tags, and supplementary content are all preserved.
+
+**New API endpoints**:
+- `GET /api/decision-contexts?status=open` — list all open contexts across meetings (for the "add to agenda" picker)
+- `POST /api/meetings/:id/decision-contexts/:contextId/activate` — add an existing open context to this meeting's agenda (creates `decision_context_meetings` row, `status: 'active'`)
+- `POST /api/meetings/:id/decision-contexts/:contextId/defer` — mark context as deferred on this meeting's agenda (`status: 'deferred'`); context remains open
+
+**`GET /api/meetings/:id/decision-contexts`** must be updated to read from `decision_context_meetings` rather than filtering `decision_contexts.meetingId`.
+
+**Finalization** continues to identify the specific meeting where the decision was made via the `decision_context_meetings` record with `status: 'completed'`. The `DecisionLog` already captures `actors` and timestamp.
+
+**Recommendation**:
+- Do not block field-version work on this.
+- Preserve `DecisionContext.meetingId` for compatibility.
+- The join table is additive — existing single-meeting contexts get a synthetic `decision_context_meetings` row on migration.
 
 **Validation questions**:
-- Can one context be resumed in a later meeting without cloning field history?
-- Can off-meeting edits occur without fabricating meeting ownership?
-- Can finalization explicitly identify the meeting/event and participant set for the actual decision moment?
+- Can one context be resumed in a later meeting without cloning field history? ✓ (join table)
+- Can off-meeting edits occur without fabricating meeting ownership? ✓ (context has no required `meetingId` for edits)
+- Can finalization explicitly identify the meeting/event and participant set? ✓ (via `decision_context_meetings.meetingId` + meeting participants)
 
 ---
 
@@ -1279,6 +1321,149 @@ The initial schema is graph-compatible by design:
 
 ---
 
+### M4.11 — Supplementary Content Store
+
+**Goal**: Allow facilitators to attach non-transcript text evidence — meeting background, comparison tables, prior documents — to a meeting, decision context, or specific field. This material participates in LLM context retrieval alongside transcript chunks using the same `{scope}:{id}[:{field}]` tagging hierarchy.
+
+**Why here**: The context builder must query both sources from the beginning. Deferring schema creation to M5.1 would require retrofitting retrieval logic that was shipped against transcript-only assumptions. G4 in `docs/ux-workflow-examples.md` identified this as a parallel store, not a secondary feature.
+
+---
+
+#### Schema
+
+**New table** (`packages/db/src/schema.ts`):
+
+```sql
+supplementary_content (
+  id           uuid PRIMARY KEY,
+  meeting_id   uuid NOT NULL REFERENCES meetings(id),
+  label        text,
+  body         text NOT NULL,
+  source_type  text NOT NULL DEFAULT 'manual',
+  contexts     text[] NOT NULL DEFAULT '{}',   -- e.g. ['decision:abc', 'decision:abc:options']
+  created_by   text,
+  created_at   timestamptz NOT NULL DEFAULT NOW()
+)
+CREATE INDEX idx_supcontent_contexts ON supplementary_content USING GIN(contexts);
+```
+
+The `contexts` array holds the same `{scope}:{id}[:{field}]` tags used by transcript chunks. Three tagging levels match the three points of entry:
+
+| Entry point | Tag applied |
+|---|---|
+| Meeting-level background | `meeting:{meetingId}` |
+| Decision workspace | `decision:{contextId}` |
+| Field zoom | `decision:{contextId}:{fieldId}` |
+
+---
+
+#### Service
+
+**New**: `packages/core/src/services/supplementary-content-service.ts`
+
+- `add(meetingId, body, options?: { label?, contexts?, createdBy? }): Promise<SupplementaryContent>`
+- `listByContext(contextTag: string): Promise<SupplementaryContent[]>` — filters by `contexts @> ARRAY[contextTag]` (GIN index query)
+- `remove(id): Promise<void>`
+
+**Context builder extension** (`packages/core/src/services/context-builder.ts` or equivalent):
+
+The prompt builder currently fetches transcript chunks by context tag. It must be extended to also fetch `supplementary_content` rows matching the same tags and include them as a distinct section in the prompt:
+
+```
+=== SUPPLEMENTARY EVIDENCE (options field) ===
+[Options comparison table — added 14:32]
+Option 1: full cloud-native stack (£45k). Option 2: patch existing service (£8k)...
+```
+
+This section is rendered after transcript evidence for the same scope, before any inline guidance.
+
+---
+
+#### API endpoints
+
+**New route file**: `apps/api/src/routes/supplementary-content.ts`
+
+- `POST /api/supplementary-content` — body: `{ meetingId, body, label?, contexts?, createdBy? }`
+- `GET /api/supplementary-content?context={tag}` — list items matching context tag
+- `DELETE /api/supplementary-content/:id`
+
+---
+
+#### CLI commands
+
+```
+supplementary add --meeting-id <id> --body "text" [--label "label"] [--context "decision:abc:options"]
+supplementary list --context "decision:abc"
+supplementary remove <id>
+```
+
+---
+
+#### Web prototype reference
+
+The prototype in `apps/web/` already implements this flow: `FieldZoom.tsx` shows a "Supplementary evidence" section with add/remove controls. `FacilitatorMeetingPage.tsx` holds supplementary state at page level and passes it down. `FacilitatorFieldCard.tsx` shows a count badge via the `supplementaryCount` prop. This prototype was built to validate G4 and serves as the accepted interaction model.
+
+---
+
+#### Validation
+
+```bash
+# Add supplementary evidence at field scope
+curl -X POST http://localhost:3000/api/supplementary-content \
+  -d '{"meetingId":"<id>","body":"Option 1: cloud-native...","label":"Comparison table","contexts":["decision:<ctx-id>:options"]}'
+
+# Retrieve by context tag
+curl "http://localhost:3000/api/supplementary-content?context=decision:<ctx-id>:options"
+
+# Verify it appears in draft generation prompt
+pnpm cli draft debug   # supplementary section visible alongside transcript sections
+
+# Regeneration with supplementary evidence active
+pnpm cli draft regenerate-field options
+# Expected: options field now incorporates the comparison table text
+```
+
+---
+
+### M4.12 — Open Questions Field (Template Library Addition)
+
+**Goal**: Add an `outstanding_issues` field to templates used for decisions that may be deferred mid-meeting. Without a structured place to record the open questions that caused a deferral, that information is lost to the system — it exists only in meeting notes or memory. When the context is resumed in a future meeting, the working group has no structured record of what was unresolved.
+
+**Identified in**: Flow 2, G12 (`docs/ux-workflow-examples.md`).
+
+**Scope**: This is a field library addition, not a schema change. The field is added to the canonical field definitions and assigned to relevant templates. No new table or migration is required beyond the normal seed update.
+
+---
+
+#### New field definition
+
+```
+name:        outstanding_issues
+label:       Outstanding issues / open questions
+description: Unresolved questions, dependencies, or concerns that prevented this decision from being finalised. Used when a decision is deferred — records why and what must be answered before it can proceed.
+type:        text (long-form, markdown)
+required:    false
+prompt:      Summarise any open questions, unresolved dependencies, or concerns raised during discussion that the group could not answer in this session.
+```
+
+#### Templates to receive this field
+
+| Template | Rationale |
+|---|---|
+| Proposal Acceptance | Most commonly deferred; replaces the adjacent but semantically different `stakeholder_concerns` for recording blocking questions |
+| Strategy Decision | Strategic direction frequently deferred pending information |
+| Standard Decision | General-purpose fallback; deferral is common |
+
+Technology Selection, Budget Approval, and Policy Change templates do not receive this field by default — deferral is less common and existing concern/risk fields partially cover the need.
+
+#### Interaction model
+
+The `outstanding_issues` field is shown in field zoom like any other field. During a deferral flow, the facilitator zooms into it and records the open questions before deferring the context. When the context is resumed in a future meeting, this field is immediately visible as a locked or editable starting point for the new session.
+
+The field is not auto-populated by LLM generation — it captures what the group explicitly identified as unresolved. It may be pre-populated by guidance if the facilitator asks for a summary of open points, but is not part of the standard draft generation pass.
+
+---
+
 ### M4 Validation
 
 ```bash
@@ -1325,6 +1510,16 @@ pnpm test --filter=@repo/core
 - `IContentCreator` seam exists with AI adapter bound to current implementation
 - Field provenance metadata supported without breaking existing draft_data consumers
 - No-op coaching hook wired and verified non-disruptive
+- `supplementary_content` table exists with GIN index on `contexts`
+- Context builder queries both transcript chunks and supplementary items by context tag
+- Supplementary content API endpoints (`POST /api/supplementary-content`, `GET`, `DELETE`) implemented and tested
+- Supplementary evidence appears in draft generation prompt as a distinct section, separated from transcript evidence
+- `decision_context_meetings` join table exists with `status` column (`active` / `deferred` / `completed`)
+- `GET /api/meetings/:id/decision-contexts` reads from the join table rather than `decision_contexts.meetingId`
+- `POST /api/meetings/:id/decision-contexts/:contextId/activate` adds an existing open context to a meeting's agenda
+- `POST /api/meetings/:id/decision-contexts/:contextId/defer` marks a context as deferred on the current meeting's agenda
+- `GET /api/decision-contexts?status=open` lists all open contexts across meetings for the add-to-agenda picker
+- `outstanding_issues` field seeded and assigned to Proposal Acceptance, Strategy Decision, and Standard Decision templates
 
 ---
 
@@ -1356,14 +1551,21 @@ Before the web UI, the API and CLI must support working on multiple decisions si
 - A decision should also be able to continue beyond the originating meeting without losing the same `DecisionContext`.
 - Meeting-specific workflows remain important for evidence capture and finalization, but should not be the sole lifecycle boundary for the decision draft.
 
+**Naming reference — two distinct entities, two milestones**:
+
+`FlaggedDecision` (M1–M5, implemented) — a manually created decision item. Status: `pending | accepted | rejected | dismissed`. Routes: `/api/meetings/:id/flagged-decisions`, `/api/flagged-decisions/:id`. In M5, this is the only candidate type. The facilitator view's `Suggested` tab shows `status: pending` records; the `Agenda` tab shows `status: accepted` records.
+
+`DecisionCandidate` (M6, not yet implemented) — an AI-detected decision candidate produced by the Decision Detector expert. Routes: `/api/meetings/:id/decision-candidates` (introduced in M6.6). When a `DecisionCandidate` is promoted by the facilitator, it creates a `FlaggedDecision`. After M6 ships, the facilitator queue merges both sources: AI candidates in `Suggested`, promoted `FlaggedDecision` records in `Agenda`.
+
+Do not use `decision-candidates` routes in M5. All candidate queue API work in M5 is against `flagged-decisions`.
+
 **API endpoints** (confirm exist):
-- `GET /api/meetings/:id/flagged-decisions` — list all flagged decisions for a meeting
+- `GET /api/meetings/:id/flagged-decisions` — list all flagged decisions for a meeting; `?status=pending` for Suggested tab, `?status=accepted` for Agenda tab
 - `GET /api/meetings/:id/decision-contexts` — list all draft contexts with status
 - `GET /api/meetings/:id/summary` — aggregate stats (decision count, draft count, logged count)
 - `GET /api/flagged-decisions/:id/context` — get the `DecisionContext` for a flagged decision (enables web UI "resume" flow)
 - `PATCH /api/meetings/:id` — update meeting metadata/participants during session
-- `GET /api/meetings/:id/decision-candidates?status=suggested|agenda` — queue split for review vs agenda
-- `PATCH /api/decision-candidates/:id/agenda` — promote to agenda and set/reorder agenda position
+- `PATCH /api/flagged-decisions/:id` — update title/summary/priority/status; use `{ status: 'accepted', priority: n }` to promote to Agenda and set position
 
 **Future API planning for cross-meeting work**:
 - `GET /api/decision-contexts/:id` should remain the canonical way to resume one long-running decision context.
@@ -1640,7 +1842,20 @@ Simplicity invariants enforced by structure:
 
 **Facilitator view** (`/meetings/:id/facilitator`): candidate queue (`Suggested` / `Agenda` tabs), candidate promotion with template picker, per-field lock/unlock/regenerate/zoom/guidance, LLM log panel, field version history, finalise flow. All controls visible; the group never sees this route.
 
+Additional Screen 3 stories from gap analysis (`docs/ux-workflow-examples.md`):
+- **G1** (Flow 1): As a facilitator, I can upload a transcript file (plain text, no attribution required) to the active meeting and trigger decision detection.
+- **G2** (Flow 1): As a facilitator, I can create a new decision context directly by entering a title, summary, and choosing a template — without requiring a prior detected candidate.
+- **G5 (UI-only, Flow 1)**: The **Regenerate all** action exposes an optional "Focus for this pass" text input, sent as `additionalContext`. Ephemeral — not saved after the pass. No new API needed.
+- **G6** (Flow 2): As a facilitator, I can add an existing open decision context (from a prior meeting or sub-committee) to the current meeting's agenda — without cloning it — so its full field history and transcript evidence are immediately available. (Requires M4.9 `decision_context_meetings` join table.)
+- **G8** (Flow 2): As a facilitator, I can start a live transcript stream for the current meeting, see its status (active / paused / stopped) and row count, and stop it when the meeting ends. (Requires `POST /api/meetings/:id/transcripts/stream` and `GET /api/meetings/:id/streaming/status`.)
+- **G9** (Flow 2): As a facilitator, I can see how many new transcript rows have arrived since the last regeneration pass, so I can judge whether regenerating again will produce materially different output. (Lightweight indicator adjacent to the Regenerate action; no new API — row count derivable from existing transcript state.)
+- **G10** (Flow 2): As a facilitator, I can quickly flag a future decision (title only, no template required) from within the active deliberation, adding it to the candidate queue without switching away from the current context. Distinct from G2, which requires full context creation.
+- **G11** (Flow 2): As a facilitator, I can defer an open decision context — removing it from today's agenda while preserving all content — so it can be resumed in a future meeting via the G6 flow. No future meeting ID is assigned at deferral time. (Requires `POST /api/meetings/:id/decision-contexts/:contextId/defer`, M4.9.)
+
 **Segment selection** (`/meetings/:id/facilitator/transcript`): reading-mode projection (no overlap text), text search + range filter, drag-to-select rows, AI suggestion pre-selection (mandatory human review before confirm), confirms persist reading-row IDs + chunk IDs.
+
+Additional Screen 4 story added from Flow 1 gap analysis:
+- **G3**: As a facilitator, I can jump directly to a specific sequence number in the transcript to orient quickly in a long session. (A row-jump control in the toolbar: enter a sequence number and scroll to that row with a brief visual highlight. Qualitatively different from range-narrowing — one-step navigation without filtering out the surrounding rows.)
 
 **Logged decision** (`/decisions/:id`): complete field rendering, decision method and actors, tags, related decisions, export buttons.
 
@@ -1657,6 +1872,14 @@ Simplicity invariants enforced by structure:
 | `GET /api/meetings/:id/transcript-reading` | Segment selection | M5.1a |
 | `POST /api/meetings/:id/segment-suggestions` | AI segment assist | M5.1b |
 | Tag + relation endpoints | Tag pills, related decisions | M4.10 |
+| `POST /api/supplementary-content` | Field-zoom evidence add | M4.11 |
+| `GET /api/supplementary-content?context={tag}` | Context builder retrieval | M4.11 |
+| `DELETE /api/supplementary-content/:id` | Remove supplementary item | M4.11 |
+| `GET /api/decision-contexts?status=open` | Add-to-agenda picker (G6) | M4.9 |
+| `POST /api/meetings/:id/decision-contexts/:contextId/activate` | Add existing context to meeting agenda (G6) | M4.9 |
+| `POST /api/meetings/:id/decision-contexts/:contextId/defer` | Defer context from meeting agenda (G11) | M4.9 |
+| `POST /api/meetings/:id/transcripts/stream` | Start live transcript stream (G8) | M5.1 |
+| `GET /api/meetings/:id/streaming/status` | Live stream status indicator (G8) | M5.1 |
 
 #### Phased build order
 
@@ -1748,6 +1971,17 @@ open http://localhost:5173  # Decision draft editor, multi-decision switcher
 - ✅ Real-time draft generation streaming in web UI
 - ✅ UI/UX behavior for each shipped screen is documented and maintained in `docs/ui-ux-overview.md`
 - ✅ Shared-display experience remains uncluttered; facilitator-only controls are separated or explicitly gated
+- ✅ Transcript upload available in facilitator view (G1 — upload action + attribution-optional flag)
+- ✅ Direct decision context creation available in facilitator view without prior candidate (G2)
+- ✅ Regenerate dialog exposes optional "Focus for this pass" input, sent as `additionalContext` (G5)
+- ✅ Transcript view has jump-to-row control (sequence number input) in toolbar (G3)
+- ✅ Supplementary content endpoints (M4.11) consumed by facilitator view; field zoom shows add/remove evidence UI
+- ✅ Facilitator view exposes "add existing context to agenda" picker — loads open contexts from other meetings (G6, M4.9)
+- ✅ Live transcript stream can be started and stopped from the facilitator view; stream status indicator visible in header (G8)
+- ✅ Regeneration recency signal shows new row count since last pass when transcript is streaming (G9)
+- ✅ Lightweight "flag for later" action captures a future decision title without changing the active context (G10)
+- ✅ Facilitator can defer an open decision context from the current meeting's agenda without logging or deleting it (G11, M4.9)
+- ✅ `outstanding_issues` field visible and editable in field zoom for relevant templates (G12, M4.12)
 - ✅ E2E test suite passes
 
 ---
@@ -2055,7 +2289,7 @@ prompt: review_draft(decision_context_id)
   — Returns current draft with guidance on what still needs attention
 
 prompt: detect_decisions(meeting_id)
-  — Invoke Decision Detector expert and return flagged decisions for review
+  — Invoke Decision Detector expert and return decision candidates for review
 ```
 
 ---
