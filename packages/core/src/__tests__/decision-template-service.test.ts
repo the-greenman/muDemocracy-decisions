@@ -24,6 +24,7 @@ describe('DecisionTemplateService', () => {
     mockTemplateRepo = {
       create: vi.fn(),
       findById: vi.fn(),
+      findByIdentity: vi.fn(),
       findAll: vi.fn(),
       findDefault: vi.fn(),
       setDefault: vi.fn(),
@@ -193,6 +194,41 @@ describe('DecisionTemplateService', () => {
       const result = await service.getTemplate('non-existent');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getTemplateByIdentity', () => {
+    it('should return a template by stable identity', async () => {
+      const identity = { name: 'Standard Decision', version: 1 };
+      const expectedTemplate: DecisionTemplate = {
+        id: 'tpl-123',
+        name: 'Standard Decision',
+        description: 'A test template',
+        category: 'standard',
+        fields: [],
+        version: 1,
+        isDefault: false,
+        isCustom: false,
+        createdAt: '2026-02-27T00:00:00.000Z',
+      };
+
+      mockTemplateRepo.findByIdentity.mockResolvedValue(expectedTemplate);
+
+      const result = await service.getTemplateByIdentity(identity);
+
+      expect(result).toEqual(expectedTemplate);
+      expect(mockTemplateRepo.findByIdentity).toHaveBeenCalledWith(identity);
+    });
+
+    it('should return null when template identity is not found', async () => {
+      const identity = { name: 'Missing Template' };
+
+      mockTemplateRepo.findByIdentity.mockResolvedValue(null);
+
+      const result = await service.getTemplateByIdentity(identity);
+
+      expect(result).toBeNull();
+      expect(mockTemplateRepo.findByIdentity).toHaveBeenCalledWith(identity);
     });
   });
 

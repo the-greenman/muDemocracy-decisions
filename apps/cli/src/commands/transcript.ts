@@ -1,11 +1,12 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createTranscriptService } from '@repo/core';
+import { createGlobalContextService, createTranscriptService } from '@repo/core';
 import { readFile } from 'fs/promises';
 import { resolve } from 'path';
 
 // Create service instance
 const transcriptService = createTranscriptService();
+const globalContextService = createGlobalContextService();
 
 export const transcriptCommand = new Command('transcript')
   .description('Transcript management commands');
@@ -85,7 +86,8 @@ transcriptCommand
   .option('-t, --text <text>', 'Transcript text')
   .option('-f, --file <file>', 'Transcript file path')
   .option('-s, --speaker <speaker>', 'Speaker name')
-  .option('-m, --meeting-id <id>', 'Meeting ID (required)')
+  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
+  .option('--field <name>', 'Field name to tag for the active decision context')
   .action(async (options) => {
     try {
       if (!options.text && !options.file) {
@@ -93,32 +95,50 @@ transcriptCommand
         throw new Error('Either --text or --file must be provided');
       }
 
-      if (!options.meetingId) {
-        console.error(chalk.red('Error: --meeting-id is required'));
-        throw new Error('--meeting-id is required');
+      const activeContext = await globalContextService.getContext();
+      const meetingId = options.meetingId || activeContext.activeMeetingId;
+      if (!meetingId) {
+        console.error(chalk.red('Error: --meeting-id is required when no active meeting is set'));
+        throw new Error('--meeting-id is required when no active meeting is set');
+      }
+
+      const resolvedField = options.field || activeContext.activeField;
+      if (resolvedField && !activeContext.activeDecisionContextId) {
+        console.error(chalk.red('Error: an active decision context is required for field-level transcript tagging'));
+        throw new Error('An active decision context is required for field-level transcript tagging');
+      }
+
+      const contexts = new Set<string>();
+      if (activeContext.activeDecisionContextId) {
+        contexts.add(`decision:${activeContext.activeDecisionContextId}`);
+        if (resolvedField) {
+          contexts.add(`decision:${activeContext.activeDecisionContextId}:${resolvedField}`);
+        }
       }
 
       if (options.text) {
-        // Add text event directly
-        await transcriptService.addStreamEvent(
-          options.meetingId,
-          {
-            type: 'text',
-            data: {
-              text: options.text,
-              speaker: options.speaker || 'Unknown',
-            },
-          }
-        );
+        await transcriptService.addTranscriptText({
+          meetingId,
+          text: options.text,
+          speaker: options.speaker || 'Unknown',
+          contexts: Array.from(contexts),
+        });
       } else {
         // TODO: Implement file parsing
         console.error(chalk.red('Error: File parsing not yet implemented'));
         throw new Error('File parsing not yet implemented');
       }
 
-      console.log(chalk.green('✓ Transcript event added successfully'));
+      console.log(chalk.green('✓ Transcript text added successfully'));
       console.log(chalk.white(`Text: ${options.text}`));
       console.log(chalk.white(`Speaker: ${options.speaker || 'Unknown'}`));
+      console.log(chalk.white(`Meeting ID: ${meetingId}`));
+      if (activeContext.activeDecisionContextId) {
+        console.log(chalk.white(`Decision Context: ${activeContext.activeDecisionContextId}`));
+      }
+      if (resolvedField) {
+        console.log(chalk.white(`Field Tag: ${resolvedField}`));
+      }
     } catch (error) {
       console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
       throw error;

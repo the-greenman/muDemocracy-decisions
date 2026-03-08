@@ -5,10 +5,17 @@
 
 import { DecisionField, CreateDecisionField } from '@repo/schema';
 
+export type DecisionFieldIdentityLookup = {
+  namespace?: string;
+  name: string;
+  version?: number;
+};
+
 export interface IDecisionFieldRepository {
   // Basic CRUD operations
   create(data: CreateDecisionField): Promise<DecisionField>;
   findById(id: string): Promise<DecisionField | null>;
+  findByIdentity(identity: DecisionFieldIdentityLookup): Promise<DecisionField | null>;
   findAll(): Promise<DecisionField[]>;
   findByCategory(category: string): Promise<DecisionField[]>;
   

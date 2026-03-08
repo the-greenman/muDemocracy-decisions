@@ -22,7 +22,7 @@ class MockRawTranscriptRepository {
   }
 
   async findByMeetingId(meetingId: string) {
-    return [];
+    return Array.from(this.transcripts.values()).filter((transcript) => transcript.meetingId === meetingId);
   }
 
   async findById(id: string) {
@@ -42,16 +42,20 @@ class MockRawTranscriptRepository {
 }
 
 class MockTranscriptChunkRepository {
+  private chunks: any[] = [];
+
   async create(data: any) {
-    return {
+    const chunk = {
       id: randomUUID(),
       ...data,
       createdAt: new Date().toISOString(),
     };
+    this.chunks.push(chunk);
+    return chunk;
   }
 
-  async findByMeetingId(_meetingId: string) {
-    return [];
+  async findByMeetingId(meetingId: string) {
+    return this.chunks.filter((chunk) => chunk.meetingId === meetingId);
   }
 
   async findByContext(_contextTag: string) {
@@ -98,12 +102,20 @@ class MockStreamingBufferRepository {
     
     const chunks = buffer.events
       .filter((e: any) => e.type === 'text')
-      .map((e: any) => ({
+      .map((e: any, index: number) => ({
         id: randomUUID(),
         meetingId,
+        rawTranscriptId: e.data.rawTranscriptId || randomUUID(),
+        sequenceNumber: index + 1,
         text: e.data.text,
-        chunkStrategy: 'streaming',
+        chunkStrategy: 'streaming' as const,
+        speaker: e.data.speaker,
+        startTime: e.data.startTime,
+        endTime: e.data.endTime,
+        tokenCount: undefined,
+        wordCount: undefined,
         contexts: e.data.contexts || [`meeting:${meetingId}`],
+        topics: e.data.topics,
         createdAt: new Date().toISOString(),
       }));
     
@@ -238,6 +250,50 @@ describe('TranscriptService', () => {
 
       const status = await service.getStreamStatus(meetingId);
       expect(status.status).toBe('active');
+    });
+  });
+
+  describe('addTranscriptText', () => {
+    it('should create a raw transcript and an immediate streaming chunk', async () => {
+      const meetingId = randomUUID();
+
+      const chunk = await service.addTranscriptText({
+        meetingId,
+        text: 'Additional context about costs',
+        speaker: 'Alice',
+      });
+
+      expect(chunk.meetingId).toBe(meetingId);
+      expect(chunk.text).toBe('Additional context about costs');
+      expect(chunk.chunkStrategy).toBe('streaming');
+      expect(chunk.sequenceNumber).toBe(1);
+      expect(chunk.contexts).toContain(`meeting:${meetingId}`);
+    });
+
+    it('should append the next sequence number for existing meeting chunks', async () => {
+      const meetingId = randomUUID();
+
+      await service.addTranscriptText({ meetingId, text: 'First line' });
+      const nextChunk = await service.addTranscriptText({ meetingId, text: 'Second line' });
+
+      expect(nextChunk.sequenceNumber).toBe(2);
+    });
+
+    it('should preserve additional decision and field context tags', async () => {
+      const meetingId = randomUUID();
+
+      const chunk = await service.addTranscriptText({
+        meetingId,
+        text: 'Option 1 costs less long term',
+        contexts: [
+          `decision:ctx-1`,
+          `decision:ctx-1:options`,
+        ],
+      });
+
+      expect(chunk.contexts).toContain(`meeting:${meetingId}`);
+      expect(chunk.contexts).toContain('decision:ctx-1');
+      expect(chunk.contexts).toContain('decision:ctx-1:options');
     });
   });
 

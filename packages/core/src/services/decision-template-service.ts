@@ -10,7 +10,11 @@ import type {
   CreateTemplateFieldAssignment
 } from '@repo/schema';
 import type { IDecisionTemplateService } from '../interfaces/i-decision-template-service';
-import type { IDecisionTemplateRepository, ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
+import type {
+  IDecisionTemplateRepository,
+  ITemplateFieldAssignmentRepository,
+  DecisionTemplateIdentityLookup,
+} from '../interfaces/i-decision-template-repository';
 import type { TemplateFieldAssignmentInsert } from '@repo/db';
 
 export class DecisionTemplateService implements IDecisionTemplateService {
@@ -54,6 +58,11 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
   async getTemplate(id: string): Promise<DecisionTemplate | null> {
     const template = await this.templateRepository.findById(id);
+    return template;
+  }
+
+  async getTemplateByIdentity(identity: DecisionTemplateIdentityLookup): Promise<DecisionTemplate | null> {
+    const template = await this.templateRepository.findByIdentity(identity);
     return template;
   }
 

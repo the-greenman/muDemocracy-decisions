@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createDraftGenerationService, createDecisionContextService, createLLMInteractionService, createMarkdownExportService } from '@repo/core';
+import { createDraftGenerationService, createDecisionContextService, createDecisionFieldService, createLLMInteractionService, createMarkdownExportService } from '@repo/core';
 import { createDecisionContextRepository, createDecisionTemplateRepository, createDecisionFieldRepository, createTemplateFieldAssignmentRepository } from '@repo/core';
 import { writeFile } from 'fs/promises';
 import { resolve } from 'path';
@@ -12,6 +12,7 @@ type FieldMetaRecord = Record<string, { manuallyEdited?: boolean }>;
 // Create service instances
 const draftService = createDraftGenerationService();
 const contextService = createDecisionContextService();
+const fieldService = createDecisionFieldService();
 const llmInteractionService = createLLMInteractionService();
 const markdownExportService = createMarkdownExportService();
 
@@ -29,8 +30,8 @@ async function resolveTemplateField(contextId: string, fieldName: string) {
 
   const assignments = await fieldAssignmentRepo.findByTemplateId(context.templateId);
   for (const assignment of assignments) {
-    const field = await fieldRepo.findById(assignment.fieldId);
-    if (field?.name === fieldName) {
+    const field = await fieldService.getFieldByIdentity({ name: fieldName });
+    if (field && field.id === assignment.fieldId) {
       return { context, field };
     }
   }

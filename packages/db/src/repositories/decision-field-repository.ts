@@ -2,19 +2,21 @@
  * Drizzle implementation of Decision Field Repository
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../client';
 import { decisionFields } from '../schema';
 import type { 
   DecisionField,
   CreateDecisionField
 } from '@repo/schema';
+import type { DecisionFieldIdentityLookup } from '@repo/core';
 
 // Interface definition to avoid circular dependency
 interface IDecisionFieldRepository {
   create(data: CreateDecisionField): Promise<DecisionField>;
   findAll(): Promise<DecisionField[]>;
   findById(id: string): Promise<DecisionField | null>;
+  findByIdentity(identity: DecisionFieldIdentityLookup): Promise<DecisionField | null>;
   findByCategory(category: string): Promise<DecisionField[]>;
   findByType(type: string): Promise<DecisionField[]>;
   update(id: string, data: Partial<CreateDecisionField>): Promise<DecisionField | null>;
@@ -39,6 +41,22 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
       .select()
       .from(decisionFields)
       .where(eq(decisionFields.id, id))
+      .limit(1);
+
+    return row ? this.mapToSchema(row) : null;
+  }
+
+  async findByIdentity(identity: DecisionFieldIdentityLookup): Promise<DecisionField | null> {
+    const [row] = await db
+      .select()
+      .from(decisionFields)
+      .where(
+        and(
+          eq(decisionFields.namespace, identity.namespace ?? 'core'),
+          eq(decisionFields.name, identity.name),
+          eq(decisionFields.version, identity.version ?? 1)
+        )
+      )
       .limit(1);
 
     return row ? this.mapToSchema(row) : null;

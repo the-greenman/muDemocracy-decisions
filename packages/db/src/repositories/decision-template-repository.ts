@@ -16,11 +16,13 @@ import type {
   CreateDecisionTemplate,
   TemplateFieldAssignment
 } from '@repo/schema';
+import type { DecisionTemplateIdentityLookup } from '@repo/core';
 
 // Interface definitions to avoid circular dependency
 interface IDecisionTemplateRepository {
   create(data: CreateDecisionTemplate): Promise<DecisionTemplate>;
   findById(id: string): Promise<DecisionTemplate | null>;
+  findByIdentity(identity: DecisionTemplateIdentityLookup): Promise<DecisionTemplate | null>;
   findAll(): Promise<DecisionTemplate[]>;
   findByCategory(category: string): Promise<DecisionTemplate[]>;
   findDefault(): Promise<DecisionTemplate | null>;
@@ -98,6 +100,29 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .orderBy(asc(templateFieldAssignments.order));
 
     return this.mapToSchema({ ...row, fields });
+  }
+
+  async findByIdentity(identity: DecisionTemplateIdentityLookup): Promise<DecisionTemplate | null> {
+    const [row] = await db
+      .select()
+      .from(decisionTemplates)
+      .where(
+        and(
+          eq(decisionTemplates.name, identity.name),
+          eq(decisionTemplates.version, identity.version ?? 1)
+        )
+      )
+      .limit(1);
+
+    if (!row) return null;
+
+    const fields = await db
+      .select()
+      .from(templateFieldAssignments)
+      .where(eq(templateFieldAssignments.templateId, row.id))
+      .orderBy(asc(templateFieldAssignments.order));
+
+    return this.mapToSchema({ ...row, fields: fields.map(f => this.mapFieldAssignmentToSchema(f)) });
   }
 
   async findAll(): Promise<DecisionTemplate[]> {

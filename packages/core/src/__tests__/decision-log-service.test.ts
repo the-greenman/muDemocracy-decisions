@@ -64,6 +64,7 @@ describe('DecisionLogService', () => {
     mockDecisionTemplateRepository = {
       create: vi.fn(),
       findById: vi.fn(),
+      findByIdentity: vi.fn(),
       findAll: vi.fn(),
       findDefault: vi.fn(),
       setDefault: vi.fn(),

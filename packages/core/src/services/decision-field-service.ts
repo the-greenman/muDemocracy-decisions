@@ -3,12 +3,12 @@
  * Manages the field library with extraction prompts and validation rules
  */
 
-import type { 
-  IDecisionFieldService,
+import type { DecisionField, CreateDecisionField } from '@repo/schema';
+import type { IDecisionFieldService } from '../interfaces/i-decision-field-service';
+import type {
   IDecisionFieldRepository,
-  DecisionField,
-  CreateDecisionField
-} from '@repo/core';
+  DecisionFieldIdentityLookup,
+} from '../interfaces/i-decision-field-repository';
 
 export class DecisionFieldService implements IDecisionFieldService {
   constructor(private repository: IDecisionFieldRepository) {}
@@ -26,6 +26,11 @@ export class DecisionFieldService implements IDecisionFieldService {
 
   async getField(id: string): Promise<DecisionField | null> {
     const field = await this.repository.findById(id);
+    return field;
+  }
+
+  async getFieldByIdentity(identity: DecisionFieldIdentityLookup): Promise<DecisionField | null> {
+    const field = await this.repository.findByIdentity(identity);
     return field;
   }
 

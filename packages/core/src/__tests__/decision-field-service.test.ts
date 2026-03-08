@@ -7,14 +7,18 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DecisionFieldService } from '../services/decision-field-service';
 import type { 
   IDecisionFieldRepository,
+  DecisionFieldIdentityLookup,
   CreateDecisionField,
   DecisionField
 } from '@repo/core';
+
+const DEFAULT_NAMESPACE = 'core';
 
 // Mock repository
 const mockRepository: IDecisionFieldRepository = {
   create: vi.fn(),
   findById: vi.fn(),
+  findByIdentity: vi.fn(),
   findAll: vi.fn(),
   findByCategory: vi.fn(),
   update: vi.fn(),
@@ -35,6 +39,7 @@ describe('DecisionFieldService', () => {
   describe('createField', () => {
     it('should create a field with valid data', async () => {
       const fieldData: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test Field',
         description: 'A test field',
         category: 'context',
@@ -61,6 +66,7 @@ describe('DecisionFieldService', () => {
 
     it('should throw error for invalid field (missing name)', async () => {
       const fieldData: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: '',
         description: 'Test desc',
         category: 'context',
@@ -74,6 +80,7 @@ describe('DecisionFieldService', () => {
 
     it('should throw error for invalid field (missing category)', async () => {
       const fieldData: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test Field',
         description: 'Test desc',
         category: '' as any,
@@ -87,6 +94,7 @@ describe('DecisionFieldService', () => {
 
     it('should throw error for invalid field (missing type)', async () => {
       const fieldData: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test Field',
         description: 'Test desc',
         category: 'context',
@@ -100,6 +108,7 @@ describe('DecisionFieldService', () => {
 
     it('should throw error for invalid validation rules', async () => {
       const fieldData: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test Field',
         description: 'Test desc',
         category: 'context',
@@ -121,6 +130,7 @@ describe('DecisionFieldService', () => {
     it('should return a field when found', async () => {
       const expectedField: DecisionField = {
         id: 'field-123',
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test Field',
         description: 'Test field description',
         category: 'context',
@@ -149,11 +159,54 @@ describe('DecisionFieldService', () => {
     });
   });
 
+  describe('getFieldByIdentity', () => {
+    it('should return a field when found by stable identity', async () => {
+      const identity: DecisionFieldIdentityLookup = {
+        namespace: 'core',
+        name: 'options',
+        version: 1,
+      };
+      const expectedField: DecisionField = {
+        id: 'field-123',
+        namespace: 'core',
+        name: 'options',
+        description: 'Options field',
+        category: 'evaluation',
+        extractionPrompt: 'Extract options',
+        fieldType: 'text',
+        version: 1,
+        isCustom: false,
+        createdAt: '2026-02-27T00:00:00.000Z',
+      };
+
+      vi.mocked(mockRepository.findByIdentity).mockResolvedValue(expectedField);
+
+      const result = await service.getFieldByIdentity(identity);
+
+      expect(result).toEqual(expectedField);
+      expect(mockRepository.findByIdentity).toHaveBeenCalledWith(identity);
+    });
+
+    it('should return null when a stable identity is not found', async () => {
+      const identity: DecisionFieldIdentityLookup = {
+        name: 'missing_field',
+      };
+
+      vi.mocked(mockRepository.findByIdentity).mockResolvedValue(null);
+
+      const result = await service.getFieldByIdentity(identity);
+
+      expect(result).toBeNull();
+      expect(mockRepository.findByIdentity).toHaveBeenCalledWith(identity);
+    });
+  });
+
   describe('getAllFields', () => {
     it('should return all fields', async () => {
       const expectedFields: DecisionField[] = [
         {
           id: 'field-1',
+          namespace: DEFAULT_NAMESPACE,
           name: 'Field 1',
           description: 'Field 1 description',
           category: 'context',
@@ -165,6 +218,7 @@ describe('DecisionFieldService', () => {
         },
         {
           id: 'field-2',
+          namespace: DEFAULT_NAMESPACE,
           name: 'Field 2',
           description: 'Field 2 description',
           category: 'evaluation',
@@ -190,6 +244,7 @@ describe('DecisionFieldService', () => {
       const expectedFields: DecisionField[] = [
         {
           id: 'field-1',
+          namespace: DEFAULT_NAMESPACE,
           name: 'Field 1',
           description: 'Field 1 description',
           category: 'evaluation',
@@ -214,6 +269,7 @@ describe('DecisionFieldService', () => {
     it('should update an existing field', async () => {
       const existingField: DecisionField = {
         id: 'field-123',
+        namespace: DEFAULT_NAMESPACE,
         name: 'Old Name',
         description: 'Old description',
         category: 'context',
@@ -253,6 +309,7 @@ describe('DecisionFieldService', () => {
     it('should delete an existing field', async () => {
       const existingField: DecisionField = {
         id: 'field-123',
+        namespace: DEFAULT_NAMESPACE,
         name: 'To Delete',
         description: 'Field to delete',
         category: 'context',
@@ -288,6 +345,7 @@ describe('DecisionFieldService', () => {
       const expectedFields: DecisionField[] = [
         {
           id: 'field-1',
+          namespace: DEFAULT_NAMESPACE,
           name: 'Risk Assessment',
           description: 'Risk assessment field',
           category: 'evaluation',
@@ -311,10 +369,10 @@ describe('DecisionFieldService', () => {
   describe('getFieldCategories', () => {
     it('should return unique sorted categories', async () => {
       const fields: DecisionField[] = [
-        { id: '1', name: 'F1', description: 'Field 1', category: 'evaluation', extractionPrompt: 'Extract F1', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
-        { id: '2', name: 'F2', description: 'Field 2', category: 'context', extractionPrompt: 'Extract F2', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
-        { id: '3', name: 'F3', description: 'Field 3', category: 'evaluation', extractionPrompt: 'Extract F3', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
-        { id: '4', name: 'F4', description: 'Field 4', category: 'metadata', extractionPrompt: 'Extract F4', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '1', namespace: DEFAULT_NAMESPACE, name: 'F1', description: 'Field 1', category: 'evaluation', extractionPrompt: 'Extract F1', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '2', namespace: DEFAULT_NAMESPACE, name: 'F2', description: 'Field 2', category: 'context', extractionPrompt: 'Extract F2', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '3', namespace: DEFAULT_NAMESPACE, name: 'F3', description: 'Field 3', category: 'evaluation', extractionPrompt: 'Extract F3', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '4', namespace: DEFAULT_NAMESPACE, name: 'F4', description: 'Field 4', category: 'metadata', extractionPrompt: 'Extract F4', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
       ];
 
       vi.mocked(mockRepository.findAll).mockResolvedValue(fields);
@@ -328,10 +386,10 @@ describe('DecisionFieldService', () => {
   describe('getFieldTypes', () => {
     it('should return unique sorted types', async () => {
       const fields: DecisionField[] = [
-        { id: '1', name: 'F1', description: 'Field 1', category: 'context', extractionPrompt: 'Extract F1', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
-        { id: '2', name: 'F2', description: 'Field 2', category: 'context', extractionPrompt: 'Extract F2', fieldType: 'number', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
-        { id: '3', name: 'F3', description: 'Field 3', category: 'context', extractionPrompt: 'Extract F3', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
-        { id: '4', name: 'F4', description: 'Field 4', category: 'context', extractionPrompt: 'Extract F4', fieldType: 'select', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '1', namespace: DEFAULT_NAMESPACE, name: 'F1', description: 'Field 1', category: 'context', extractionPrompt: 'Extract F1', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '2', namespace: DEFAULT_NAMESPACE, name: 'F2', description: 'Field 2', category: 'context', extractionPrompt: 'Extract F2', fieldType: 'number', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '3', namespace: DEFAULT_NAMESPACE, name: 'F3', description: 'Field 3', category: 'context', extractionPrompt: 'Extract F3', fieldType: 'text', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
+        { id: '4', namespace: DEFAULT_NAMESPACE, name: 'F4', description: 'Field 4', category: 'context', extractionPrompt: 'Extract F4', fieldType: 'select', version: 1, isCustom: false, createdAt: '2026-02-27T00:00:00.000Z' },
       ];
 
       vi.mocked(mockRepository.findAll).mockResolvedValue(fields);
@@ -345,29 +403,34 @@ describe('DecisionFieldService', () => {
   describe('seedFields', () => {
     it('should create multiple fields', async () => {
       const fields: CreateDecisionField[] = [
-        { name: 'Field 1', description: 'Field 1 desc', category: 'context', fieldType: 'text', extractionPrompt: 'Extract field 1' },
-        { name: 'Field 2', description: 'Field 2 desc', category: 'evaluation', fieldType: 'number', extractionPrompt: 'Extract field 2' },
+        { namespace: DEFAULT_NAMESPACE, name: 'Field 1', description: 'Field 1 desc', category: 'context', fieldType: 'text', extractionPrompt: 'Extract field 1' },
+        { namespace: DEFAULT_NAMESPACE, name: 'Field 2', description: 'Field 2 desc', category: 'evaluation', fieldType: 'number', extractionPrompt: 'Extract field 2' },
       ];
+
+      const firstField = fields[0]!;
+      const secondField = fields[1]!;
 
       const createdFields: DecisionField[] = [
         { 
           id: '1', 
-          name: fields[0].name,
-          description: fields[0].description,
-          category: fields[0].category,
-          extractionPrompt: fields[0].extractionPrompt,
-          fieldType: fields[0].fieldType,
+          namespace: DEFAULT_NAMESPACE,
+          name: firstField.name,
+          description: firstField.description,
+          category: firstField.category,
+          extractionPrompt: firstField.extractionPrompt,
+          fieldType: firstField.fieldType,
           version: 1, 
           isCustom: false, 
           createdAt: '2026-02-27T00:00:00.000Z' 
         },
         { 
           id: '2', 
-          name: fields[1].name,
-          description: fields[1].description,
-          category: fields[1].category,
-          extractionPrompt: fields[1].extractionPrompt,
-          fieldType: fields[1].fieldType,
+          namespace: DEFAULT_NAMESPACE,
+          name: secondField.name,
+          description: secondField.description,
+          category: secondField.category,
+          extractionPrompt: secondField.extractionPrompt,
+          fieldType: secondField.fieldType,
           version: 1, 
           isCustom: false, 
           createdAt: '2026-02-27T00:00:00.000Z' 
@@ -386,6 +449,7 @@ describe('DecisionFieldService', () => {
   describe('validateFieldDefinition', () => {
     it('should validate a correct field definition', async () => {
       const field: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test',
         description: 'Test desc',
         category: 'context',
@@ -399,6 +463,7 @@ describe('DecisionFieldService', () => {
 
     it('should reject field with empty name', async () => {
       const field: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: '',
         description: 'Test desc',
         category: 'context',
@@ -412,6 +477,7 @@ describe('DecisionFieldService', () => {
 
     it('should reject field with empty category', async () => {
       const field: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test Field',
         description: 'Test desc',
         category: '' as any,
@@ -425,6 +491,7 @@ describe('DecisionFieldService', () => {
 
     it('should reject field with empty extraction prompt', async () => {
       const field: CreateDecisionField = {
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test',
         description: 'Test desc',
         category: 'context',
@@ -441,6 +508,7 @@ describe('DecisionFieldService', () => {
     it('should return validation schema for a field', async () => {
       const field: DecisionField = {
         id: 'field-123',
+        namespace: DEFAULT_NAMESPACE,
         name: 'Test Field',
         description: 'A test field',
         category: 'context',

@@ -22,6 +22,7 @@ class MockDecisionContextRepository implements IDecisionContextRepository {
       status: 'drafting',
       lockedFields: [],
       activeField: undefined,
+      draftVersions: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -99,6 +100,20 @@ class MockDecisionContextRepository implements IDecisionContextRepository {
     return updated;
   }
 
+  async lockAllFields(id: string): Promise<DecisionContext | null> {
+    const context = this.contexts.get(id);
+    if (!context) return null;
+
+    const allFields = Object.keys(context.draftData || {});
+    const updated = {
+      ...context,
+      lockedFields: [...new Set([...context.lockedFields, ...allFields])],
+      updatedAt: new Date().toISOString(),
+    };
+    this.contexts.set(id, updated);
+    return updated;
+  }
+
   async setActiveField(id: string, fieldId: string | null): Promise<DecisionContext | null> {
     const context = this.contexts.get(id);
     if (!context) {
@@ -160,6 +175,7 @@ describe('IDecisionContextRepository', () => {
       expect(result.status).toBe('drafting');
       expect(result.lockedFields).toEqual([]);
       expect(result.activeField).toBeUndefined();
+      expect(result.draftVersions).toEqual([]);
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
     });
@@ -176,6 +192,7 @@ describe('IDecisionContextRepository', () => {
       const result = await repository.create(data);
 
       expect(result.draftData).toEqual({ field1: 'value1', field2: 'value2' });
+      expect(result.draftVersions).toEqual([]);
     });
   });
 

@@ -16,6 +16,7 @@ const {
 describe('API E2E Tests', () => {
   let createdMeetingId: string;
   let createdFieldId: string;
+  let createdFieldName: string;
   let createdTemplateId: string;
   let createdChunkId: string;
   let createdDecisionId: string;
@@ -40,6 +41,7 @@ describe('API E2E Tests', () => {
       placeholder: 'Decision statement',
     });
     createdFieldId = field.id;
+    createdFieldName = field.name;
 
     const template = await templateService.createTemplate({
       name: `API E2E Template ${Date.now()}`,
@@ -235,6 +237,20 @@ describe('API E2E Tests', () => {
     expect(data.draftData?.__fieldMeta?.[createdFieldId]?.manuallyEdited).toBe(true);
   });
 
+  it('PATCH /api/decision-contexts/:id/fields/:fieldId - should accept a stable field name reference', async () => {
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/fields/${createdFieldName}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: 'Updated via field name' }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.id).toBe(createdContextId);
+    expect(data.draftData?.[createdFieldId]).toBe('Updated via field name');
+    expect(data.draftData?.__fieldMeta?.[createdFieldId]?.manuallyEdited).toBe(true);
+  });
+
   it('PATCH /api/decision-contexts/:id/fields/:fieldId - should reject fields not assigned to the template', async () => {
     const unassignedField = await createDecisionFieldService().createField({
       namespace: 'test',
@@ -265,6 +281,14 @@ describe('API E2E Tests', () => {
     expect(data.chunks).toBeInstanceOf(Array);
   });
 
+  it('GET /api/decision-contexts/:id/fields/:fieldId/transcript - should accept a stable field name reference', async () => {
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/fields/${createdFieldName}/transcript`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.chunks).toBeInstanceOf(Array);
+  });
+
   it('POST /api/decision-contexts/:id/fields/:fieldId/regenerate - should regenerate a single field', async () => {
     const response = await app.request(`/api/decision-contexts/${createdContextId}/fields/${createdFieldId}/regenerate`, {
       method: 'POST',
@@ -274,6 +298,25 @@ describe('API E2E Tests', () => {
           {
             fieldId: createdFieldId,
             content: 'Focus on the migration approval summary',
+            source: 'user_text',
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(typeof data.value).toBe('string');
+  });
+
+  it('POST /api/decision-contexts/:id/fields/:fieldId/regenerate - should accept a stable field name reference', async () => {
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/fields/${createdFieldName}/regenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        guidance: [
+          {
+            content: 'Focus on the decision statement field',
             source: 'user_text',
           },
         ],

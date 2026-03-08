@@ -24,7 +24,7 @@ const UuidParamSchema = z.object({
 
 const DecisionFieldParamSchema = z.object({
   id: z.string().uuid(),
-  fieldId: z.string().uuid(),
+  fieldId: z.string().min(1),
 });
 
 const MeetingIdParamSchema = z.object({

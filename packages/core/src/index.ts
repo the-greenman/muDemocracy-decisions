@@ -16,20 +16,25 @@ export { ExpertTemplateService } from './services/expert-template-service';
 export { MCPServerService } from './services/mcp-server-service';
 export { ExpertAdviceService } from './services/expert-advice-service';
 export { DraftGenerationService } from './services/draft-generation-service';
+export { InProcessEventBus } from './events/in-process-event-bus';
 
 // Service Factory
 export {
   createMeetingService,
   createDecisionLogService,
+  createDecisionLogGenerator,
   createDecisionContextService,
   createTranscriptService,
+  createTranscriptManager,
   createDecisionFieldService,
   createDraftGenerationService,
+  createContentCreator,
   createFlaggedDecisionService,
   createDecisionTemplateService,
   createGlobalContextService,
   createLLMInteractionService,
   createMarkdownExportService,
+  createEventBus,
   createDecisionContextRepository,
   createDecisionTemplateRepository,
   createDecisionFieldRepository,
@@ -49,14 +54,20 @@ export type { IFlaggedDecisionRepository } from './interfaces/i-flagged-decision
 export type { IFlaggedDecisionService } from './interfaces/i-flagged-decision-service';
 export type { IDecisionContextRepository } from './interfaces/i-decision-context-repository';
 export type { IDecisionContextService } from './interfaces/i-decision-context-service';
+export type { ITranscriptManager } from './transcript-manager';
+export type { IDecisionLogGenerator } from './decision-log-generator/i-decision-log-generator';
+export type { IContentCreator } from './decision-log-generator/i-content-creator';
+export type { IEventBus, EventHandler } from './events/i-event-bus';
+export type { DecisionEvent, DecisionContextCreatedEvent, DraftGeneratedEvent, DecisionLoggedEvent } from './events/decision-events';
 export type { IGlobalContextService, IGlobalContextStore, GlobalContext, GlobalContextState } from './interfaces/i-global-context-service';
 export type { IDecisionLogRepository } from './interfaces/i-decision-log-repository';
 export type { IDecisionLogService } from './interfaces/i-decision-log-service';
-export type { IDecisionFieldRepository } from './interfaces/i-decision-field-repository';
+export type { IDecisionFieldRepository, DecisionFieldIdentityLookup } from './interfaces/i-decision-field-repository';
 export type { IDecisionFieldService } from './interfaces/i-decision-field-service';
 export type { 
   IDecisionTemplateRepository,
-  ITemplateFieldAssignmentRepository 
+  ITemplateFieldAssignmentRepository,
+  DecisionTemplateIdentityLookup,
 } from './interfaces/i-decision-template-repository';
 export type { IDecisionTemplateService } from './interfaces/i-decision-template-service';
 export type {

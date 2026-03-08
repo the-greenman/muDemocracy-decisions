@@ -9,11 +9,13 @@ import type {
   TemplateFieldAssignment,
   CreateTemplateFieldAssignment
 } from '@repo/schema';
+import type { DecisionTemplateIdentityLookup } from './i-decision-template-repository';
 
 export interface IDecisionTemplateService {
   // Template CRUD operations
   createTemplate(data: CreateDecisionTemplate): Promise<DecisionTemplate>;
   getTemplate(id: string): Promise<DecisionTemplate | null>;
+  getTemplateByIdentity(identity: DecisionTemplateIdentityLookup): Promise<DecisionTemplate | null>;
   getAllTemplates(): Promise<DecisionTemplate[]>;
   getDefaultTemplate(): Promise<DecisionTemplate | null>;
   setDefaultTemplate(id: string): Promise<DecisionTemplate>;

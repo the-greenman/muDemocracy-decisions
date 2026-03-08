@@ -48,6 +48,17 @@ export interface ChunkCreationOptions {
   minChunkSize?: number;
 }
 
+export interface AddTranscriptTextData {
+  meetingId: string;
+  text: string;
+  speaker?: string;
+  startTime?: string;
+  endTime?: string;
+  contexts?: string[];
+  topics?: string[];
+  uploadedBy?: string;
+}
+
 export class TranscriptService {
   constructor(
     private rawTranscriptRepo: IRawTranscriptRepository,
@@ -75,6 +86,44 @@ export class TranscriptService {
 
   async getTranscriptsByMeeting(meetingId: string): Promise<RawTranscript[]> {
     return this.rawTranscriptRepo.findByMeetingId(meetingId);
+  }
+
+  async addTranscriptText(data: AddTranscriptTextData): Promise<TranscriptChunk> {
+    const transcript = await this.rawTranscriptRepo.create({
+      meetingId: data.meetingId,
+      source: 'stream',
+      format: 'txt',
+      content: data.text,
+      uploadedBy: data.uploadedBy,
+      metadata: {
+        incremental: true,
+      },
+    });
+
+    const existingChunks = await this.chunkRepo.findByMeetingId(data.meetingId);
+    const nextSequenceNumber = existingChunks.length === 0
+      ? 1
+      : Math.max(...existingChunks.map((chunk) => chunk.sequenceNumber)) + 1;
+
+    const contexts = Array.from(new Set([
+      `meeting:${data.meetingId}`,
+      ...(data.contexts ?? []),
+    ]));
+
+    return this.addChunk({
+      meetingId: data.meetingId,
+      rawTranscriptId: transcript.id,
+      sequenceNumber: nextSequenceNumber,
+      text: data.text,
+      speaker: data.speaker,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      chunkStrategy: 'streaming',
+      tokenCount: this.estimateTokens(data.text),
+      wordCount: data.text.split(/\s+/).filter(Boolean).length,
+      contexts,
+      topics: data.topics,
+    });
   }
 
   // Chunk management

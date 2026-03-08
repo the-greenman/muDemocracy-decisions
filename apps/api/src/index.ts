@@ -10,12 +10,15 @@ import {
   createDecisionLogGenerator,
   createDecisionLogService,
   createDecisionContextService,
+  createDecisionContextRepository,
+  createDecisionFieldService,
   createDraftGenerationService,
   createFlaggedDecisionService,
   type GuidanceSegment,
   createLLMInteractionService,
   createMarkdownExportService,
   createMeetingService,
+  createTemplateFieldAssignmentRepository,
   createTranscriptService,
   MeetingService,
 } from '@repo/core';
@@ -59,17 +62,23 @@ const decisionLogGenerator = useDatabase ? createDecisionLogGenerator() : null;
 const draftGenerationService = useDatabase ? createDraftGenerationService() : null;
 const markdownExportService = useDatabase ? createMarkdownExportService() : null;
 const llmInteractionService = useDatabase ? createLLMInteractionService() : null;
+const decisionContextRepository = useDatabase ? createDecisionContextRepository() : null;
+const decisionFieldService = useDatabase ? createDecisionFieldService() : null;
+const templateFieldAssignmentRepository = useDatabase ? createTemplateFieldAssignmentRepository() : null;
 
 function getWorkflowServices() {
   if (
     !transcriptService ||
     !flaggedDecisionService ||
     !decisionContextService ||
+    !decisionContextRepository ||
+    !decisionFieldService ||
     !decisionLogService ||
     !decisionLogGenerator ||
     !draftGenerationService ||
     !markdownExportService ||
-    !llmInteractionService
+    !llmInteractionService ||
+    !templateFieldAssignmentRepository
   ) {
     return null;
   }
@@ -78,12 +87,44 @@ function getWorkflowServices() {
     transcriptService,
     flaggedDecisionService,
     decisionContextService,
+    decisionContextRepository,
+    decisionFieldService,
     decisionLogService,
     decisionLogGenerator,
     draftGenerationService,
     markdownExportService,
     llmInteractionService,
+    templateFieldAssignmentRepository,
   };
+}
+
+async function resolveContextFieldId(
+  services: NonNullable<ReturnType<typeof getWorkflowServices>>,
+  contextId: string,
+  fieldReference: string,
+): Promise<string> {
+  const context = await services.decisionContextRepository.findById(contextId);
+  if (!context) {
+    throw new Error('Decision context not found');
+  }
+
+  const assignments = await services.templateFieldAssignmentRepository.findByTemplateId(context.templateId);
+  const assignedFieldIds = new Set(assignments.map((assignment) => assignment.fieldId));
+
+  if (assignedFieldIds.has(fieldReference)) {
+    return fieldReference;
+  }
+
+  const field = await services.decisionFieldService.getFieldByIdentity({ name: fieldReference });
+  if (!field) {
+    throw new Error(`Field ${fieldReference} not found`);
+  }
+
+  if (!assignedFieldIds.has(field.id)) {
+    throw new Error(`Field ${field.id} is not assigned to template ${context.templateId}`);
+  }
+
+  return field.id;
 }
 
 // Create OpenAPI Hono app
@@ -381,6 +422,7 @@ app.openapi(regenerateFieldRoute, async (c) => {
 
   try {
     const { id, fieldId } = c.req.valid('param');
+    const resolvedFieldId = await resolveContextFieldId(services, id, fieldId);
     const { guidance } = c.req.valid('json');
     const normalizedGuidance: GuidanceSegment[] | undefined = guidance?.map((segment) => {
       if (segment.fieldId === undefined) {
@@ -396,7 +438,7 @@ app.openapi(regenerateFieldRoute, async (c) => {
         source: segment.source,
       };
     });
-    const value = await services.draftGenerationService.regenerateField(id, fieldId, normalizedGuidance);
+    const value = await services.draftGenerationService.regenerateField(id, resolvedFieldId, normalizedGuidance);
     return c.json({ value });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -413,8 +455,9 @@ app.openapi(updateFieldValueRoute, async (c) => {
 
   try {
     const { id, fieldId } = c.req.valid('param');
+    const resolvedFieldId = await resolveContextFieldId(services, id, fieldId);
     const { value } = c.req.valid('json');
-    const context = await services.decisionContextService.setFieldValue(id, fieldId, value);
+    const context = await services.decisionContextService.setFieldValue(id, resolvedFieldId, value);
 
     if (!context) {
       return c.json({ error: 'Decision context not found' }, 404);
@@ -435,8 +478,15 @@ app.openapi(getFieldTranscriptRoute, async (c) => {
   }
 
   const { id, fieldId } = c.req.valid('param');
-  const chunks = await services.transcriptService.getChunksByContext(`decision:${id}:${fieldId}`);
-  return c.json({ chunks });
+  try {
+    const resolvedFieldId = await resolveContextFieldId(services, id, fieldId);
+    const chunks = await services.transcriptService.getChunksByContext(`decision:${id}:${resolvedFieldId}`);
+    return c.json({ chunks });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, status as 400 | 404);
+  }
 });
 
 app.openapi(logDecisionRoute, async (c) => {

@@ -109,6 +109,7 @@ class MockDecisionContextService implements IDecisionContextService {
       title: data.title,
       templateId: data.templateId,
       lockedFields: [],
+      draftVersions: [],
       status: 'drafting',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -119,6 +120,22 @@ class MockDecisionContextService implements IDecisionContextService {
 
   async updateDraftData(): Promise<DecisionContext | null> {
     throw new Error('Not implemented');
+  }
+
+  async setFieldValue(): Promise<DecisionContext | null> {
+    throw new Error('Not implemented');
+  }
+
+  async saveSnapshot(): Promise<DecisionContext | null> {
+    throw new Error('Not implemented');
+  }
+
+  async rollback(): Promise<DecisionContext | null> {
+    throw new Error('Not implemented');
+  }
+
+  async listVersions(): Promise<Array<{ version: number; savedAt: string; fieldCount: number }>> {
+    return [];
   }
 
   async lockField(): Promise<DecisionContext | null> {
@@ -283,6 +300,7 @@ describe('GlobalContextService', () => {
       title: decision.suggestedTitle,
       templateId: defaultTemplateId,
       lockedFields: [],
+      draftVersions: [],
       status: 'drafting',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

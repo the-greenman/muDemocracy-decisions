@@ -239,6 +239,14 @@ export type CreateFlaggedDecision = Omit<FlaggedDecision, 'id' | 'status' | 'cre
 // DECISION CONTEXT SCHEMAS
 // ============================================================================
 
+export const DraftVersionSchema = z.object({
+  version: z.number().int().positive(),
+  draftData: z.record(z.any()),
+  savedAt: z.string().datetime({ offset: true }),
+});
+
+export type DraftVersion = z.infer<typeof DraftVersionSchema>;
+
 export const DecisionContextSchema = z.object({
   id: z.string().uuid(),
   meetingId: z.string().uuid(),
@@ -248,6 +256,7 @@ export const DecisionContextSchema = z.object({
   activeField: z.string().uuid().optional(),
   lockedFields: z.array(z.string()).default([]),
   draftData: z.record(z.any()).optional(),
+  draftVersions: z.array(DraftVersionSchema).default([]),
   status: z.enum(['drafting', 'reviewing', 'locked', 'logged']).default('drafting'),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
@@ -262,6 +271,13 @@ export const DecisionContextSchema = z.object({
     activeField: '550e8400-e29b-41d4-a716-446655440005',
     lockedFields: ['decision_statement'],
     draftData: { decision_statement: 'We will use microservices' },
+    draftVersions: [
+      {
+        version: 1,
+        draftData: { decision_statement: 'We will use a modular monolith' },
+        savedAt: '2026-02-27T09:45:00Z',
+      },
+    ],
     status: 'drafting',
     createdAt: '2026-02-27T10:00:00Z',
     updatedAt: '2026-02-27T10:00:00Z',
@@ -272,7 +288,7 @@ export type DecisionContext = z.infer<typeof DecisionContextSchema>;
 
 // For creation, omit auto-generated fields and defaults
 export type CreateDecisionContext = Omit<DecisionContext, 
-  'id' | 'status' | 'lockedFields' | 'createdAt' | 'updatedAt'
+  'id' | 'status' | 'lockedFields' | 'draftVersions' | 'createdAt' | 'updatedAt'
 >;
 
 // ============================================================================

@@ -53,7 +53,7 @@
       }
 
       .subtitle {
-        font-size: clamp(1rem, 1.5vw, 1.2rem);
+        font-size: clamp(0.94rem, 1.4vw, 1.1rem);
         color: var(--muted);
       }
 
@@ -76,15 +76,63 @@
         font-size: 1rem;
       }
 
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text);
+        background: #fff;
+      }
+
+      .badge.new {
+        border-color: var(--mid);
+      }
+
+      .badge.status-open {
+        border-color: var(--high);
+      }
+
+      .top-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .layout-shell {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 14px;
+      }
+
+      .panel {
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 12px;
+      }
+
+      .panel + .panel {
+        margin-top: 10px;
+      }
+
+      .panel h3 {
+        margin: 0 0 8px;
+        font-size: 1.07rem;
+      }
+
+      .count-line {
+        margin: 0 0 8px;
+        color: var(--muted);
+      }
+
       .candidate-list {
         display: grid;
         gap: 10px;
-      }
-
-      .candidate-shell {
-        display: grid;
-        grid-template-columns: 1.3fr 1fr;
-        gap: 14px;
       }
 
       .candidate-row {
@@ -96,11 +144,11 @@
         border-radius: 8px;
         padding: 12px 14px;
         cursor: pointer;
-        font-size: 1.12rem;
+        font-size: 1.05rem;
         font-weight: 700;
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         gap: 10px;
       }
 
@@ -108,30 +156,37 @@
         display: block;
         margin-top: 4px;
         font-weight: 400;
-        font-size: 0.96rem;
+        font-size: 0.92rem;
         color: var(--muted);
       }
 
-      .candidate-row.high { border-left-color: var(--high); }
-      .candidate-row.mid { border-left-color: var(--mid); }
-      .candidate-row.low { border-left-color: var(--low); }
       .candidate-row.active {
         box-shadow: 0 0 0 4px #d9d9d9 inset;
       }
 
-      .candidate-config {
-        border: 2px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
-        padding: 12px;
+      .candidate-row.high {
+        border-left-color: var(--high);
       }
 
-      .candidate-config h3 {
-        margin: 0 0 10px;
-        font-size: 1.1rem;
+      .candidate-row.mid {
+        border-left-color: var(--mid);
       }
 
-      .candidate-config label {
+      .candidate-row.low {
+        border-left-color: var(--low);
+      }
+
+      .meta-line {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+      }
+
+      .candidate-config label,
+      .detail-grid label,
+      .toolbar label,
+      .workspace-controls label {
         display: block;
         font-size: 0.95rem;
         font-weight: 700;
@@ -140,14 +195,20 @@
 
       .candidate-config input,
       .candidate-config textarea,
-      .candidate-config select {
+      .candidate-config select,
+      .detail-grid input,
+      .detail-grid textarea,
+      .toolbar input,
+      .toolbar select,
+      .workspace-controls select {
         width: 100%;
         margin-top: 6px;
         border: 2px solid var(--line);
         border-radius: 6px;
         padding: 10px;
         font: inherit;
-        background: #fff;
+        background: #ffffff;
+        color: var(--text);
       }
 
       .icon-set {
@@ -168,7 +229,11 @@
         padding: 0;
       }
 
-      .mini-icon { width: 34px; height: 34px; border-width: 1px; }
+      .mini-icon {
+        width: 34px;
+        height: 34px;
+        border-width: 1px;
+      }
 
       .icon {
         width: 18px;
@@ -178,6 +243,30 @@
         stroke-width: 2;
       }
 
+      button,
+      .text-btn {
+        border: 3px solid var(--line);
+        background: #ffffff;
+        color: var(--text);
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 700;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .primary {
+        border-color: var(--high);
+      }
+
+      .warn {
+        border-color: var(--mid);
+      }
+
+      .danger {
+        border-color: var(--low);
+      }
+
       .action-row {
         display: flex;
         flex-wrap: wrap;
@@ -185,57 +274,18 @@
         margin-top: 16px;
       }
 
-      button,
-      .text-btn {
-        border: 3px solid var(--line);
-        background: #ffffff;
-        color: var(--text);
-        border-radius: 8px;
-        font-size: 1.03rem;
-        font-weight: 700;
-        padding: 10px 14px;
-        cursor: pointer;
-      }
-
-      .primary { border-color: var(--high); }
-      .warn { border-color: var(--mid); }
-      .danger { border-color: var(--low); }
-
       .detail-grid {
         display: grid;
         grid-template-columns: 1fr;
         gap: 10px;
       }
 
-      .detail-grid label {
-        font-size: 1rem;
-        font-weight: 700;
-      }
-
-      .detail-grid input,
-      .detail-grid textarea,
-      .toolbar input {
-        width: 100%;
-        margin-top: 6px;
-        border: 2px solid var(--line);
-        border-radius: 6px;
-        padding: 10px;
-        font: inherit;
-        background: #ffffff;
-        color: var(--text);
-      }
-
       .toolbar {
         display: grid;
-        grid-template-columns: 1fr 140px 140px auto;
+        grid-template-columns: 1fr 180px 120px 120px auto;
         gap: 10px;
         align-items: end;
         margin-bottom: 10px;
-      }
-
-      .toolbar label {
-        font-size: 0.94rem;
-        font-weight: 700;
       }
 
       .segment-list {
@@ -246,7 +296,7 @@
 
       .segment-row {
         display: grid;
-        grid-template-columns: 64px 1fr 90px;
+        grid-template-columns: 64px 1fr 120px;
         gap: 10px;
         align-items: center;
         padding: 8px 0;
@@ -289,6 +339,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        flex-wrap: wrap;
       }
 
       .flag {
@@ -311,21 +362,6 @@
         grid-template-columns: 1fr 220px auto;
         gap: 10px;
         align-items: end;
-      }
-
-      .workspace-controls label {
-        font-size: 0.95rem;
-        font-weight: 700;
-      }
-
-      .workspace-controls select {
-        width: 100%;
-        margin-top: 6px;
-        border: 2px solid var(--line);
-        border-radius: 6px;
-        padding: 10px;
-        font: inherit;
-        background: #fff;
       }
 
       .fields-scroll {
@@ -373,19 +409,37 @@
         color: var(--low);
       }
 
+      .sticky-flags {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 9;
+        display: none;
+      }
+
+      .sticky-flags.show {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       @media (max-width: 860px) {
-        .candidate-shell {
+        .layout-shell {
           grid-template-columns: 1fr;
         }
+
         .toolbar {
           grid-template-columns: 1fr 1fr;
         }
+
         .segment-row {
           grid-template-columns: 54px 1fr;
         }
+
         .overlap {
           display: none;
         }
+
         .workspace-controls {
           grid-template-columns: 1fr;
         }
@@ -404,66 +458,55 @@
       <symbol id="i-unlock" viewBox="0 0 24 24"><path d="M6 11h12v10H6z"/><path d="M8 11V8a4 4 0 017-2"/></symbol>
       <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 10-3 6.7"/><path d="M21 3v7h-7"/></symbol>
       <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L21 21"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
     </svg>
 
     <div class="app">
       <header class="topbar">
         <div>
           <div class="title">Decision Logger</div>
-          <div class="subtitle">Secure File Transfer Review (Mar 7, 2026)</div>
+          <div class="subtitle" id="meeting-subtitle">Current meeting: Secure File Transfer Review (Mar 7, 2026)</div>
         </div>
-        <div class="subtitle">Candidate Review</div>
+        <div class="top-actions">
+          <span class="badge status-open" id="open-context-count">Open contexts: 3</span>
+          <button id="view-flags-top" class="warn">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-list"/></svg>
+            Flagged list
+            <span class="badge new" id="new-flag-badge">2 new</span>
+          </button>
+          <button id="simulate-flag" class="text-btn" title="Prototype only">Simulate new flag</button>
+        </div>
       </header>
 
       <section id="screen-candidates" class="screen">
-        <h2>Detected Decision Candidates</h2>
-        <p class="hint">Select candidate -> choose template -> generate initial draft.</p>
+        <h2>Meeting Flags And Agenda</h2>
+        <p class="hint">Decision contexts persist across meetings. This screen separates meeting agenda items from newly flagged suggestions.</p>
 
-        <div class="candidate-shell">
-          <div class="candidate-list">
-            <button class="candidate-row high active" data-id="1" data-title="Choose primary secure storage backend" data-summary="Team converged on deciding storage backend first before access method details.">
-              <span>
-                Choose primary secure storage backend
-                <small>High confidence</small>
-              </span>
-              <span class="icon-set" aria-hidden="true">
-                <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
-                <span class="mini-icon"><svg class="icon"><use href="#i-edit"/></svg></span>
-              </span>
-            </button>
+        <div class="layout-shell">
+          <div>
+            <article class="panel">
+              <h3>Agenda (ordered contexts for this meeting)</h3>
+              <p class="count-line" id="agenda-count"></p>
+              <div id="agenda-list" class="candidate-list"></div>
+            </article>
 
-            <button class="candidate-row mid" data-id="2" data-title="Separate storage decision from access-method decision" data-summary="Team noted storage and access pattern choices should be tracked as separate decisions.">
-              <span>
-                Separate storage decision from access-method decision
-                <small>Medium confidence</small>
-              </span>
-              <span class="icon-set" aria-hidden="true">
-                <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
-                <span class="mini-icon"><svg class="icon"><use href="#i-edit"/></svg></span>
-              </span>
-            </button>
-
-            <button class="candidate-row low" data-id="3" data-title="Define baseline data classification for secure transfer" data-summary="Team discussed defining classification levels to decide when secure transfer path is required.">
-              <span>
-                Define baseline data classification for secure transfer
-                <small>Lower confidence</small>
-              </span>
-              <span class="icon-set" aria-hidden="true">
-                <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
-                <span class="mini-icon"><svg class="icon"><use href="#i-edit"/></svg></span>
-              </span>
-            </button>
+            <article class="panel">
+              <h3>Suggested / New Flags (current meeting)</h3>
+              <p class="count-line" id="flag-count"></p>
+              <div id="flagged-list" class="candidate-list"></div>
+            </article>
           </div>
 
-          <aside class="candidate-config">
-            <h3>Generate Decision Draft</h3>
+          <aside class="panel candidate-config">
+            <h3>Selected Flag</h3>
             <label>
               Candidate title
               <input id="candidate-title" type="text" />
             </label>
             <label>
-              Candidate summary (LLM instruction seed)
-              <textarea id="candidate-summary" rows="5"></textarea>
+              Candidate summary (instruction seed)
+              <textarea id="candidate-summary" rows="4"></textarea>
             </label>
             <label>
               Template
@@ -473,20 +516,43 @@
                 <option value="policy">Policy Change</option>
               </select>
             </label>
+
+            <h3 style="margin-top:14px">Decision Context</h3>
+            <label>
+              Search open contexts
+              <input id="context-search" placeholder="Find open contexts from any meeting..." />
+            </label>
+            <label>
+              Matching open contexts
+              <select id="context-select" size="4"></select>
+            </label>
+            <p class="hint" id="linked-context-label">No context linked yet. Create a new one or link an existing open context.</p>
+
+            <div class="action-row">
+              <button id="link-context-btn" class="warn">
+                <svg class="icon" style="vertical-align:middle"><use href="#i-link"/></svg>
+                Link selected context
+              </button>
+              <button id="add-agenda-btn" class="warn">
+                <svg class="icon" style="vertical-align:middle"><use href="#i-plus"/></svg>
+                Add linked context to agenda
+              </button>
+            </div>
+
             <div class="action-row">
               <button id="generate-from-candidate" class="primary">
                 <svg class="icon" style="vertical-align:middle"><use href="#i-refresh"/></svg>
                 Generate initial draft
               </button>
-              <button id="open-manual-create">Manual path</button>
+              <button id="open-manual-create">Manual candidate path</button>
             </div>
           </aside>
         </div>
       </section>
 
       <section id="screen-create" class="screen hidden">
-        <h2>Create Decision</h2>
-        <p class="hint">Add title and summary, then optionally ask AI to suggest relevant segments for review.</p>
+        <h2>Create Decision Candidate</h2>
+        <p class="hint">Use this for manual candidates. You can still link an existing open context or create a new context.</p>
 
         <div class="detail-grid">
           <label>
@@ -503,11 +569,11 @@
           <button id="back-btn">Back</button>
           <button id="ai-suggest-btn" class="warn">
             <svg class="icon" style="vertical-align:middle"><use href="#i-view"/></svg>
-            AI suggest segments
+            Find matching segments
           </button>
           <button id="segment-btn" class="warn">
             <svg class="icon" style="vertical-align:middle"><use href="#i-filter"/></svg>
-            Select manually
+            Select segments manually
           </button>
           <button id="promote-btn" class="primary">
             <svg class="icon" style="vertical-align:middle"><use href="#i-check"/></svg>
@@ -522,12 +588,16 @@
 
       <section id="screen-segments" class="screen hidden">
         <h2>Segment Selection</h2>
-        <p class="hint">Built for long meetings. Filter by text or sequence range, then click-and-drag (or touch-and-drag) across rows to select many segments quickly. Overlap icon marks segments linked to other candidates.</p>
+        <p class="hint">Default source is current meeting. Expand to other meetings when adding context to a persistent decision context.</p>
 
         <div class="toolbar">
           <label>
             Search text
             <input id="search-input" placeholder="Find words in transcript..." />
+          </label>
+          <label>
+            Transcript source
+            <select id="meeting-filter"></select>
           </label>
           <label>
             From seq
@@ -559,7 +629,7 @@
 
       <section id="screen-workspace" class="screen hidden">
         <h2>Decision Workspace</h2>
-        <p class="hint">Choose template, generate initial draft, then scroll full decision to lock/regenerate fields or zoom into one field.</p>
+        <p class="hint">Context is independent of meetings. Add transcript from this or other meetings as needed, but current meeting stays default.</p>
 
         <div class="workspace-controls">
           <label>
@@ -572,9 +642,16 @@
           </label>
           <button id="generate-draft" class="primary">
             <svg class="icon" style="vertical-align:middle"><use href="#i-refresh"/></svg>
-            Generate initial draft
+            Regenerate unlocked fields
           </button>
           <button id="workspace-back">Back</button>
+        </div>
+
+        <div class="action-row" style="margin-top:10px">
+          <button id="workspace-open-segments" class="warn">
+            <svg class="icon" style="vertical-align:middle"><use href="#i-filter"/></svg>
+            Add transcript to context
+          </button>
         </div>
 
         <div id="fields-scroll" class="fields-scroll"></div>
@@ -608,55 +685,68 @@
       </section>
     </div>
 
+    <button id="sticky-flags-btn" class="sticky-flags warn">
+      <svg class="icon" style="vertical-align:middle"><use href="#i-list"/></svg>
+      Return to flagged list
+      <span class="badge new" id="sticky-new-badge">2 new</span>
+    </button>
+
     <script>
-      const candidateScreen = document.getElementById("screen-candidates");
-      const createScreen = document.getElementById("screen-create");
-      const segmentsScreen = document.getElementById("screen-segments");
-      const workspaceScreen = document.getElementById("screen-workspace");
-      const focusScreen = document.getElementById("screen-field-focus");
+      const CURRENT_MEETING_ID = "m-2026-03-07";
 
-      const titleInput = document.getElementById("decision-title");
-      const summaryInput = document.getElementById("decision-summary");
-      const backBtn = document.getElementById("back-btn");
-      const aiSuggestBtn = document.getElementById("ai-suggest-btn");
-      const segmentBtn = document.getElementById("segment-btn");
-      const promoteBtn = document.getElementById("promote-btn");
-      const segmentsBackBtn = document.getElementById("segments-back");
-      const saveSegmentsBtn = document.getElementById("save-segments");
-      const candidateTitleInput = document.getElementById("candidate-title");
-      const candidateSummaryInput = document.getElementById("candidate-summary");
-      const candidateTemplateSelect = document.getElementById("candidate-template-select");
-      const generateFromCandidateBtn = document.getElementById("generate-from-candidate");
-      const openManualCreateBtn = document.getElementById("open-manual-create");
-      const workspaceBackBtn = document.getElementById("workspace-back");
-      const generateDraftBtn = document.getElementById("generate-draft");
-      const templateSelect = document.getElementById("template-select");
-      const fieldsScroll = document.getElementById("fields-scroll");
-      const focusFieldName = document.getElementById("focus-field-name");
-      const focusFieldValue = document.getElementById("focus-field-value");
-      const focusBackBtn = document.getElementById("focus-back");
-      const focusLockBtn = document.getElementById("focus-lock");
-      const focusRegenBtn = document.getElementById("focus-regen");
-      const focusSaveBtn = document.getElementById("focus-save");
+      const meetings = [
+        { id: "m-2026-03-07", name: "Secure File Transfer Review (Mar 7, 2026)" },
+        { id: "m-2026-03-01", name: "Data Handling Follow-up (Mar 1, 2026)" },
+        { id: "m-2026-02-20", name: "Procurement Governance Sync (Feb 20, 2026)" },
+      ];
 
-      const searchInput = document.getElementById("search-input");
-      const fromSeq = document.getElementById("from-seq");
-      const toSeq = document.getElementById("to-seq");
-      const overlapOnlyBtn = document.getElementById("overlap-only");
-      const segmentList = document.getElementById("segment-list");
-      const pageLabel = document.getElementById("page-label");
-      const prevPageBtn = document.getElementById("prev-page");
-      const nextPageBtn = document.getElementById("next-page");
+      const openContexts = [
+        { id: "ctx-101", title: "Secure transfer storage strategy", status: "open", lastTouched: "Mar 7" },
+        { id: "ctx-103", title: "External upload access policy", status: "open", lastTouched: "Mar 1" },
+        { id: "ctx-109", title: "Data sensitivity classification", status: "open", lastTouched: "Feb 20" },
+      ];
 
-      const pageSize = 16;
-      let currentPage = 1;
-      let overlapOnly = false;
-      let dragSelecting = false;
-      let dragTargetValue = false;
-      const touchedIds = new Set();
-      let reviewMode = "manual";
-      let activeFieldId = null;
-      let selectedCandidateId = "1";
+      const flaggedCandidates = [
+        {
+          id: "flag-1",
+          confidence: "high",
+          title: "Choose primary secure storage backend",
+          summary: "Team converged on deciding storage backend first before access method details.",
+          sourceMeetingId: CURRENT_MEETING_ID,
+          isNew: true,
+          suggestedTemplate: "technology",
+          linkedContextId: "ctx-101",
+          timestamp: "10:24",
+        },
+        {
+          id: "flag-2",
+          confidence: "mid",
+          title: "Separate storage decision from access-method decision",
+          summary: "Team noted storage and access pattern choices should be tracked as separate decisions.",
+          sourceMeetingId: CURRENT_MEETING_ID,
+          isNew: true,
+          suggestedTemplate: "standard",
+          linkedContextId: "",
+          timestamp: "10:37",
+        },
+        {
+          id: "flag-3",
+          confidence: "low",
+          title: "Define baseline data classification for secure transfer",
+          summary: "Team discussed defining classification levels to decide when secure transfer path is required.",
+          sourceMeetingId: CURRENT_MEETING_ID,
+          isNew: false,
+          suggestedTemplate: "policy",
+          linkedContextId: "ctx-109",
+          timestamp: "10:52",
+        },
+      ];
+
+      const meetingAgenda = [
+        { order: 1, contextId: "ctx-101", pinned: true },
+        { order: 2, contextId: "ctx-103", pinned: true },
+      ];
+
       const fieldDrafts = [
         { id: "decision_statement", name: "Decision Statement", value: "", locked: false },
         { id: "decision_context", name: "Decision Context", value: "", locked: false },
@@ -666,130 +756,245 @@
         { id: "next_steps", name: "Next Steps", value: "", locked: false },
       ];
 
-      const segments = Array.from({ length: 180 }, (_, i) => {
+      const allSegments = Array.from({ length: 240 }, (_, i) => {
         const seq = i + 1;
+        const meeting = seq <= 120 ? "m-2026-03-07" : seq <= 190 ? "m-2026-03-01" : "m-2026-02-20";
         const overlapCount = seq % 17 === 0 ? 2 : seq % 11 === 0 ? 1 : 0;
         return {
           id: `seg-${seq}`,
           seq,
+          meetingId: meeting,
           speaker: seq % 5 === 0 ? null : `Speaker ${((seq % 3) + 1)}`,
           text: `Segment ${seq}: discussion excerpt about storage, access controls, and compliance decisions.`,
           overlapCount,
-          selected: seq >= 142 && seq <= 155,
+          selected: seq >= 92 && seq <= 98,
           suggested: false,
         };
       });
 
-      function switchScreen(next) {
-        candidateScreen.classList.add("hidden");
-        createScreen.classList.add("hidden");
-        segmentsScreen.classList.add("hidden");
-        workspaceScreen.classList.add("hidden");
-        focusScreen.classList.add("hidden");
-        next.classList.remove("hidden");
+      let currentPage = 1;
+      const pageSize = 16;
+      let overlapOnly = false;
+      let dragSelecting = false;
+      let dragTargetValue = false;
+      const touchedIds = new Set();
+      let activeFieldId = null;
+      let selectedFlagId = flaggedCandidates[0].id;
+      let returnScreen = "create";
+
+      const candidateScreen = document.getElementById("screen-candidates");
+      const createScreen = document.getElementById("screen-create");
+      const segmentsScreen = document.getElementById("screen-segments");
+      const workspaceScreen = document.getElementById("screen-workspace");
+      const focusScreen = document.getElementById("screen-field-focus");
+      const meetingSubtitle = document.getElementById("meeting-subtitle");
+      const stickyFlagsBtn = document.getElementById("sticky-flags-btn");
+      const stickyNewBadge = document.getElementById("sticky-new-badge");
+      const viewFlagsTopBtn = document.getElementById("view-flags-top");
+      const simulateFlagBtn = document.getElementById("simulate-flag");
+      const newFlagBadge = document.getElementById("new-flag-badge");
+      const openContextCount = document.getElementById("open-context-count");
+
+      const agendaList = document.getElementById("agenda-list");
+      const flaggedList = document.getElementById("flagged-list");
+      const agendaCount = document.getElementById("agenda-count");
+      const flagCount = document.getElementById("flag-count");
+      const candidateTitleInput = document.getElementById("candidate-title");
+      const candidateSummaryInput = document.getElementById("candidate-summary");
+      const candidateTemplateSelect = document.getElementById("candidate-template-select");
+      const contextSearch = document.getElementById("context-search");
+      const contextSelect = document.getElementById("context-select");
+      const linkedContextLabel = document.getElementById("linked-context-label");
+      const linkContextBtn = document.getElementById("link-context-btn");
+      const addAgendaBtn = document.getElementById("add-agenda-btn");
+      const generateFromCandidateBtn = document.getElementById("generate-from-candidate");
+      const openManualCreateBtn = document.getElementById("open-manual-create");
+
+      const titleInput = document.getElementById("decision-title");
+      const summaryInput = document.getElementById("decision-summary");
+      const backBtn = document.getElementById("back-btn");
+      const aiSuggestBtn = document.getElementById("ai-suggest-btn");
+      const segmentBtn = document.getElementById("segment-btn");
+      const promoteBtn = document.getElementById("promote-btn");
+
+      const searchInput = document.getElementById("search-input");
+      const meetingFilter = document.getElementById("meeting-filter");
+      const fromSeq = document.getElementById("from-seq");
+      const toSeq = document.getElementById("to-seq");
+      const overlapOnlyBtn = document.getElementById("overlap-only");
+      const segmentList = document.getElementById("segment-list");
+      const pageLabel = document.getElementById("page-label");
+      const prevPageBtn = document.getElementById("prev-page");
+      const nextPageBtn = document.getElementById("next-page");
+      const segmentsBackBtn = document.getElementById("segments-back");
+      const saveSegmentsBtn = document.getElementById("save-segments");
+
+      const templateSelect = document.getElementById("template-select");
+      const generateDraftBtn = document.getElementById("generate-draft");
+      const workspaceBackBtn = document.getElementById("workspace-back");
+      const workspaceOpenSegmentsBtn = document.getElementById("workspace-open-segments");
+      const fieldsScroll = document.getElementById("fields-scroll");
+
+      const focusFieldName = document.getElementById("focus-field-name");
+      const focusFieldValue = document.getElementById("focus-field-value");
+      const focusBackBtn = document.getElementById("focus-back");
+      const focusLockBtn = document.getElementById("focus-lock");
+      const focusRegenBtn = document.getElementById("focus-regen");
+      const focusSaveBtn = document.getElementById("focus-save");
+
+      function getMeetingName(id) {
+        return meetings.find((m) => m.id === id)?.name || "Unknown meeting";
       }
 
-      function setActiveCandidate(button) {
-        document.querySelectorAll(".candidate-row").forEach((row) => row.classList.remove("active"));
-        button.classList.add("active");
-        selectedCandidateId = button.dataset.id || "1";
-        candidateTitleInput.value = button.dataset.title || "";
-        candidateSummaryInput.value = button.dataset.summary || "";
+      function getFlagById(id) {
+        return flaggedCandidates.find((f) => f.id === id);
       }
 
-      function renderFields() {
-        fieldsScroll.innerHTML = fieldDrafts
-          .map((f) => `
-            <article class="field-row ${f.locked ? "field-locked" : ""}" data-field-id="${f.id}">
-              <div class="field-head">
-                <div class="field-name">${f.name}</div>
-                <div class="field-actions">
-                  <button class="mini-icon field-lock" title="Lock/unlock">
-                    <svg class="icon"><use href="${f.locked ? "#i-unlock" : "#i-lock"}"/></svg>
-                  </button>
-                  <button class="mini-icon field-regen" title="Regenerate">
-                    <svg class="icon"><use href="#i-refresh"/></svg>
-                  </button>
-                  <button class="mini-icon field-zoom" title="Zoom field">
-                    <svg class="icon"><use href="#i-zoom"/></svg>
-                  </button>
-                </div>
-              </div>
-              <div class="field-value ${f.value ? "" : "empty"}">${f.value || "No value yet. Generate initial draft."}</div>
-            </article>
-          `)
+      function getContextById(id) {
+        return openContexts.find((c) => c.id === id);
+      }
+
+      function switchScreen(nextName) {
+        const map = {
+          candidates: candidateScreen,
+          create: createScreen,
+          segments: segmentsScreen,
+          workspace: workspaceScreen,
+          focus: focusScreen,
+        };
+
+        Object.values(map).forEach((screen) => screen.classList.add("hidden"));
+        map[nextName].classList.remove("hidden");
+
+        stickyFlagsBtn.classList.toggle("show", nextName !== "candidates");
+      }
+
+      function renderHeaderMeta() {
+        meetingSubtitle.textContent = `Current meeting: ${getMeetingName(CURRENT_MEETING_ID)}`;
+        openContextCount.textContent = `Open contexts: ${openContexts.length}`;
+
+        const newCount = flaggedCandidates.filter((f) => f.isNew).length;
+        newFlagBadge.textContent = `${newCount} new`;
+        stickyNewBadge.textContent = `${newCount} new`;
+      }
+
+      function renderAgenda() {
+        const items = [...meetingAgenda].sort((a, b) => a.order - b.order);
+        agendaCount.textContent = `${items.length} contexts currently agendad for this meeting.`;
+        agendaList.innerHTML = items
+          .map((item) => {
+            const ctx = getContextById(item.contextId);
+            if (!ctx) return "";
+            return `
+              <button class="candidate-row high" type="button">
+                <span>
+                  ${item.order}. ${ctx.title}
+                  <small>Open context · last touched ${ctx.lastTouched}</small>
+                  <span class="meta-line">
+                    <span class="badge status-open">Agenda</span>
+                    <span class="badge">Context ${ctx.id}</span>
+                  </span>
+                </span>
+                <span class="icon-set" aria-hidden="true">
+                  <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
+                </span>
+              </button>
+            `;
+          })
           .join("");
       }
 
-      function applyTemplateDraft(templateId) {
-        const templateValues = {
-          standard: {
-            decision_statement:
-              "Select S3 as the primary storage backend for secure file transfer, while explicitly separating this storage decision from later access-pattern and workflow-surface decisions. The team agreed that making the storage layer decision first reduces architectural ambiguity and gives a stable base for policy and operational controls.",
-            decision_context:
-              "The meeting compared three paths: direct S3 upload, a self-hosted transfer node, and an S3 proxy service. Discussion repeatedly returned to compliance evidence, regional data handling, audit trail completeness, and long-term maintenance burden. Members emphasized that while several implementation details remain open, locking the primary storage direction now enables clearer downstream choices on credentials, file lifecycle policy, and user journey design.",
-            options:
-              "1) Direct S3 upload with constrained IAM credentials and strict bucket policies. 2) Self-hosted transfer node with internal storage lifecycle controls and externally issued retrieval links. 3) Proxy service that provides a user-friendly intake layer while writing to S3 as the system of record. The team noted the proxy model could combine low user friction with centralized storage controls, but adds another managed component that must be monitored and audited.",
-            criteria:
-              "Primary criteria discussed were: demonstrable security controls at rest and in transit, confidence in UK-region constraints, operational simplicity for a small team, reliability under larger file sizes, and ability to produce clear audit evidence when handling uncertain or sensitive inbound datasets. Secondary criteria included onboarding friction for external parties, expected support load, and ability to evolve implementation later without rewriting policy documentation.",
-            risks:
-              "Top concerns were policy drift (bucket/IAM configuration changing over time), accidental over-permissioning, ambiguity around ownership of security controls across teams, and mismatch between intended and actual ingestion behavior under edge conditions. Additional concerns included lock-in optics, untested operational playbooks for incident response, and the risk of teams bypassing the intended transfer path if initial setup is too complex.",
-            next_steps:
-              "Define minimum control baseline for the chosen storage path, including encryption, access policy template, lifecycle rules, and audit log retention. Draft a one-page decision note for stakeholders. Run a pilot with one realistic dataset and verify the full ingest-to-access trail. Document unresolved follow-up decisions (access workflow, credential issuance model, and user-facing upload experience) as separate tracked decision candidates."
-          },
-          technology: {
-            decision_statement:
-              "Adopt an S3-backed architecture as the default storage platform for secure transfer workflows, with the explicit intent to standardize control points for encryption, retention, and access auditability while minimizing bespoke infrastructure overhead.",
-            decision_context:
-              "The technical review centered on balancing strong control guarantees against maintenance cost. Participants compared managed platform controls with self-hosted flexibility and noted that the organization currently lacks capacity for operating custom transfer infrastructure at high assurance. The team therefore prioritized a managed baseline that can still support stricter controls through configuration and policy layering.",
-            options:
-              "S3 direct upload pathway, self-hosted transfer node with manual lifecycle handling, and a hybrid proxy-to-S3 approach that decouples user intake from storage controls. The hybrid path was considered attractive for future UX evolution but was judged as an incremental step after proving the base S3 control model.",
-            criteria:
-              "Reliability under large object transfer, cryptographic guarantees in transit/at rest, policy expressiveness, audit integration, and operational effort were all scored as core technical criteria. Portability and vendor abstraction were noted but deprioritized relative to immediate implementation reliability and control transparency.",
-            risks:
-              "Potential lock-in concerns, policy misconfiguration over time, and accidental expansion of access scope were the most significant technical risks. Operationally, the team flagged that insufficient automation around policy validation could weaken assurances over time if control checks remain manual.",
-            next_steps:
-              "Create a reference architecture with required security controls, build infrastructure policy templates, run a controlled pilot with representative data, and establish recurring validation checks for policy compliance and access scope boundaries."
-          },
-          policy: {
-            decision_statement:
-              "Establish a policy requiring the secure transfer path for all datasets meeting defined classification thresholds, with a clear governance model for exceptions and a documented process for uncertain classifications at intake.",
-            decision_context:
-              "The meeting emphasized governance consistency and practical enforceability. Members observed that teams currently make ad hoc decisions about transfer channels, creating uneven audit quality and uncertainty in incident review. A policy baseline was seen as necessary to ensure the same decision criteria are applied across projects and contributors.",
-            options:
-              "Option A: mandatory secure path for all inbound external data regardless of classification. Option B: classification-based routing where only medium/high sensitivity data must use secure transfer. Option C: staged approach with a broad default rule and a controlled exception process while classification maturity improves.",
-            criteria:
-              "Policy clarity, enforceability, burden on contributors, compatibility with existing workflows, and audit defensibility were prioritized. The group also considered the cost of training, likelihood of accidental non-compliance, and the operational effort needed to sustain consistent interpretation across teams.",
-            risks:
-              "Main risks include unclear classification at point of intake, inconsistent policy interpretation, and undocumented exceptions that erode trust in controls. The group also highlighted change-management risk: if policy rollout is too heavy, teams may bypass the intended workflow, undermining both governance and evidence quality.",
-            next_steps:
-              "Define classification tiers with practical examples, publish a concise operating procedure, assign policy ownership, and schedule a short implementation phase with feedback checkpoints. Add monitoring to capture adoption, exception frequency, and areas where policy language remains ambiguous."
-          }
-        };
+      function renderFlags() {
+        const newCount = flaggedCandidates.filter((f) => f.isNew).length;
+        flagCount.textContent = `${flaggedCandidates.length} flags detected in this meeting (${newCount} new).`;
 
-        const selected = templateValues[templateId] || templateValues.standard;
-        fieldDrafts.forEach((f) => {
-          if (!f.locked) f.value = selected[f.id] || "";
+        flaggedList.innerHTML = flaggedCandidates
+          .map((f) => {
+            const meetingName = getMeetingName(f.sourceMeetingId);
+            const context = f.linkedContextId ? getContextById(f.linkedContextId) : null;
+            return `
+              <button class="candidate-row ${f.confidence} ${f.id === selectedFlagId ? "active" : ""}" data-flag-id="${f.id}" type="button">
+                <span>
+                  ${f.title}
+                  <small>${meetingName} · ${f.timestamp}</small>
+                  <span class="meta-line">
+                    <span class="badge">${f.confidence} confidence</span>
+                    ${f.isNew ? '<span class="badge new">NEW</span>' : ""}
+                    ${context ? `<span class="badge">Linked: ${context.title}</span>` : '<span class="badge">No linked context</span>'}
+                  </span>
+                </span>
+                <span class="icon-set" aria-hidden="true">
+                  <span class="mini-icon"><svg class="icon"><use href="#i-view"/></svg></span>
+                  <span class="mini-icon"><svg class="icon"><use href="#i-edit"/></svg></span>
+                </span>
+              </button>
+            `;
+          })
+          .join("");
+      }
+
+      function setSelectedFlag(flagId) {
+        selectedFlagId = flagId;
+        const flag = getFlagById(flagId);
+        if (!flag) return;
+
+        candidateTitleInput.value = flag.title;
+        candidateSummaryInput.value = flag.summary;
+        candidateTemplateSelect.value = flag.suggestedTemplate || "standard";
+        titleInput.value = flag.title;
+        summaryInput.value = flag.summary;
+        templateSelect.value = flag.suggestedTemplate || "standard";
+
+        const linked = flag.linkedContextId ? getContextById(flag.linkedContextId) : null;
+        linkedContextLabel.textContent = linked
+          ? `Linked context: ${linked.title} (${linked.id})`
+          : "No context linked yet. Create a new one or link an existing open context.";
+      }
+
+      function renderContextOptions() {
+        const query = contextSearch.value.trim().toLowerCase();
+        const matches = openContexts.filter((ctx) => {
+          if (!query) return true;
+          return ctx.title.toLowerCase().includes(query) || ctx.id.toLowerCase().includes(query);
         });
+
+        contextSelect.innerHTML = matches
+          .map((ctx) => `<option value="${ctx.id}">${ctx.title} (${ctx.id}) · ${ctx.lastTouched}</option>`)
+          .join("");
+
+        if (matches.length > 0) contextSelect.value = matches[0].id;
       }
 
-      function getFieldById(id) {
-        return fieldDrafts.find((f) => f.id === id);
+      function addLinkedContextToAgenda() {
+        const flag = getFlagById(selectedFlagId);
+        if (!flag || !flag.linkedContextId) return;
+
+        const exists = meetingAgenda.some((item) => item.contextId === flag.linkedContextId);
+        if (exists) return;
+
+        meetingAgenda.push({ order: meetingAgenda.length + 1, contextId: flag.linkedContextId, pinned: false });
+        renderAgenda();
       }
 
-      function refreshFocusButtons() {
-        const field = getFieldById(activeFieldId);
-        if (!field) return;
-        focusLockBtn.classList.toggle("danger", field.locked);
+      function populateMeetingFilter() {
+        meetingFilter.innerHTML = [
+          `<option value="${CURRENT_MEETING_ID}">Current only</option>`,
+          `<option value="all">All meetings</option>`,
+          ...meetings
+            .filter((m) => m.id !== CURRENT_MEETING_ID)
+            .map((m) => `<option value="${m.id}">${m.name}</option>`),
+        ].join("");
       }
 
       function getFilteredSegments() {
         const q = searchInput.value.trim().toLowerCase();
         const from = Number(fromSeq.value) || 1;
         const to = Number(toSeq.value) || 99999;
+        const source = meetingFilter.value || CURRENT_MEETING_ID;
 
-        return segments.filter((s) => {
+        return allSegments.filter((s) => {
           if (s.seq < from || s.seq > to) return false;
+          if (source !== "all" && s.meetingId !== source) return false;
           if (overlapOnly && s.overlapCount === 0) return false;
           if (q && !s.text.toLowerCase().includes(q)) return false;
           return true;
@@ -807,9 +1012,10 @@
         segmentList.innerHTML = current
           .map((s) => {
             const speaker = s.speaker ? `<span class=\"speaker\">${s.speaker}</span>` : "<span class=\"speaker\">Speaker unknown</span>";
-            const overlap = s.overlapCount > 0
-              ? `<span class=\"overlap\"><svg class=\"icon\" style=\"width:14px;height:14px\"><use href=\"#i-link\"/></svg>${s.overlapCount}</span>`
-              : "<span class=\"overlap\">-</span>";
+            const overlap =
+              s.overlapCount > 0
+                ? `<span class=\"overlap\"><svg class=\"icon\" style=\"width:14px;height:14px\"><use href=\"#i-link\"/></svg>${s.overlapCount}</span>`
+                : "<span class=\"overlap\">-</span>";
 
             return `
               <div class=\"segment-row ${s.selected ? "selected" : ""} ${s.suggested ? "suggested" : ""}\" data-seg-id=\"${s.id}\">
@@ -817,7 +1023,8 @@
                 <div>
                   <div class=\"seg-flags\">
                     ${speaker}
-                    ${s.suggested ? '<span class=\"flag\">AI</span>' : ''}
+                    <span class=\"flag\">${getMeetingName(s.meetingId)}</span>
+                    ${s.suggested ? '<span class=\"flag\">AI</span>' : ""}
                   </div>
                   <div class=\"segment-text\">${s.text}</div>
                 </div>
@@ -827,18 +1034,14 @@
           })
           .join("");
 
-        const selectedCount = segments.filter((s) => s.selected).length;
+        const selectedCount = allSegments.filter((s) => s.selected).length;
         pageLabel.textContent = `Page ${currentPage} / ${totalPages} (${filtered.length} shown, ${selectedCount} selected)`;
         prevPageBtn.disabled = currentPage === 1;
         nextPageBtn.disabled = currentPage === totalPages;
       }
 
-      function findSegmentById(id) {
-        return segments.find((s) => s.id === id);
-      }
-
       function setSegmentSelection(segId, value) {
-        const target = findSegmentById(segId);
+        const target = allSegments.find((s) => s.id === segId);
         if (!target || target.selected === value) return;
         target.selected = value;
 
@@ -851,88 +1054,240 @@
         const summary = summaryInput.value.trim().toLowerCase();
         const query = `${title} ${summary}`;
 
-        segments.forEach((s) => {
+        allSegments.forEach((s) => {
           s.suggested = false;
           s.selected = false;
         });
 
-        // Prototype heuristic for AI suggestion behavior.
         const anchor = query.includes("classification")
-          ? [148, 149, 150, 151, 152, 201]
+          ? [88, 89, 90, 91, 92, 124, 125]
           : query.includes("access")
-            ? [143, 144, 145, 146, 147, 154]
-            : [142, 143, 154, 155, 156, 157];
+            ? [93, 94, 95, 96, 97, 140, 141]
+            : [92, 93, 97, 98, 99, 132, 133];
 
         anchor.forEach((seq) => {
-          const seg = segments.find((s) => s.seq === seq);
+          const seg = allSegments.find((s) => s.seq === seq);
           if (!seg) return;
           seg.suggested = true;
           seg.selected = true;
         });
       }
 
-      function applyDragSelectionFromPoint(clientX, clientY) {
-        const el = document.elementFromPoint(clientX, clientY);
-        if (!el) return;
-        const row = el.closest(".segment-row");
-        if (!row) return;
+      function applyTemplateDraft(templateId) {
+        const templateValues = {
+          standard: {
+            decision_statement:
+              "Select S3 as the primary storage backend for secure file transfer, while explicitly separating this storage decision from later access-pattern and workflow-surface decisions. The team agreed that making the storage layer decision first reduces architectural ambiguity and gives a stable base for policy and operational controls.",
+            decision_context:
+              "This decision context has discussion from multiple meetings. The current meeting adds implementation constraints; prior meetings add classification and governance details. Current-meeting segments are prioritized during regeneration unless explicitly broadened.",
+            options:
+              "1) Direct S3 upload with constrained IAM credentials and strict bucket policies. 2) Self-hosted transfer node with internal storage lifecycle controls and externally issued retrieval links. 3) Proxy service writing to S3 as system of record.",
+            criteria:
+              "Core criteria are security controls, regional handling, audit evidence quality, and operational simplicity. Secondary criteria include onboarding friction and support overhead.",
+            risks:
+              "Key risks are policy drift, over-permissioning, and unclear control ownership between teams over time.",
+            next_steps:
+              "Confirm baseline controls, run pilot ingest path, and update linked context with results from the next meeting.",
+          },
+          technology: {
+            decision_statement:
+              "Adopt an S3-backed architecture as the default storage platform for secure transfer workflows, with explicit policy controls and auditability.",
+            decision_context:
+              "The technical review balanced control guarantees against maintenance cost and favored managed primitives over bespoke infrastructure.",
+            options:
+              "S3 direct upload, self-hosted transfer node, and hybrid proxy-to-S3 options were compared.",
+            criteria:
+              "Reliability for large transfers, cryptographic guarantees, policy expressiveness, and operating effort were primary criteria.",
+            risks:
+              "Lock-in and misconfiguration risk remain; automation for policy validation is needed.",
+            next_steps:
+              "Ship a reference architecture and run a pilot with representative sensitive data.",
+          },
+          policy: {
+            decision_statement:
+              "Require secure transfer for data meeting classification thresholds, with governed exceptions.",
+            decision_context:
+              "Policy consistency was prioritized to reduce ad hoc transfer-channel choices across teams.",
+            options:
+              "Universal secure path, classification-based routing, or staged rollout with controlled exceptions.",
+            criteria:
+              "Enforceability, audit defensibility, and practical adoption burden were primary criteria.",
+            risks:
+              "Risk of inconsistent interpretation and undocumented exceptions could erode policy confidence.",
+            next_steps:
+              "Publish classification examples and operating guidance; monitor exception frequency.",
+          },
+        };
 
-        const segId = row.dataset.segId;
-        if (!segId || touchedIds.has(segId)) return;
-        touchedIds.add(segId);
-        setSegmentSelection(segId, dragTargetValue);
+        const selected = templateValues[templateId] || templateValues.standard;
+        fieldDrafts.forEach((f) => {
+          if (!f.locked) f.value = selected[f.id] || "";
+        });
       }
 
-      document.querySelectorAll(".candidate-row").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          setActiveCandidate(btn);
+      function renderFields() {
+        fieldsScroll.innerHTML = fieldDrafts
+          .map(
+            (f) => `
+            <article class="field-row ${f.locked ? "field-locked" : ""}" data-field-id="${f.id}">
+              <div class="field-head">
+                <div class="field-name">${f.name}</div>
+                <div class="field-actions">
+                  <button class="mini-icon field-lock" title="Lock/unlock">
+                    <svg class="icon"><use href="${f.locked ? "#i-unlock" : "#i-lock"}"/></svg>
+                  </button>
+                  <button class="mini-icon field-regen" title="Regenerate">
+                    <svg class="icon"><use href="#i-refresh"/></svg>
+                  </button>
+                  <button class="mini-icon field-zoom" title="Zoom field">
+                    <svg class="icon"><use href="#i-zoom"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="field-value ${f.value ? "" : "empty"}">${f.value || "No value yet. Generate initial draft."}</div>
+            </article>
+          `,
+          )
+          .join("");
+      }
+
+      function refreshFocusButtons() {
+        const field = fieldDrafts.find((f) => f.id === activeFieldId);
+        if (!field) return;
+        focusLockBtn.classList.toggle("danger", field.locked);
+      }
+
+      function endDragSelection() {
+        if (!dragSelecting) return;
+        dragSelecting = false;
+        touchedIds.clear();
+        renderSegments();
+      }
+
+      function initialize() {
+        renderHeaderMeta();
+        renderContextOptions();
+        populateMeetingFilter();
+        renderAgenda();
+        renderFlags();
+        setSelectedFlag(selectedFlagId);
+        switchScreen("candidates");
+        renderFields();
+      }
+
+      flaggedList.addEventListener("click", (event) => {
+        const row = event.target.closest("[data-flag-id]");
+        if (!row) return;
+        setSelectedFlag(row.dataset.flagId);
+        renderFlags();
+      });
+
+      contextSearch.addEventListener("input", renderContextOptions);
+
+      linkContextBtn.addEventListener("click", () => {
+        const flag = getFlagById(selectedFlagId);
+        if (!flag || !contextSelect.value) return;
+        flag.linkedContextId = contextSelect.value;
+        const linked = getContextById(flag.linkedContextId);
+        linkedContextLabel.textContent = linked
+          ? `Linked context: ${linked.title} (${linked.id})`
+          : "No context linked yet.";
+        renderFlags();
+      });
+
+      addAgendaBtn.addEventListener("click", addLinkedContextToAgenda);
+
+      viewFlagsTopBtn.addEventListener("click", () => {
+        switchScreen("candidates");
+        flaggedCandidates.forEach((f) => {
+          f.isNew = false;
         });
+        renderHeaderMeta();
+        renderFlags();
       });
 
-      // Initial selection state.
-      const firstCandidateBtn = document.querySelector('.candidate-row[data-id="1"]');
-      if (firstCandidateBtn) setActiveCandidate(firstCandidateBtn);
+      stickyFlagsBtn.addEventListener("click", () => {
+        switchScreen("candidates");
+        flaggedCandidates.forEach((f) => {
+          f.isNew = false;
+        });
+        renderHeaderMeta();
+        renderFlags();
+      });
 
-      backBtn.addEventListener("click", () => switchScreen(candidateScreen));
-      segmentBtn.addEventListener("click", () => {
-        reviewMode = "manual";
-        currentPage = 1;
-        renderSegments();
-        switchScreen(segmentsScreen);
+      simulateFlagBtn.addEventListener("click", () => {
+        const newId = `flag-${flaggedCandidates.length + 1}`;
+        flaggedCandidates.unshift({
+          id: newId,
+          confidence: "mid",
+          title: `New streamed flag ${flaggedCandidates.length + 1}`,
+          summary: "Detected while live transcript stream continued during candidate review.",
+          sourceMeetingId: CURRENT_MEETING_ID,
+          isNew: true,
+          suggestedTemplate: "standard",
+          linkedContextId: "",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        });
+        selectedFlagId = newId;
+        renderHeaderMeta();
+        renderFlags();
+        setSelectedFlag(selectedFlagId);
       });
-      aiSuggestBtn.addEventListener("click", () => {
-        reviewMode = "ai";
-        runAiSuggestion();
-        currentPage = 1;
-        renderSegments();
-        switchScreen(segmentsScreen);
+
+      openManualCreateBtn.addEventListener("click", () => {
+        returnScreen = "create";
+        titleInput.value = candidateTitleInput.value;
+        summaryInput.value = candidateSummaryInput.value;
+        switchScreen("create");
       });
-      segmentsBackBtn.addEventListener("click", () => switchScreen(createScreen));
-      saveSegmentsBtn.addEventListener("click", () => switchScreen(createScreen));
+
       generateFromCandidateBtn.addEventListener("click", () => {
         titleInput.value = candidateTitleInput.value;
         summaryInput.value = candidateSummaryInput.value;
         templateSelect.value = candidateTemplateSelect.value;
         applyTemplateDraft(templateSelect.value);
         renderFields();
-        switchScreen(workspaceScreen);
+        switchScreen("workspace");
       });
-      openManualCreateBtn.addEventListener("click", () => {
-        titleInput.value = candidateTitleInput.value;
-        summaryInput.value = candidateSummaryInput.value;
-        switchScreen(createScreen);
+
+      backBtn.addEventListener("click", () => switchScreen("candidates"));
+
+      aiSuggestBtn.addEventListener("click", () => {
+        returnScreen = "create";
+        runAiSuggestion();
+        currentPage = 1;
+        renderSegments();
+        switchScreen("segments");
       });
+
+      segmentBtn.addEventListener("click", () => {
+        returnScreen = "create";
+        currentPage = 1;
+        renderSegments();
+        switchScreen("segments");
+      });
+
       promoteBtn.addEventListener("click", () => {
+        applyTemplateDraft(templateSelect.value);
         renderFields();
-        switchScreen(workspaceScreen);
+        switchScreen("workspace");
       });
-      workspaceBackBtn.addEventListener("click", () => switchScreen(createScreen));
+
+      workspaceBackBtn.addEventListener("click", () => switchScreen("create"));
+
+      workspaceOpenSegmentsBtn.addEventListener("click", () => {
+        returnScreen = "workspace";
+        currentPage = 1;
+        renderSegments();
+        switchScreen("segments");
+      });
+
       generateDraftBtn.addEventListener("click", () => {
         applyTemplateDraft(templateSelect.value);
         renderFields();
       });
 
-      [searchInput, fromSeq, toSeq].forEach((el) => {
+      [searchInput, meetingFilter, fromSeq, toSeq].forEach((el) => {
         el.addEventListener("input", () => {
           currentPage = 1;
           renderSegments();
@@ -956,12 +1311,15 @@
         renderSegments();
       });
 
+      segmentsBackBtn.addEventListener("click", () => switchScreen(returnScreen));
+      saveSegmentsBtn.addEventListener("click", () => switchScreen(returnScreen));
+
       segmentList.addEventListener("pointerdown", (event) => {
         const row = event.target.closest(".segment-row");
         if (!row) return;
 
         const segId = row.dataset.segId;
-        const target = segId ? findSegmentById(segId) : null;
+        const target = segId ? allSegments.find((s) => s.id === segId) : null;
         if (!target) return;
 
         dragSelecting = true;
@@ -976,18 +1334,16 @@
 
       segmentList.addEventListener("pointermove", (event) => {
         if (!dragSelecting) return;
-        applyDragSelectionFromPoint(event.clientX, event.clientY);
-      });
+        const el = document.elementFromPoint(event.clientX, event.clientY);
+        if (!el) return;
+        const row = el.closest(".segment-row");
+        if (!row) return;
 
-      function endDragSelection() {
-        if (!dragSelecting) return;
-        dragSelecting = false;
-        touchedIds.clear();
-        const filtered = getFilteredSegments();
-        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-        const selectedCount = segments.filter((s) => s.selected).length;
-        pageLabel.textContent = `Page ${currentPage} / ${totalPages} (${filtered.length} shown, ${selectedCount} selected)`;
-      }
+        const segId = row.dataset.segId;
+        if (!segId || touchedIds.has(segId)) return;
+        touchedIds.add(segId);
+        setSegmentSelection(segId, dragTargetValue);
+      });
 
       segmentList.addEventListener("pointerup", endDragSelection);
       segmentList.addEventListener("pointercancel", endDragSelection);
@@ -995,8 +1351,7 @@
       fieldsScroll.addEventListener("click", (event) => {
         const row = event.target.closest(".field-row");
         if (!row) return;
-        const fieldId = row.dataset.fieldId;
-        const field = getFieldById(fieldId);
+        const field = fieldDrafts.find((f) => f.id === row.dataset.fieldId);
         if (!field) return;
 
         if (event.target.closest(".field-lock")) {
@@ -1017,36 +1372,38 @@
           focusFieldName.value = field.name;
           focusFieldValue.value = field.value;
           refreshFocusButtons();
-          switchScreen(focusScreen);
+          switchScreen("focus");
         }
       });
 
       focusBackBtn.addEventListener("click", () => {
         renderFields();
-        switchScreen(workspaceScreen);
+        switchScreen("workspace");
       });
 
       focusLockBtn.addEventListener("click", () => {
-        const field = getFieldById(activeFieldId);
+        const field = fieldDrafts.find((f) => f.id === activeFieldId);
         if (!field) return;
         field.locked = !field.locked;
         refreshFocusButtons();
       });
 
       focusRegenBtn.addEventListener("click", () => {
-        const field = getFieldById(activeFieldId);
+        const field = fieldDrafts.find((f) => f.id === activeFieldId);
         if (!field || field.locked) return;
         field.value = `${field.name} regenerated at ${new Date().toLocaleTimeString()}.`;
         focusFieldValue.value = field.value;
       });
 
       focusSaveBtn.addEventListener("click", () => {
-        const field = getFieldById(activeFieldId);
+        const field = fieldDrafts.find((f) => f.id === activeFieldId);
         if (!field) return;
         field.value = focusFieldValue.value;
         renderFields();
-        switchScreen(workspaceScreen);
+        switchScreen("workspace");
       });
+
+      initialize();
     </script>
   </body>
 </html>

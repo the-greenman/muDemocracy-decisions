@@ -10,10 +10,16 @@ import type {
 } from '@repo/schema';
 import type { TemplateFieldAssignmentInsert } from '@repo/db';
 
+export type DecisionTemplateIdentityLookup = {
+  name: string;
+  version?: number;
+};
+
 export interface IDecisionTemplateRepository {
   // Basic CRUD operations
   create(data: CreateDecisionTemplate): Promise<DecisionTemplate>;
   findById(id: string): Promise<DecisionTemplate | null>;
+  findByIdentity(identity: DecisionTemplateIdentityLookup): Promise<DecisionTemplate | null>;
   findAll(): Promise<DecisionTemplate[]>;
   findDefault(): Promise<DecisionTemplate | null>;
   setDefault(id: string): Promise<DecisionTemplate>;

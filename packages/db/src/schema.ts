@@ -251,6 +251,7 @@ export const decisionContexts = pgTable('decision_contexts', {
   activeField: uuid('active_field').references(() => decisionFields.id),
   lockedFields: text('locked_fields').array().notNull(),
   draftData: jsonb('draft_data'),
+  draftVersions: jsonb('draft_versions').notNull().default([]).$type<Array<{ version: number; draftData: Record<string, unknown>; savedAt: string }>>(),
   status: decisionContextStatusEnum('status').notNull().default('drafting'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
