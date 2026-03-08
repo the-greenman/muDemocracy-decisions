@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_API_PORT="${COMPOSE_API_PORT:-3001}"
 API_URL="http://localhost:${COMPOSE_API_PORT}"
+TEST_DATABASE_URL="postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test"
 
 cd "$ROOT_DIR"
 
@@ -16,7 +17,8 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 
-pnpm db:push
+pnpm db:migrate
+DATABASE_URL="$TEST_DATABASE_URL" pnpm db:migrate
 
 docker compose up --build -d api
 

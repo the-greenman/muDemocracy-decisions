@@ -34,6 +34,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     // Create test decision fields
     for (let i = 0; i < 10; i++) {
       const field = await fieldRepo.create({
+        namespace: 'core',
         name: `Test Field ${i + 1}`,
         description: `Test field number ${i + 1}`,
         category: 'context',
@@ -67,6 +68,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       }
       
       const templateData: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template for integration testing',
         category: 'standard',
@@ -75,7 +77,6 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
             fieldId: fieldId1!,
             order: 0,
             required: true,
-            customLabel: 'Custom Field 1',
           },
           {
             fieldId: fieldId2!,
@@ -94,13 +95,13 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       expect(result.category).toBe(templateData.category);
       expect(result.fields).toHaveLength(2);
       expect(result.fields[0]?.fieldId).toBe(fieldId1);
-      expect(result.fields[0]?.customLabel || undefined).toBe('Custom Field 1');
       expect(result.fields[1]?.fieldId).toBe(fieldId2);
     });
 
     it('should retrieve a template by ID', async () => {
       // Create a template first
       const created = await service.createTemplate({
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'technology',
@@ -121,6 +122,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       const fieldId2 = testFieldIds[1];
       
       const created = await service.createTemplate({
+        namespace: 'core',
         name: 'Original Template',
         description: 'Original description',
         category: 'standard',
@@ -162,6 +164,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     it('should set and get default template', async () => {
       // Create two templates
       const template1 = await service.createTemplate({
+        namespace: 'core',
         name: 'Template 1',
         description: 'First template',
         category: 'standard',
@@ -169,6 +172,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       const template2 = await service.createTemplate({
+        namespace: 'core',
         name: 'Template 2',
         description: 'Second template',
         category: 'technology',
@@ -195,6 +199,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       
       // Create a template with fields
       const created = await service.createTemplate({
+        namespace: 'core',
         name: 'Template to Delete',
         description: 'Will be deleted',
         category: 'standard',
@@ -227,6 +232,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     it('should prevent deletion of default template', async () => {
       // Create and set as default
       const template = await service.createTemplate({
+        namespace: 'core',
         name: 'Default Template',
         description: 'Cannot be deleted',
         category: 'standard',
@@ -248,6 +254,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       
       // Create template without fields
       const template = await service.createTemplate({
+        namespace: 'core',
         name: 'Template',
         description: 'Test template',
         category: 'standard',
@@ -259,11 +266,9 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
         fieldId: fieldId1!,
         order: 0,
         required: true,
-        customLabel: 'New Field',
       });
 
       expect(fieldAssignment.fieldId).toBe(fieldId1);
-      expect(fieldAssignment.customLabel || undefined).toBe('New Field');
 
       // Verify it's in the template
       const updatedTemplate = await service.getTemplate(template.id);
@@ -275,6 +280,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       
       // Create template with field
       const template = await service.createTemplate({
+        namespace: 'core',
         name: 'Template',
         description: 'Test template',
         category: 'standard',
@@ -303,6 +309,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       
       // Create template with multiple fields
       const template = await service.createTemplate({
+        namespace: 'core',
         name: 'Template',
         description: 'Test template',
         category: 'standard',
@@ -335,9 +342,12 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       // Verify new order
       const updatedTemplate = await service.getTemplate(template.id);
       const fields = updatedTemplate!.fields.sort((a, b) => a.order - b.order);
-      expect(fields[0].fieldId).toBe(fieldId2);
-      expect(fields[1].fieldId).toBe(fieldId3);
-      expect(fields[2].fieldId).toBe(fieldId1);
+      expect(fields[0]).toBeDefined();
+      expect(fields[1]).toBeDefined();
+      expect(fields[2]).toBeDefined();
+      expect(fields[0]!.fieldId).toBe(fieldId2);
+      expect(fields[1]!.fieldId).toBe(fieldId3);
+      expect(fields[2]!.fieldId).toBe(fieldId1);
     });
   });
 
@@ -345,6 +355,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     it('should get templates by category', async () => {
       // Create templates in different categories
       await service.createTemplate({
+        namespace: 'core',
         name: 'Tech Template 1',
         description: 'First tech template',
         category: 'technology',
@@ -352,6 +363,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       await service.createTemplate({
+        namespace: 'core',
         name: 'Tech Template 2',
         description: 'Second tech template',
         category: 'technology',
@@ -359,6 +371,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       await service.createTemplate({
+        namespace: 'core',
         name: 'Standard Template',
         description: 'A standard template',
         category: 'standard',
@@ -378,6 +391,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     it('should search templates by name', async () => {
       // Create templates
       await service.createTemplate({
+        namespace: 'core',
         name: 'Technology Decision Template',
         description: 'For tech decisions',
         category: 'technology',
@@ -385,6 +399,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       await service.createTemplate({
+        namespace: 'core',
         name: 'Strategic Template',
         description: 'For strategy',
         category: 'strategy',
@@ -403,6 +418,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     it('should get all unique categories', async () => {
       // Create templates in various categories
       await service.createTemplate({
+        namespace: 'core',
         name: 'Template 1',
         description: 'Tech template',
         category: 'technology',
@@ -410,6 +426,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       await service.createTemplate({
+        namespace: 'core',
         name: 'Template 2',
         description: 'Another tech template',
         category: 'technology',
@@ -417,6 +434,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       await service.createTemplate({
+        namespace: 'core',
         name: 'Template 3',
         description: 'Standard template',
         category: 'standard',
@@ -424,6 +442,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       await service.createTemplate({
+        namespace: 'core',
         name: 'Template 4',
         description: 'Strategy template',
         category: 'strategy',
@@ -443,6 +462,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       const fieldId3 = testFieldIds[2];
       
       const templateData: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Complex Template',
         description: 'Template with many fields',
         category: 'standard',
@@ -481,6 +501,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       // Empty name
       await expect(
         service.createTemplate({
+          namespace: 'core',
           name: '',
           description: 'Invalid template',
           category: 'standard',
@@ -491,6 +512,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       // Invalid category
       await expect(
         service.createTemplate({
+          namespace: 'core',
           name: 'Invalid Template',
           description: 'Has invalid category',
           category: 'invalid' as any,
@@ -504,6 +526,7 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       
       await expect(
         service.createTemplate({
+          namespace: 'core',
           name: 'Bad Order Template',
           description: 'Fields not sequential',
           category: 'standard',

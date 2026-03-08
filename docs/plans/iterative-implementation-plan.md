@@ -959,7 +959,10 @@ decision log --type <consensus|vote|authority|defer|reject|manual|ai_assisted> \
 - Core and DB now expose authoritative field/template identity lookup by stable attributes
 - Field-specific CLI/API callers now use shared identity-aware resolution rather than ad hoc name scans
 - Field-specific API routes now accept stable field references while continuing to validate active-template assignment
-- Template namespace hardening and template identity lookup parity still need to be completed.
+- Template namespace hardening is now implemented across schema, repositories, seeds, and API/CLI-facing fixtures.
+- Template identity lookup now supports stable identity attributes (`namespace`, `name`, `version`) alongside UUID-based reads.
+- `templateFieldAssignments.customLabel` / `customDescription` have been removed so template assignments only express composition metadata.
+- Remaining follow-up: add explicit parity tests that exercise both UUID and stable-identity resolution paths for templates/fields.
 
 **Impact of versioning review**:
 - This recent field work remains valid and should be treated as foundational contract hardening for the long-term field-version model
@@ -967,11 +970,11 @@ decision log --type <consensus|vote|authority|defer|reject|manual|ai_assisted> \
 - Template transform behavior is still snapshot-shaped and must later align with field visibility semantics from `docs/versioning-architecture.md`
 
 **Concrete tasks for M4.7a**:
-- Add `namespace` and `(namespace, name, version)` uniqueness to `decision_templates`.
-- Extend template repository and identity lookup helpers to resolve templates by stable identity attributes as well as UUID.
-- Remove `templateFieldAssignments.customLabel` and `customDescription` from schema, services, repositories, seeds, and tests.
-- Update canonical template registry data so template assignments only express composition metadata.
-- Add parity tests for field/template identity lookup using UUID and stable identity attributes.
+- Done: add `namespace` and `(namespace, name, version)` uniqueness to `decision_templates`.
+- Done: extend template repository and identity lookup helpers to resolve templates by stable identity attributes as well as UUID.
+- Done: remove `templateFieldAssignments.customLabel` and `customDescription` from schema, services, repositories, seeds, and tests.
+- Done: update canonical template registry data so template assignments only express composition metadata.
+- Remaining: add parity tests for field/template identity lookup using UUID and stable identity attributes.
 
 ---
 
@@ -1106,6 +1109,173 @@ Add the architectural seam for decisions that are prepared over time, not only i
 - Can one context be resumed in a later meeting without cloning field history?
 - Can off-meeting edits occur without fabricating meeting ownership?
 - Can finalization explicitly identify the meeting/event and participant set for the actual decision moment?
+
+---
+
+### M4.10 — Decision Tagging and Cross-References (Foundation)
+
+**Goal**: Give decisions and decision contexts lightweight metadata — tags for topics, teams, committees, and projects — and allow them to reference each other. The initial design must be simple enough to ship now but structured so it can evolve toward a full graph model without a breaking migration.
+
+#### Guiding principle
+
+Avoid a generic graph from the start. A tag table + a typed relation table is sufficient for M4. The schema choices below are designed so that a future graph layer can be placed on top without discarding the existing rows.
+
+---
+
+#### Tagging model
+
+Tags are named, categorised labels that can be attached to both `DecisionContext` and `DecisionLog` records.
+
+**Tag categories (initial)**:
+- `topic` — subject matter (e.g., "infrastructure", "hiring", "security")
+- `team` — team or committee owning or affected by the decision
+- `project` — associated project or initiative
+
+A tag is a first-class entity so it can be renamed, merged, and eventually queried across decisions. Free-text string arrays on the decision rows are explicitly rejected because they cannot be renamed, merged, or traversed efficiently.
+
+**DB schema additions** (`packages/db/src/schema.ts`):
+
+```sql
+-- Canonical tag definitions
+tags (
+  id          uuid PK,
+  namespace   text NOT NULL DEFAULT 'core',
+  name        text NOT NULL,
+  category    tag_category_enum NOT NULL,  -- topic | team | project
+  createdAt   timestamptz
+)
+UNIQUE (namespace, name)
+
+-- Many-to-many: tags on decision contexts (drafts in progress)
+decision_context_tags (
+  contextId   uuid FK → decision_contexts.id,
+  tagId       uuid FK → tags.id,
+  PRIMARY KEY (contextId, tagId)
+)
+
+-- Many-to-many: tags on decision logs (immutable finalized records)
+decision_log_tags (
+  logId       uuid FK → decision_logs.id,
+  tagId       uuid FK → tags.id,
+  PRIMARY KEY (logId, tagId)
+)
+```
+
+Tags on a `DecisionLog` are a snapshot taken at finalization from the context's tag set. They do not update after logging.
+
+**Services**:
+- `TagService` in `packages/core/src/services/tag-service.ts`
+  - `createTag(name, category)` — idempotent by `(namespace, name)`
+  - `addTagToContext(contextId, tagId)`
+  - `removeTagFromContext(contextId, tagId)`
+  - `getTagsForContext(contextId)`
+  - `getTagsForLog(logId)`
+  - `listTags(filter?: { category })` — for autocomplete
+
+Tags are snapshotted onto `DecisionLog` automatically during `DecisionLogService.logDecision`.
+
+**API route file**: `apps/api/src/routes/tags.ts` (new file, registered in `apps/api/src/index.ts`)
+
+**API endpoints**:
+- `GET /api/tags` — list all tags, filterable by `?category=team|topic|project`
+- `POST /api/tags` — body: `{ name, category }` — idempotent create by `(namespace, name)`
+- `GET /api/decision-contexts/:id/tags` — list tags on context
+- `POST /api/decision-contexts/:id/tags` — body: `{ name, category? }` — resolve-or-create tag by name and associate; `category` required only when creating a new tag
+- `DELETE /api/decision-contexts/:id/tags/:tagId` — remove tag from context
+- `GET /api/decisions/:id/tags` — list tags on a logged decision (read-only after finalization)
+
+**CLI commands**:
+
+Top-level `tag` command group (`apps/cli/src/commands/tag.ts`, registered in entry point) for managing the tag library:
+```
+tag list [--category topic|team|project]          — list all tags
+tag create <name> --category <category>           — create a tag
+```
+
+`context tag` nested sub-group on the existing `contextCommand` (operates on the **active** context from `GlobalContextService`, no ID arg required — consistent with `context set-field`):
+```
+context tag add <name> [--category topic|team|project]   — resolve-or-create tag by name and attach to active context
+context tag remove <name>                                 — detach tag from active context by name
+context tag list                                          — list tags on active context
+```
+
+---
+
+#### Cross-reference model
+
+Decisions and contexts sometimes depend on, supersede, or block each other. A typed relation table captures this without requiring a full graph library.
+
+**Initial relation types**:
+- `supersedes` — this decision replaces a prior one
+- `depends_on` — this decision requires another to be logged first
+- `related_to` — informational link, no ordering implied
+- `blocks` — this context must be resolved before another can proceed
+
+**DB schema additions**:
+
+```sql
+-- Typed edges between decisions/contexts
+decision_relations (
+  id            uuid PK,
+  fromType      relation_node_type_enum NOT NULL,  -- decision_context | decision_log
+  fromId        uuid NOT NULL,
+  relationType  decision_relation_type_enum NOT NULL,
+  toType        relation_node_type_enum NOT NULL,
+  toId          uuid NOT NULL,
+  createdAt     timestamptz,
+  createdBy     text
+)
+INDEX on (fromType, fromId)
+INDEX on (toType, toId)
+```
+
+`fromType`/`toType` allow edges between any combination of contexts and logs. This is intentionally the same shape as a generic property graph edge table — a future graph layer can read these rows directly.
+
+**Services**:
+- `DecisionRelationService` in `packages/core/src/services/decision-relation-service.ts`
+  - `addRelation(from, relationType, to, createdBy)` — rejects self-links and duplicate directed edges
+  - `removeRelation(id)`
+  - `getRelationsFrom(nodeType, nodeId)` — outgoing edges
+  - `getRelationsTo(nodeType, nodeId)` — incoming edges
+
+**API route file**: `apps/api/src/routes/decision-relations.ts` (new file, registered in `apps/api/src/index.ts`)
+
+**API endpoints**:
+- `POST /api/decision-relations` — body: `{ fromType, fromId, relationType, toType, toId, createdBy? }`
+- `DELETE /api/decision-relations/:id`
+- `GET /api/decision-contexts/:id/relations` — both outgoing and incoming edges for this context
+- `GET /api/decisions/:id/relations` — both outgoing and incoming edges for this logged decision
+
+**CLI commands**:
+
+`context relation` nested sub-group on the existing `contextCommand` (operates on the **active** context, consistent with other `context` sub-commands):
+```
+context relation add <relationType> <toId> [--to-type context|decision] [--by <user>]
+                                                  — add a relation from active context to another node
+context relation remove <relationId>              — remove a relation by ID
+context relation list                             — list all relations on active context
+```
+
+`decision relation` nested sub-group on the existing `decisionCommand` (mirrors the existing `decision context` nested group pattern, operates by explicit ID):
+```
+decision relation add <fromId> <relationType> <toId> [--from-type context|decision] [--to-type context|decision] [--by <user>]
+decision relation remove <relationId>
+decision relation list <id> [--node-type context|decision]
+```
+
+The `--to-type` / `--from-type` flags default to `decision` (a logged decision) when omitted, since the most common use case is linking two finalized decisions.
+
+---
+
+#### Graph evolution path
+
+The initial schema is graph-compatible by design:
+- `tags` → future: tag hierarchy (`parentId`), tag merges, upstream-tracked tag packages
+- `decision_relations` → future: weighted edges, traversal queries, cycle detection, visualisation
+- No graph library or query language is required now; standard SQL is sufficient for M4 filtering and display
+- When a graph query layer is added (e.g., Apache AGE, or an application-layer BFS), it can consume the existing `decision_relations` rows directly
+
+**Do not** add graph traversal, cycle detection, or weighted edges in M4. Add those only when a concrete feature requires them.
 
 ---
 
@@ -1438,43 +1608,79 @@ pnpm cli meeting list  # "Cannot connect to API at http://localhost:3000"
 
 ### M5.5 — Web Frontend
 
-**New**: `apps/web/` in monorepo (React + Vite, or Hono + htmx for minimal JS)
-**UX reference**: `docs/ui-ux-overview.md` is the maintainable source for page goals, user stories, and shared-display vs facilitator-mode boundaries.
+**Full reference**: `docs/web-ui-plan.md` — authoritative design spec with user stories, route architecture, API dependency map, and phased build order. The summary below is an index.
 
-Key screens:
-1. **Meeting list** — create/open meetings
-2. **Transcript view** — upload, stream, and read transcript in **reading mode** by default (non-overlap); optional chunk/debug mode
-3. **Decision detection** — review auto-detected decisions, accept/dismiss/flag
-4. **Draft editor** — field-by-field view with lock toggles, regenerate buttons, manual edit
-5. **Expert consultation** — request advice from experts, view suggestions
-6. **Decision log** — view finalized decisions, export markdown/JSON
+**Technology**: React + Vite + TypeScript, Tailwind CSS, React Router v6 — `apps/web/` package (`@repo/web`)
 
-**Decision creation UX requirements**:
-- Candidate overview hides transcript by default.
-- Create decision screen supports:
-  - title/summary input
-  - manual segment selection path
-  - AI suggestion path (`Find matching segments`) with mandatory human review
-- Candidate promotion flow chooses template before initial draft generation; detector-suggested template may be preselected.
-- Segment selection screen supports drag selection (mouse/touch), long-meeting paging/filtering, and optional overlap indicators.
-- Manual and AI-assisted selection persist user-visible reading-row references together with resolved chunk IDs for auditability.
-- Shared display mode remains uncluttered and projection-friendly by default.
-- Detailed operational controls that add visual noise should be planned for facilitator mode rather than the shared display path.
+**UX reference**: `docs/ui-ux-overview.md` — page goals, shared-display vs facilitator-mode rules, maintenance guidelines
 
-**Decision workspace behavior requirements**:
-- Full decision is scrollable with per-field lock/unlock and regenerate controls.
-- Field zoom view supports edit/regenerate and field-version navigation.
-- Versioning is field-centric; template changes move unlocked fields in/out of active template view.
-- Field content is preserved when switching templates; non-template fields become hidden (not deleted) and are excluded from export.
-- Transcript added in decision/field context is explicitly tagged and recency-weighted for later manual regeneration.
-- Completion captures free-text agreement notes plus timestamp; incomplete decisions remain resumable.
+#### Mode split: separate routes
 
-Real-time: SSE or WebSocket for streaming LLM draft generation (show progress per field as it generates).
+Shared display and facilitator controls are separate routes (not a toggle). Primary target is a dual-screen setup: group watches `/meetings/:id` on the room projector; facilitator controls `/meetings/:id/facilitator` on their laptop.
+
+Simplicity invariants enforced by structure:
+- Shared display components have zero mutation event handlers
+- No UUIDs in the shared display DOM
+- Facilitator-only components in `src/components/facilitator/` (import boundary)
+- Tags and status use colours/icons on shared screen — no raw enum strings
+
+#### Route inventory
+
+| Route | Audience | Screen |
+|---|---|---|
+| `/` | Facilitator | Meeting list — create/open |
+| `/meetings/:id` | **Projected to group** | Shared display — agenda + active workspace (read-only) |
+| `/meetings/:id/facilitator` | Facilitator device | Full controls — candidates, generate, lock, edit, finalise |
+| `/meetings/:id/facilitator/transcript` | Facilitator | Segment selection in reading mode |
+| `/decisions/:id` | Both | Logged decision — projectable, read-only, export |
+
+#### Screen summary
+
+**Shared meeting display** (`/meetings/:id`): agenda always visible; active decision fields in large high-contrast text; locked fields with muted background (no `[LOCKED]` label); tags as coloured pills; per-field spinner during generation; zero action buttons. Polls or subscribes SSE to reflect facilitator actions within a few seconds.
+
+**Facilitator view** (`/meetings/:id/facilitator`): candidate queue (`Suggested` / `Agenda` tabs), candidate promotion with template picker, per-field lock/unlock/regenerate/zoom/guidance, LLM log panel, field version history, finalise flow. All controls visible; the group never sees this route.
+
+**Segment selection** (`/meetings/:id/facilitator/transcript`): reading-mode projection (no overlap text), text search + range filter, drag-to-select rows, AI suggestion pre-selection (mandatory human review before confirm), confirms persist reading-row IDs + chunk IDs.
+
+**Logged decision** (`/decisions/:id`): complete field rendering, decision method and actors, tags, related decisions, export buttons.
+
+#### API gaps to fill before each phase
+
+| Endpoint | Blocks | Milestone |
+|---|---|---|
+| `GET /api/meetings/:id/decision-contexts` | Shared display agenda | M5.1 |
+| `GET /api/decision-contexts/:id` | Shared display workspace | M5.1 |
+| `GET /api/meetings/:id/summary` | Meeting header stats | M5.1 |
+| `GET /api/meetings/:id/flagged-decisions` | Facilitator candidate queue | M5.1 |
+| `PATCH /api/meetings/:id` | Participant updates | M5.1 |
+| `POST /api/decision-contexts/:id/regenerate` | Full regen (all unlocked) | M5.1 |
+| `GET /api/meetings/:id/transcript-reading` | Segment selection | M5.1a |
+| `POST /api/meetings/:id/segment-suggestions` | AI segment assist | M5.1b |
+| Tag + relation endpoints | Tag pills, related decisions | M4.10 |
+
+#### Phased build order
+
+- **Phase 0** — App scaffolding: `apps/web/` package, Vite + React + Tailwind, typed API client, router
+- **Phase 1** — Shared display: meeting list, shared meeting view, logged decision view. Fill M5.1 list/get gaps first.
+- **Phase 2** — Facilitator view: candidate queue, promote, generate, lock, edit, finalise. Fill M5.1 write gaps first.
+- **Phase 3** — Segment selection: reading mode, drag-select, AI suggestions, confirm. Fill M5.1a/b first.
+- **Phase 4** — Streaming: SSE per-field progress on shared + facilitator views
+- **Phase 5** — Tags and relations: inline management and display (after M4.10 API ready)
+
+#### Behavioral requirements (preserved)
+
+- Candidate promotion requires template selection before initial draft generation; detector-suggested template may be preselected
+- Segment selection persists reading-row IDs together with resolved chunk IDs for auditability
+- Manual and AI-assisted selections both require explicit user confirmation before persistence
+- Field zoom supports edit, regenerate, and field-version navigation
+- Field content preserved when switching templates; non-template fields hidden (not deleted), excluded from export
+- Completion captures decision method, actors, logged-by, and timestamp; incomplete decisions remain resumable
+- Real-time draft generation via SSE (show per-field progress, not raw token stream)
 
 **Preserved export planning notes**:
-- Export targets may grow beyond markdown/json to include HTML, PDF, CSV, DOCX, and plain text.
-- Batch export, export templates, and format-specific rendering options are valid future design directions, but should remain planning concerns until canonical API/schema support exists.
-- Export rendering must continue to reflect finalized decision-log authority participants rather than broader contributor history.
+- Export targets may grow beyond markdown/json to include HTML, PDF, CSV, DOCX, and plain text
+- Batch export and format-specific rendering options remain future concerns until canonical API/schema support exists
+- Export rendering must reflect finalized decision-log authority participants, not broader contributor history
 
 ---
 

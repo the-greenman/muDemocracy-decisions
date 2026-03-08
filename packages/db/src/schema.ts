@@ -178,6 +178,7 @@ export type DecisionFieldInsert = typeof decisionFields.$inferInsert;
 
 export const decisionTemplates = pgTable('decision_templates', {
   id: uuid('id').primaryKey().defaultRandom(),
+  namespace: text('namespace').notNull().default('core'),
   name: text('name').notNull(),
   description: text('description').notNull(),
   category: templateCategoryEnum('category').notNull(),
@@ -186,7 +187,9 @@ export const decisionTemplates = pgTable('decision_templates', {
   isCustom: boolean('is_custom').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
+  namespaceIdx: index('idx_decision_templates_namespace').on(table.namespace),
   categoryIdx: index('idx_decision_templates_category').on(table.category),
+  namespaceNameVersionUq: uniqueIndex('uq_decision_templates_namespace_name_version').on(table.namespace, table.name, table.version),
 }));
 
 export type DecisionTemplateSelect = typeof decisionTemplates.$inferSelect;
@@ -202,8 +205,6 @@ export const templateFieldAssignments = pgTable('template_field_assignments', {
   fieldId: uuid('field_id').notNull().references(() => decisionFields.id),
   order: integer('order').notNull(),
   required: boolean('required').notNull().default(true),
-  customLabel: text('custom_label'),
-  customDescription: text('custom_description'),
 }, (table) => ({
   templateIdx: index('idx_template_assignments_template').on(table.templateId),
   fieldIdx: index('idx_template_assignments_field').on(table.fieldId),

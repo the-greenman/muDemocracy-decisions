@@ -2,7 +2,7 @@
  * Unit Tests for Decision Template Service
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mocked } from 'vitest';
 import { DecisionTemplateService } from '../services/decision-template-service';
 import type {
   IDecisionTemplateRepository,
@@ -15,8 +15,8 @@ import type {
 
 describe('DecisionTemplateService', () => {
   let service: DecisionTemplateService;
-  let mockTemplateRepo: vi.Mocked<IDecisionTemplateRepository>;
-  let mockFieldAssignmentRepo: vi.Mocked<ITemplateFieldAssignmentRepository>;
+  let mockTemplateRepo: Mocked<IDecisionTemplateRepository>;
+  let mockFieldAssignmentRepo: Mocked<ITemplateFieldAssignmentRepository>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,6 +53,7 @@ describe('DecisionTemplateService', () => {
   describe('createTemplate', () => {
     it('should create a template without fields', async () => {
       const data: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -88,6 +89,7 @@ describe('DecisionTemplateService', () => {
       ];
 
       const data: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -96,6 +98,7 @@ describe('DecisionTemplateService', () => {
 
       const createdTemplate: DecisionTemplate = {
         id: 'tpl-123',
+        namespace: 'core',
         name: data.name,
         description: data.description,
         category: data.category,
@@ -125,6 +128,7 @@ describe('DecisionTemplateService', () => {
 
       expect(result).toEqual(templateWithFields);
       expect(mockTemplateRepo.create).toHaveBeenCalledWith({
+        namespace: data.namespace,
         name: data.name,
         description: data.description,
         category: data.category,
@@ -134,14 +138,13 @@ describe('DecisionTemplateService', () => {
         fields.map(f => ({
           ...f,
           templateId: 'tpl-123',
-          customLabel: f.customLabel ?? null,
-          customDescription: f.customDescription ?? null,
         }))
       );
     });
 
     it('should throw error for invalid template definition', async () => {
       const data: CreateDecisionTemplate = {
+        namespace: 'core',
         name: '',
         description: 'A test template',
         category: 'standard',
@@ -154,6 +157,7 @@ describe('DecisionTemplateService', () => {
 
     it('should throw error for invalid category', async () => {
       const data: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'invalid' as any,
@@ -170,6 +174,7 @@ describe('DecisionTemplateService', () => {
       const templateId = 'tpl-123';
       const expectedTemplate: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -199,9 +204,10 @@ describe('DecisionTemplateService', () => {
 
   describe('getTemplateByIdentity', () => {
     it('should return a template by stable identity', async () => {
-      const identity = { name: 'Standard Decision', version: 1 };
+      const identity = { namespace: 'core', name: 'Standard Decision', version: 1 };
       const expectedTemplate: DecisionTemplate = {
         id: 'tpl-123',
+        namespace: 'core',
         name: 'Standard Decision',
         description: 'A test template',
         category: 'standard',
@@ -221,7 +227,7 @@ describe('DecisionTemplateService', () => {
     });
 
     it('should return null when template identity is not found', async () => {
-      const identity = { name: 'Missing Template' };
+      const identity = { namespace: 'core', name: 'Missing Template' };
 
       mockTemplateRepo.findByIdentity.mockResolvedValue(null);
 
@@ -237,6 +243,7 @@ describe('DecisionTemplateService', () => {
       const expectedTemplates: DecisionTemplate[] = [
         {
           id: 'tpl-1',
+          namespace: 'core',
           name: 'Template 1',
           description: 'First template',
           category: 'standard',
@@ -248,6 +255,7 @@ describe('DecisionTemplateService', () => {
         },
         {
           id: 'tpl-2',
+          namespace: 'core',
           name: 'Template 2',
           description: 'Second template',
           category: 'technology',
@@ -273,6 +281,7 @@ describe('DecisionTemplateService', () => {
       const templateId = 'tpl-123';
       const template: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -316,6 +325,7 @@ describe('DecisionTemplateService', () => {
 
       const existingTemplate: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -368,6 +378,7 @@ describe('DecisionTemplateService', () => {
 
       const existingTemplate: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -404,8 +415,6 @@ describe('DecisionTemplateService', () => {
         fields.map(f => ({
           ...f,
           templateId,
-          customLabel: f.customLabel ?? null,
-          customDescription: f.customDescription ?? null,
         }))
       );
     });
@@ -416,6 +425,7 @@ describe('DecisionTemplateService', () => {
       const templateId = 'tpl-123';
       const template: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -452,6 +462,7 @@ describe('DecisionTemplateService', () => {
       const templateId = 'tpl-123';
       const template: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Default Template',
         description: 'The default template',
         category: 'standard',
@@ -476,6 +487,7 @@ describe('DecisionTemplateService', () => {
       const expectedTemplates: DecisionTemplate[] = [
         {
           id: 'tpl-1',
+          namespace: 'core',
           name: 'Tech Template',
           description: 'Technology decisions',
           category,
@@ -502,6 +514,7 @@ describe('DecisionTemplateService', () => {
       const expectedTemplates: DecisionTemplate[] = [
         {
           id: 'tpl-1',
+          namespace: 'core',
           name: 'Technology Template',
           description: 'For tech decisions',
           category: 'technology',
@@ -527,6 +540,7 @@ describe('DecisionTemplateService', () => {
       const templates: DecisionTemplate[] = [
         {
           id: 'tpl-1',
+          namespace: 'core',
           name: 'Template 1',
           description: 'First template',
           category: 'standard',
@@ -538,6 +552,7 @@ describe('DecisionTemplateService', () => {
         },
         {
           id: 'tpl-2',
+          namespace: 'core',
           name: 'Template 2',
           description: 'Second template',
           category: 'technology',
@@ -549,6 +564,7 @@ describe('DecisionTemplateService', () => {
         },
         {
           id: 'tpl-3',
+          namespace: 'core',
           name: 'Template 3',
           description: 'Third template',
           category: 'standard',
@@ -579,6 +595,7 @@ describe('DecisionTemplateService', () => {
 
       const template: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -608,8 +625,6 @@ describe('DecisionTemplateService', () => {
         order: assignment.order,
         required: assignment.required,
         templateId: 'tpl-123',
-        customLabel: assignment.customLabel ?? null,
-        customDescription: assignment.customDescription ?? null,
       });
     });
 
@@ -631,6 +646,7 @@ describe('DecisionTemplateService', () => {
 
       const template: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -669,6 +685,7 @@ describe('DecisionTemplateService', () => {
 
       const template: DecisionTemplate = {
         id: templateId,
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -744,6 +761,7 @@ describe('DecisionTemplateService', () => {
   describe('createTemplateWithFields', () => {
     it('should create a template with fields in one operation', async () => {
       const templateData: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -794,14 +812,13 @@ describe('DecisionTemplateService', () => {
         fieldAssignments.map(f => ({
           ...f,
           templateId: 'tpl-123',
-          customLabel: f.customLabel ?? null,
-          customDescription: f.customDescription ?? null,
         }))
       );
     });
 
     it('should throw error for invalid template', async () => {
       const templateData: CreateDecisionTemplate = {
+        namespace: 'core',
         name: '',
         description: 'A test template',
         category: 'standard',
@@ -815,6 +832,7 @@ describe('DecisionTemplateService', () => {
 
     it('should throw error for invalid field assignments', async () => {
       const templateData: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -838,6 +856,7 @@ describe('DecisionTemplateService', () => {
   describe('validateTemplateDefinition', () => {
     it('should validate a correct template', async () => {
       const template: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -862,6 +881,7 @@ describe('DecisionTemplateService', () => {
 
     it('should reject template with empty name', async () => {
       const template: CreateDecisionTemplate = {
+        namespace: 'core',
         name: '',
         description: 'A test template',
         category: 'standard',
@@ -875,6 +895,7 @@ describe('DecisionTemplateService', () => {
 
     it('should reject template with invalid category', async () => {
       const template: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'invalid' as any,
@@ -888,6 +909,7 @@ describe('DecisionTemplateService', () => {
 
     it('should reject template with duplicate field IDs', async () => {
       const template: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -912,6 +934,7 @@ describe('DecisionTemplateService', () => {
 
     it('should reject template with non-sequential field orders', async () => {
       const template: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template',
         category: 'standard',
@@ -993,12 +1016,14 @@ describe('DecisionTemplateService', () => {
     it('should seed multiple templates', async () => {
       const templates: CreateDecisionTemplate[] = [
         {
+          namespace: 'core',
           name: 'Template 1',
           description: 'First template',
           category: 'standard',
           fields: [],
         },
         {
+          namespace: 'core',
           name: 'Template 2',
           description: 'Second template',
           category: 'technology',
@@ -1009,6 +1034,7 @@ describe('DecisionTemplateService', () => {
       const createdTemplates: DecisionTemplate[] = [
         {
           id: 'tpl-1',
+          namespace: 'core',
           name: templates[0]!.name,
           description: templates[0]!.description,
           category: templates[0]!.category,
@@ -1020,6 +1046,7 @@ describe('DecisionTemplateService', () => {
         },
         {
           id: 'tpl-2',
+          namespace: 'core',
           name: templates[1]!.name,
           description: templates[1]!.description,
           category: templates[1]!.category,
@@ -1042,6 +1069,7 @@ describe('DecisionTemplateService', () => {
     it('should throw error for invalid template during seeding', async () => {
       const templates: CreateDecisionTemplate[] = [
         {
+          namespace: 'core',
           name: '', // Invalid
           description: 'Invalid template',
           category: 'standard',

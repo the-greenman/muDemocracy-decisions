@@ -47,6 +47,7 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
   private mapToSchema(row: DecisionTemplateSelect & { fields?: TemplateFieldAssignment[] }): DecisionTemplate {
     return {
       id: row.id,
+      namespace: row.namespace,
       name: row.name,
       description: row.description,
       category: row.category,
@@ -65,8 +66,6 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       templateId: row.templateId,
       order: row.order,
       required: row.required,
-      customLabel: row.customLabel || undefined,
-      customDescription: row.customDescription || undefined,
     };
   }
 
@@ -108,6 +107,7 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .from(decisionTemplates)
       .where(
         and(
+          eq(decisionTemplates.namespace, identity.namespace ?? 'core'),
           eq(decisionTemplates.name, identity.name),
           eq(decisionTemplates.version, identity.version ?? 1)
         )
@@ -243,15 +243,7 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
 
     const fieldsByTemplate = fields.reduce((acc, field) => {
       const templateFields = acc[field.templateId] ?? [];
-      templateFields.push({
-        id: field.id,
-        templateId: field.templateId,
-        fieldId: field.fieldId,
-        order: field.order,
-        required: field.required,
-        customLabel: field.customLabel ?? undefined,
-        customDescription: field.customDescription ?? undefined,
-      });
+      templateFields.push(this.mapFieldAssignmentToSchema(field));
       acc[field.templateId] = templateFields;
       return acc;
     }, {} as Record<string, TemplateFieldAssignment[]>);
@@ -323,8 +315,6 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
       templateId: row.templateId,
       order: row.order,
       required: row.required,
-      customLabel: row.customLabel || undefined,
-      customDescription: row.customDescription || undefined,
     };
   }
 
@@ -374,15 +364,9 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     fieldId: string,
     data: Partial<TemplateFieldAssignmentInsert>
   ): Promise<TemplateFieldAssignment | null> {
-    const updateData: any = {
-      ...data,
-      customLabel: data.customLabel ?? null,
-      customDescription: data.customDescription ?? null,
-    };
-    
     const [row] = await db
       .update(templateFieldAssignments)
-      .set(updateData)
+      .set(data)
       .where(and(
         eq(templateFieldAssignments.templateId, templateId),
         eq(templateFieldAssignments.fieldId, fieldId)

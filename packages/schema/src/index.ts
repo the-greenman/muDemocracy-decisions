@@ -409,16 +409,12 @@ export const TemplateFieldAssignmentSchema = z.object({
   fieldId: z.string().uuid(),
   order: z.number().int().nonnegative(),
   required: z.boolean().default(true),
-  customLabel: z.string().nullable().optional(),
-  customDescription: z.string().nullable().optional(),
 }).openapi('TemplateFieldAssignment', {
   description: 'Assignment of a field to a template',
   example: {
     fieldId: '550e8400-e29b-41d4-a716-446655440005',
     order: 0,
     required: true,
-    customLabel: 'Decision',
-    customDescription: 'What are we deciding?',
   },
 });
 
@@ -430,8 +426,6 @@ export const CreateTemplateFieldAssignmentSchema = TemplateFieldAssignmentSchema
     fieldId: '550e8400-e29b-41d4-a716-446655440005',
     order: 0,
     required: true,
-    customLabel: 'Decision Statement',
-    customDescription: 'Clear statement of what needs to be decided',
   },
 });
 
@@ -439,6 +433,7 @@ export type CreateTemplateFieldAssignment = z.infer<typeof CreateTemplateFieldAs
 
 export const DecisionTemplateSchema = z.object({
   id: z.string().uuid(),
+  namespace: z.string().default('core'),
   name: z.string(),
   description: z.string(),
   category: z.enum(['standard', 'technology', 'strategy', 'budget', 'policy', 'proposal']),
@@ -451,6 +446,7 @@ export const DecisionTemplateSchema = z.object({
   description: 'A template for structuring decisions',
   example: {
     id: '550e8400-e29b-41d4-a716-446655440008',
+    namespace: 'core',
     name: 'Technology Selection',
     description: 'Template for choosing between technical options',
     category: 'technology',
@@ -459,7 +455,6 @@ export const DecisionTemplateSchema = z.object({
         fieldId: '550e8400-e29b-41d4-a716-446655440005',
         order: 0,
         required: true,
-        customLabel: 'Decision',
       },
     ],
     version: 1,
@@ -480,6 +475,7 @@ export const CreateDecisionTemplateSchema = DecisionTemplateSchema.omit({
 }).openapi('CreateDecisionTemplate', {
   description: 'Schema for creating a new decision template',
   example: {
+    namespace: 'core',
     name: 'Technology Selection',
     description: 'Template for choosing between technical options',
     category: 'technology',
@@ -488,8 +484,6 @@ export const CreateDecisionTemplateSchema = DecisionTemplateSchema.omit({
         fieldId: '550e8400-e29b-41d4-a716-446655440005',
         order: 0,
         required: true,
-        customLabel: 'Decision Statement',
-        customDescription: 'Clear statement of what needs to be decided',
       },
     ],
   },

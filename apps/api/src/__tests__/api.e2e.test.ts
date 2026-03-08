@@ -44,6 +44,7 @@ describe('API E2E Tests', () => {
     createdFieldName = field.name;
 
     const template = await templateService.createTemplate({
+      namespace: 'test',
       name: `API E2E Template ${Date.now()}`,
       description: 'Template for API E2E tests',
       category: 'standard',
@@ -52,8 +53,6 @@ describe('API E2E Tests', () => {
           fieldId: field.id,
           order: 0,
           required: true,
-          customLabel: 'Decision Statement',
-          customDescription: 'Primary decision statement',
         },
       ],
     });

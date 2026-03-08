@@ -11,6 +11,7 @@ import type {
 import type { TemplateFieldAssignmentInsert } from '@repo/db';
 
 export type DecisionTemplateIdentityLookup = {
+  namespace?: string;
   name: string;
   version?: number;
 };

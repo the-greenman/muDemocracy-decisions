@@ -188,6 +188,7 @@ async function seed() {
   console.log('\nSeeding decision templates...');
   const seedTemplates = [
     {
+      namespace: 'core',
       name: 'Standard Decision',
       description: 'General purpose decision template for any type of decision',
       category: 'standard' as const,
@@ -196,6 +197,7 @@ async function seed() {
       isCustom: false,
     },
     {
+      namespace: 'core',
       name: 'Technology Selection',
       description: 'Template for choosing between technical options or tools',
       category: 'technology' as const,
@@ -204,6 +206,7 @@ async function seed() {
       isCustom: false,
     },
     {
+      namespace: 'core',
       name: 'Strategic Initiative',
       description: 'Template for strategic business or product decisions',
       category: 'strategy' as const,
@@ -218,7 +221,13 @@ async function seed() {
     const existing = await db
       .select()
       .from(decisionTemplates)
-      .where(and(eq(decisionTemplates.name, templateSeed.name), eq(decisionTemplates.version, templateSeed.version)))
+      .where(
+        and(
+          eq(decisionTemplates.namespace, templateSeed.namespace),
+          eq(decisionTemplates.name, templateSeed.name),
+          eq(decisionTemplates.version, templateSeed.version)
+        )
+      )
       .limit(1);
 
     if (existing[0]) {
@@ -245,14 +254,12 @@ async function seed() {
         fieldId: decisionStatementField.id,
         order: 0,
         required: true,
-        customLabel: 'Decision',
       },
       {
         templateId: standardTemplate.id,
         fieldId: contextField.id,
         order: 1,
         required: true,
-        customLabel: 'Context',
       },
     ];
 

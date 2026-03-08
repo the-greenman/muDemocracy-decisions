@@ -87,15 +87,6 @@ templateCommand
         template.fields.forEach((field, index) => {
           const required = field.required ? chalk.red('*') : chalk.gray(' ');
           console.log(`${required} ${index + 1}. ${field.fieldId}`);
-          
-          if (field.customLabel) {
-            console.log(chalk.white(`   Label: ${field.customLabel}`));
-          }
-          
-          if (field.customDescription) {
-            console.log(chalk.gray(`   ${field.customDescription}`));
-          }
-          
           console.log(chalk.gray(`   Order: ${field.order}`));
           console.log('');
         });

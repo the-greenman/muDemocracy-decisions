@@ -2,7 +2,7 @@
 
 **Status**: authoritative
 **Owns**: page-level UX goals, core user journeys, display-mode rules (projection vs facilitator), uncluttered meeting-first interaction principles
-**Must sync with**: `docs/OVERVIEW.md`, `docs/transcript-reading-and-segment-selection-architecture.md`, `docs/manual-decision-workflow.md`, `docs/decision-detection-implementation-reference.md`, `docs/plans/iterative-implementation-plan.md`
+**Must sync with**: `docs/OVERVIEW.md`, `docs/web-ui-plan.md`, `docs/web-ui-design-system.md`, `docs/transcript-reading-and-segment-selection-architecture.md`, `docs/manual-decision-workflow.md`, `docs/decision-detection-implementation-reference.md`, `docs/plans/iterative-implementation-plan.md`
 
 ## Purpose
 
@@ -30,14 +30,22 @@ Rules:
 - Prefer compact confidence/status indicators over dense numeric blocks.
 - Keep candidate list and agenda status highly visible.
 
-### 2. Facilitator Mode (planned extension)
+### 2. Facilitator Mode
 
-Operator-focused view for detailed triage and control.
+Operator-focused view for detailed triage and control, running on the facilitator's own device.
 
 Rules:
-- Can expose advanced controls (exact segment links, provenance, thresholds, detailed diagnostics).
-- Should not be required for normal participant-facing flow.
-- May be a separate screen/app route or split-pane mode.
+- Exposes all controls: segment links, provenance, field version history, LLM log, diagnostics.
+- Never required for normal participant-facing flow.
+- Implemented as a **separate route** (`/meetings/:id/facilitator`), not a toggle on the shared display.
+
+**Mode split: separate routes (decided)**
+
+The web app implements mode separation via separate routes. The primary use case is a dual-screen setup:
+- Room projector: `http://…/meetings/:id` — shared display, read-only
+- Facilitator laptop: `http://…/meetings/:id/facilitator` — full controls
+
+This is a structural guarantee: shared display components contain zero mutation event handlers. There is nothing for a participant to accidentally click on the projected screen.
 
 ## Core UX Principles
 
@@ -48,106 +56,105 @@ Rules:
 5. Reading-first evidence selection: transcript appears in reading mode for segment selection tasks only.
 6. Recoverability: users can always return to flagged list and see newly detected items.
 
-## Page Catalog: Goals And Key Stories
+## Route and Screen Catalog
 
-### 1) Meeting Setup / Overview
+The web app has five routes. Routes 1 and 3–5 are facilitator-operated. Route 2 is projected to the group.
+Full user stories and API dependencies: `docs/web-ui-plan.md`.
 
-Primary goal:
-- Start and manage a meeting session with clear metadata and participant state.
+### Route 1 — Meeting List (`/`)
 
-Key user stories:
-- As a facilitator, I can create/open a meeting and set its name/date.
-- As a facilitator, I can add/update participants as people join/leave.
-- As a facilitator, I can start transcript upload or live stream ingestion.
-- As a facilitator, I can see agenda contexts and suggested candidates separately.
+Mode: facilitator only.
 
-### 2) Flagged List + Agenda Screen (default landing during meetings)
-
-Primary goal:
-- Keep decision work organized by separating `agenda` from `suggested/new flags`.
+Primary goal: start or resume a meeting session.
 
 Key user stories:
-- As a participant, I can see what is already on the agenda vs newly suggested.
-- As a facilitator, I can return to flagged list from any workflow screen.
-- As a facilitator, I can detect and see “new flags” without losing current work.
-- As a facilitator, I can insert a candidate/context into a chosen agenda position (not just append).
+- As a facilitator, I can see all meetings with their date and status at a glance.
+- As a facilitator, I can create a new meeting with title, date, and participant list.
+- As a facilitator, I can open an existing active meeting.
+- As a facilitator, I can see how many decisions are drafted and logged per meeting without opening it.
 
-### 3) Candidate Review / Context Linking
+### Route 2 — Shared Meeting Display (`/meetings/:id`) ← projected
 
-Primary goal:
-- Review one candidate, refine its instruction text, and decide whether to link/create a decision context.
+Mode: shared display (read-only). This route is open on the room projector throughout the meeting.
 
-Key user stories:
-- As a facilitator, I can edit candidate title/summary before draft generation.
-- As a facilitator, I can search open contexts from other meetings and link one.
-- As a facilitator, I can create a new context when no existing one fits.
-- As a facilitator, I can add a linked open context to this meeting’s agenda.
-
-### 4) Segment Selection (Reading Mode)
-
-Primary goal:
-- Select evidence quickly and accurately in long transcripts with minimal visual overload.
+Primary goal: give the group a clean, high-readability view of the agenda and active decision content.
 
 Key user stories:
-- As a facilitator, I can drag-select multiple rows with mouse/touch.
-- As a facilitator, I can filter by text and sequence range.
-- As a facilitator, I can default to current meeting transcript and optionally include other meetings.
-- As a facilitator, I can handle unknown speakers without broken UI.
-- As a facilitator, I can keep overlap mostly hidden, with optional compact indicators.
+- As a participant, I can see the meeting agenda — ordered list of decisions — at all times.
+- As a participant, I can see which agenda item is currently active.
+- As a participant, I can read field content in large, high-contrast text.
+- As a participant, I can see which fields are settled and which are still in progress — without technical terminology.
+- As a participant, I can see the tags on the active decision as coloured labels.
+- As a participant, I can see other decisions referenced from this one.
+- As a participant, I can watch a field populate progressively during generation without visual noise.
+- As a participant, I can see when a decision has been finalised.
 
-### 5) Template Selection + Initial Draft Generation
+Mode implications: no UUIDs, no chunk counts, no confidence numbers, no action buttons. Locked fields shown with muted background — no `[LOCKED]` label. Tags as coloured pills. Per-field spinner during generation (not raw tokens). Minimum 20px font.
 
-Primary goal:
-- Promote candidate/context into a structured draft with template-aware generation.
+### Route 3 — Facilitator Meeting View (`/meetings/:id/facilitator`)
 
-Key user stories:
-- As a facilitator, I must pick a template before generating the initial draft.
-- As a facilitator, I can start from detector-suggested template and override it.
-- As a facilitator, I can use candidate summary as generation instruction seed.
-- As a facilitator, I can run generation without losing selected evidence links.
+Mode: facilitator only. This route runs on the facilitator’s laptop while the group watches Route 2.
 
-### 6) Decision Workspace (Full Decision View)
-
-Primary goal:
-- Iterate on a complete draft while preserving control over stable content.
+Primary goal: give the facilitator complete control over the decision workflow without the group seeing the controls.
 
 Key user stories:
-- As a facilitator, I can scroll full decision content.
-- As a facilitator, I can lock fields and regenerate unlocked fields.
-- As a facilitator, I can add more transcript context while staying in decision view.
-- As a facilitator, I can keep working on an open context across future meetings.
+- As a facilitator, I can see newly suggested candidates separate from the confirmed agenda.
+- As a facilitator, I can review a candidate, edit its title/summary, and choose a template before promoting it.
+- As a facilitator, I can promote a candidate to the agenda and set its position (not just append).
+- As a facilitator, I can dismiss a candidate that is not a real decision.
+- As a facilitator, I can generate an initial draft for the active decision context.
+- As a facilitator, I can regenerate all unlocked fields at once.
+- As a facilitator, I can lock a field when the group agrees on its content.
+- As a facilitator, I can unlock a field and regenerate it with new guidance.
+- As a facilitator, I can zoom into a single field to edit it or add specific guidance text.
+- As a facilitator, I can add transcript segments without leaving the workspace.
+- As a facilitator, I can view the LLM interaction log (collapsible).
+- As a facilitator, I can view field version history and restore a prior version (in field zoom).
+- As a facilitator, I can finalise the decision with method, actors, and logged-by details.
+- As a facilitator, I can add or remove tags on the active context by name.
+- As a facilitator, I can add a relation to another decision or context.
 
-### 7) Field Focus View
+Mode implications: candidate queue panel, per-field lock/unlock/regenerate/zoom/guidance controls, LLM log sidebar, action strip in header. Facilitator-only components are isolated in `src/components/facilitator/`.
 
-Primary goal:
-- Deep edit/regenerate one field with local version control.
+### Route 4 — Segment Selection (`/meetings/:id/facilitator/transcript`)
+
+Mode: facilitator only. Launched from Route 3 when adding transcript evidence.
+
+Primary goal: select transcript evidence quickly and accurately for a specific decision or field.
 
 Key user stories:
-- As a facilitator, I can zoom into one field and edit it directly.
-- As a facilitator, I can regenerate only this field if unlocked.
-- As a facilitator, I can move between field versions and restore one.
+- As a facilitator, I can read the transcript in a clean non-overlapping view (reading mode) by default.
+- As a facilitator, I can search by text and narrow by sequence range.
+- As a facilitator, I can drag-select a range of rows with mouse or touch.
+- As a facilitator, I can see compact overlap indicators (hidden by default, toggle to reveal).
+- As a facilitator, I can toggle to include transcript from other meetings.
+- As a facilitator, I can confirm my selection — persisted with reading-row IDs and resolved chunk IDs.
+- As a facilitator, I can use AI-suggested segments as a starting point, then adjust before confirming.
 
-### 8) Finalization + Export
+Mode implications: facilitator only — not linked from Route 2. Overlap indicators hidden by default.
 
-Primary goal:
-- Capture final agreement state and export cleanly.
+### Route 5 — Logged Decision View (`/decisions/:id`)
+
+Mode: both. Suitable for projection at end of meeting or post-meeting reference.
+
+Primary goal: show the finalised decision in a clean format for review and export.
 
 Key user stories:
-- As a facilitator, I can mark decision complete with agreement notes and timestamp.
-- As a facilitator, I can leave a decision incomplete and resume later.
-- As a facilitator, I can export only active template fields (hidden fields excluded).
+- As a participant, I can see the complete logged decision with all fields rendered.
+- As a participant, I can see the decision method and who logged it.
+- As a participant, I can see tags and related decisions.
+- As a facilitator, I can export the decision as markdown or JSON.
+
+Mode implications: projectable. Export buttons present but visually subordinate to content.
 
 ## Facilitator Interface Direction
 
-The shared display should stay simple even if operator controls grow. To avoid clutter:
-- Keep participant-facing screens minimal by default.
-- Move advanced controls into facilitator mode as they appear.
-- Preserve the same underlying workflows and APIs for both modes.
+The shared display must stay simple even as operator controls grow:
+- Participant-facing routes contain zero mutation handlers — enforced structurally, not by convention.
+- Advanced controls live in the facilitator route only.
+- Both routes use identical backend API contracts.
 
-Potential split strategies:
-- Single app with mode toggle (`shared` / `facilitator`).
-- Separate facilitator route using same backend contracts.
-- Dual-screen setup where shared screen is read-only projection and facilitator screen is control surface.
+The mode split is implemented as separate routes (decided). See "Route and Screen Catalog" above and `docs/web-ui-plan.md` for the full rationale and route inventory.
 
 ## Alignment With API/CLI
 

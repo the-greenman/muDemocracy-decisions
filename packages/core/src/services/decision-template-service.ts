@@ -44,8 +44,6 @@ export class DecisionTemplateService implements IDecisionTemplateService {
         order: field.order,
         required: field.required,
         templateId: template.id,
-        customLabel: field.customLabel ?? null,
-        customDescription: field.customDescription ?? null,
       }));
       await this.fieldAssignmentRepository.createMany(fieldAssignments);
       
@@ -113,8 +111,6 @@ export class DecisionTemplateService implements IDecisionTemplateService {
           order: field.order,
           required: field.required,
           templateId: id,
-          customLabel: field.customLabel ?? null,
-          customDescription: field.customDescription ?? null,
         }));
         await this.fieldAssignmentRepository.createMany(fieldAssignments);
       }
@@ -182,8 +178,6 @@ export class DecisionTemplateService implements IDecisionTemplateService {
       order: assignment.order,
       required: assignment.required,
       templateId,
-      customLabel: assignment.customLabel ?? null,
-      customDescription: assignment.customDescription ?? null,
     });
   }
 
@@ -212,12 +206,6 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     }
     if (data.required !== undefined) {
       updateData.required = data.required;
-    }
-    if ('customLabel' in data) {
-      updateData.customLabel = data.customLabel ?? null;
-    }
-    if ('customDescription' in data) {
-      updateData.customDescription = data.customDescription ?? null;
     }
 
     return await this.fieldAssignmentRepository.update(templateId, fieldId, updateData);
@@ -270,8 +258,6 @@ export class DecisionTemplateService implements IDecisionTemplateService {
         order: field.order,
         required: field.required,
         templateId: template.id,
-        customLabel: field.customLabel ?? null,
-        customDescription: field.customDescription ?? null,
       }));
       await this.fieldAssignmentRepository.createMany(assignments);
     }

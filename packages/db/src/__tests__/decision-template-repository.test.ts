@@ -6,9 +6,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository } from '../repositories/decision-template-repository';
 import { db } from '../client';
 import type { 
-  DecisionTemplate,
   CreateDecisionTemplate,
-  TemplateFieldAssignment,
   CreateTemplateFieldAssignment 
 } from '@repo/core';
 
@@ -45,6 +43,7 @@ describe('DrizzleDecisionTemplateRepository', () => {
   describe('create', () => {
     it('should create a decision template', async () => {
       const data: CreateDecisionTemplate = {
+        namespace: 'core',
         name: 'Test Template',
         description: 'A test template for unit testing',
         category: 'standard',
@@ -53,6 +52,7 @@ describe('DrizzleDecisionTemplateRepository', () => {
 
       const expectedRow = {
         id: 'tpl-123',
+        namespace: 'core',
         name: data.name,
         description: data.description,
         category: data.category,
@@ -160,21 +160,19 @@ describe('DrizzleTemplateFieldAssignmentRepository', () => {
         fieldId: 'field-123',
         order: 0,
         required: true,
-        customLabel: 'Custom Label',
       };
 
       // The service adds templateId to the data before passing to repository
       const dataWithTemplateId = {
-        ...data,
         templateId: 'tpl-123',
-        customLabel: data.customLabel ?? null,
-        customDescription: data.customDescription ?? null,
+        fieldId: data.fieldId,
+        order: data.order,
+        required: data.required,
       };
 
       const expectedRow = {
         id: 'tfa-123',
         ...dataWithTemplateId,
-        customDescription: null,
       };
 
       const mockInsert = vi.fn().mockReturnValue({
@@ -190,7 +188,6 @@ describe('DrizzleTemplateFieldAssignmentRepository', () => {
       expect(result.fieldId).toBe(data.fieldId);
       expect(result.order).toBe(data.order);
       expect(result.required).toBe(data.required);
-      expect(result.customLabel).toBe(data.customLabel);
     });
   });
 
@@ -204,8 +201,6 @@ describe('DrizzleTemplateFieldAssignmentRepository', () => {
           fieldId: 'field-1',
           order: 0,
           required: true,
-          customLabel: 'Label 1',
-          customDescription: 'Desc 1',
         },
         {
           id: 'tfa-2',
@@ -213,8 +208,6 @@ describe('DrizzleTemplateFieldAssignmentRepository', () => {
           fieldId: 'field-2',
           order: 1,
           required: false,
-          customLabel: null,
-          customDescription: null,
         },
       ];
 
@@ -230,10 +223,12 @@ describe('DrizzleTemplateFieldAssignmentRepository', () => {
       const result = await repository.findByTemplateId(templateId);
 
       expect(result).toHaveLength(2);
-      expect(result[0].fieldId).toBe('field-1');
-      expect(result[1].fieldId).toBe('field-2');
-      expect(result[0].order).toBe(0);
-      expect(result[1].order).toBe(1);
+      expect(result[0]).toBeDefined();
+      expect(result[1]).toBeDefined();
+      expect(result[0]!.fieldId).toBe('field-1');
+      expect(result[1]!.fieldId).toBe('field-2');
+      expect(result[0]!.order).toBe(0);
+      expect(result[1]!.order).toBe(1);
     });
   });
 
@@ -252,8 +247,6 @@ describe('DrizzleTemplateFieldAssignmentRepository', () => {
         fieldId,
         order: 1,
         required: false,
-        customLabel: null,
-        customDescription: null,
       };
 
       const mockUpdate = vi.fn().mockReturnValue({
