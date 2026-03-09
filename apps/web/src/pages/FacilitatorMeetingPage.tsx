@@ -159,6 +159,7 @@ export function FacilitatorMeetingPage() {
   const promoteCandidate =
     modal?.type === 'promote' ? candidates.find((candidate) => candidate.id === modal.candidateId) ?? null : null;
   const currentMeeting = { id: 'mtg-1', title: 'Q4 Architecture Review', date: '2026-03-08' };
+  const meetingFocusKey = `dl:meeting-focus:${currentMeeting.id}`;
 
   const streamBadgeClass = useMemo(() => {
     if (streamState === 'live') return 'bg-settled';
@@ -194,6 +195,22 @@ export function FacilitatorMeetingPage() {
 
     return () => clearInterval(timer);
   }, [streamState]);
+
+  // ── Broadcast focused field for shared-display sync ──────────────
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        meetingFocusKey,
+        JSON.stringify({
+          meetingId: currentMeeting.id,
+          fieldId: zoomedFieldId,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+    } catch {
+      // noop for prototype safety
+    }
+  }, [currentMeeting.id, meetingFocusKey, zoomedFieldId]);
 
   // ── Field mutations ────────────────────────────────────────────────
 
@@ -764,6 +781,8 @@ export function FacilitatorMeetingPage() {
 
         <Link
           to="/meetings/mtg-1"
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary hover:text-text-primary border border-border rounded transition-colors"
         >
           <ExternalLink size={13} />

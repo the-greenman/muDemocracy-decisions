@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, FolderOpen, CalendarDays, Users, X, UserPlus, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MEETINGS } from '@/lib/mock-data';
@@ -6,6 +6,40 @@ import type { Meeting } from '@/lib/mock-data';
 
 export function MeetingListPage() {
   const [showCreate, setShowCreate] = useState(false);
+  const [pastQuery, setPastQuery] = useState('');
+  const [pastMonth, setPastMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [pastTag, setPastTag] = useState('all');
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const upcomingMeetings = useMemo(
+    () =>
+      [...MEETINGS]
+        .filter((meeting) => meeting.date >= todayIso)
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [todayIso],
+  );
+
+  const allMeetingTags = useMemo(
+    () => Array.from(new Set(MEETINGS.flatMap((meeting) => getMeetingTags(meeting.id)))).sort(),
+    [],
+  );
+
+  const filteredPastMeetings = useMemo(() => {
+    const q = pastQuery.trim().toLowerCase();
+    return [...MEETINGS]
+      .filter((meeting) => meeting.date < todayIso)
+      .filter((meeting) => {
+        if (pastMonth && !meeting.date.startsWith(pastMonth)) return false;
+        if (pastTag !== 'all' && !getMeetingTags(meeting.id).includes(pastTag)) return false;
+        if (!q) return true;
+        if (meeting.title.toLowerCase().includes(q)) return true;
+        if (meeting.date.includes(q)) return true;
+        if (meeting.participants.some((p) => p.toLowerCase().includes(q))) return true;
+        if (getMeetingTags(meeting.id).some((tag) => tag.toLowerCase().includes(q))) return true;
+        return false;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [pastMonth, pastQuery, pastTag, todayIso]);
 
   return (
     <div className="density-facilitator min-h-screen bg-base">
@@ -23,17 +57,67 @@ export function MeetingListPage() {
         </button>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 py-8">
         {showCreate && (
           <div className="mb-6">
             <NewMeetingForm onCancel={() => setShowCreate(false)} />
           </div>
         )}
-        <div className="flex flex-col gap-3">
-          {MEETINGS.map((meeting) => (
-            <MeetingRow key={meeting.id} meeting={meeting} />
-          ))}
-        </div>
+
+        <section className="rounded-card border border-border bg-surface p-4 mb-5">
+          <h2 className="text-fac-field text-text-primary font-medium mb-3">Upcoming meetings</h2>
+          {upcomingMeetings.length === 0 ? (
+            <p className="text-fac-meta text-text-muted">No upcoming meetings scheduled.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {upcomingMeetings.map((meeting) => (
+                <MeetingRow key={meeting.id} meeting={meeting} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-card border border-border bg-surface p-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-fac-field text-text-primary font-medium">Past meetings</h2>
+            <span className="text-fac-meta text-text-muted">Browse by date and tag</span>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <input
+              type="text"
+              value={pastQuery}
+              onChange={(e) => setPastQuery(e.target.value)}
+              placeholder="Search title, participant, date, tag..."
+              className="min-w-72 flex-1 px-3 py-1.5 rounded border border-border bg-overlay text-fac-meta text-text-primary focus:outline-none focus:border-accent"
+            />
+            <input
+              type="month"
+              value={pastMonth}
+              onChange={(e) => setPastMonth(e.target.value)}
+              className="px-2.5 py-1.5 rounded border border-border bg-overlay text-fac-meta text-text-primary focus:outline-none focus:border-accent"
+            />
+            <select
+              value={pastTag}
+              onChange={(e) => setPastTag(e.target.value)}
+              className="px-2.5 py-1.5 rounded border border-border bg-overlay text-fac-meta text-text-primary focus:outline-none focus:border-accent"
+            >
+              <option value="all">All tags</option>
+              {allMeetingTags.map((tag) => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+          </div>
+
+          {filteredPastMeetings.length === 0 ? (
+            <p className="text-fac-meta text-text-muted italic">No past meetings match current filters.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {filteredPastMeetings.map((meeting) => (
+                <MeetingRow key={meeting.id} meeting={meeting} showTags />
+              ))}
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );
@@ -165,7 +249,7 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
 
 // ── Meeting row ──────────────────────────────────────────────────
 
-function MeetingRow({ meeting }: { meeting: Meeting }) {
+function MeetingRow({ meeting, showTags = false }: { meeting: Meeting; showTags?: boolean }) {
   return (
     <Link
       to={`/meetings/${meeting.id}/facilitator/home`}
@@ -195,6 +279,11 @@ function MeetingRow({ meeting }: { meeting: Meeting }) {
               {meeting.participants.length} participants
             </span>
           </div>
+          {showTags && (
+            <p className="text-fac-meta text-text-muted mt-1">
+              {getMeetingTags(meeting.id).join(', ')}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
@@ -213,4 +302,12 @@ function StatChip({ label, value }: { label: string; value: number }) {
       <span className="text-[11px] text-text-muted">{label}</span>
     </div>
   );
+}
+
+function getMeetingTags(meetingId: string): string[] {
+  const mapping: Record<string, string[]> = {
+    'mtg-1': ['architecture', 'platform', 'q4'],
+    'mtg-2': ['budget', 'finance', 'planning'],
+  };
+  return mapping[meetingId] ?? ['general'];
 }

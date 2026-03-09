@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Plus, UserPlus, Trash2, ClipboardList, Link2, ArrowRight } from 'lucide-react';
-import { OPEN_CONTEXTS } from '@/lib/mock-data';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Plus, UserPlus, Trash2, ClipboardList, Link2, ArrowRight, FileText, BookOpen } from 'lucide-react';
+import { MEETINGS, OPEN_CONTEXTS } from '@/lib/mock-data';
 import { OpenContextPicker } from '@/components/shared/OpenContextPicker';
 
 type SetupDraftState = {
@@ -13,6 +13,7 @@ type SetupDraftState = {
 };
 
 export function FacilitatorMeetingHomePage() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const setupDraft = (location.state as SetupDraftState | null)?.setupDraft;
@@ -28,8 +29,13 @@ export function FacilitatorMeetingHomePage() {
   const [stubTitle, setStubTitle] = useState('');
   const [agendaStubs, setAgendaStubs] = useState<string[]>([]);
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
+  const [manualTranscriptTitle, setManualTranscriptTitle] = useState('');
+  const [manualBackgroundTitle, setManualBackgroundTitle] = useState('');
+  const [manualTranscripts, setManualTranscripts] = useState<string[]>([]);
+  const [manualBackgroundDocs, setManualBackgroundDocs] = useState<string[]>([]);
 
   const selectedOpenContexts = OPEN_CONTEXTS.filter((ctx) => selectedContextIds.includes(ctx.id));
+  const activeMeeting = MEETINGS.find((meeting) => meeting.id === id) ?? null;
 
   function addParticipant() {
     const name = newParticipant.trim();
@@ -57,6 +63,20 @@ export function FacilitatorMeetingHomePage() {
     setAgendaStubs((prev) => prev.filter((item) => item !== value));
   }
 
+  function addManualTranscript() {
+    const next = manualTranscriptTitle.trim();
+    if (!next) return;
+    setManualTranscripts((prev) => [...prev, next]);
+    setManualTranscriptTitle('');
+  }
+
+  function addManualBackgroundDoc() {
+    const next = manualBackgroundTitle.trim();
+    if (!next) return;
+    setManualBackgroundDocs((prev) => [...prev, next]);
+    setManualBackgroundTitle('');
+  }
+
   return (
     <div className="density-facilitator min-h-screen bg-base">
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
@@ -69,6 +89,8 @@ export function FacilitatorMeetingHomePage() {
         <div className="flex items-center gap-2">
           <Link
             to="/meetings/mtg-1"
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-3 py-2 rounded border border-border text-fac-meta text-text-muted hover:text-text-primary"
           >
             Shared screen
@@ -148,7 +170,7 @@ export function FacilitatorMeetingHomePage() {
         </section>
 
         <section className="rounded-card border border-border bg-surface p-4 flex flex-col gap-3">
-          <h2 className="text-fac-field text-text-primary font-medium">Initial decision agenda</h2>
+          <h2 className="text-fac-field text-text-primary font-medium">Decision agenda</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setAgendaTab('stubs')}
@@ -158,7 +180,7 @@ export function FacilitatorMeetingHomePage() {
                   : 'border-border text-text-muted hover:text-text-primary'
               }`}
             >
-              New stubs
+              Agenda placeholders
             </button>
             <button
               onClick={() => setAgendaTab('open-contexts')}
@@ -217,10 +239,10 @@ export function FacilitatorMeetingHomePage() {
         </section>
 
         <section className="lg:col-span-2 rounded-card border border-border bg-surface p-4">
-          <h2 className="text-fac-field text-text-primary font-medium">Planned agenda (draft)</h2>
+          <h2 className="text-fac-field text-text-primary font-medium">Agenda overview</h2>
           {agendaStubs.length === 0 && selectedOpenContexts.length === 0 ? (
             <p className="text-fac-meta text-text-muted mt-1">
-              Add stubs or existing contexts to build the initial agenda before opening a decision workspace.
+              Add placeholders or existing contexts to shape meeting agenda before opening a decision workspace.
             </p>
           ) : (
             <div className="mt-2 flex flex-col gap-1">
@@ -241,6 +263,85 @@ export function FacilitatorMeetingHomePage() {
             Cross-meeting context linking is applied when open contexts are attached in facilitator workspace.
           </div>
         </section>
+
+        <section className="rounded-card border border-border bg-surface p-4 flex flex-col gap-3">
+          <h2 className="text-fac-field text-text-primary font-medium">Meeting materials</h2>
+          <p className="text-fac-meta text-text-muted">
+            Add manual transcripts or background documents for this meeting.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={manualTranscriptTitle}
+              onChange={(e) => setManualTranscriptTitle(e.target.value)}
+              placeholder="Add transcript note..."
+              className="flex-1 px-3 py-1.5 rounded border border-border bg-overlay text-fac-meta text-text-primary focus:outline-none focus:border-accent"
+            />
+            <button
+              onClick={addManualTranscript}
+              disabled={!manualTranscriptTitle.trim()}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-accent/30 text-accent text-fac-meta hover:bg-accent-dim disabled:opacity-40"
+            >
+              <FileText size={13} />
+              Add
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={manualBackgroundTitle}
+              onChange={(e) => setManualBackgroundTitle(e.target.value)}
+              placeholder="Add background document..."
+              className="flex-1 px-3 py-1.5 rounded border border-border bg-overlay text-fac-meta text-text-primary focus:outline-none focus:border-accent"
+            />
+            <button
+              onClick={addManualBackgroundDoc}
+              disabled={!manualBackgroundTitle.trim()}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-accent/30 text-accent text-fac-meta hover:bg-accent-dim disabled:opacity-40"
+            >
+              <BookOpen size={13} />
+              Add
+            </button>
+          </div>
+          {(manualTranscripts.length > 0 || manualBackgroundDocs.length > 0) && (
+            <div className="rounded border border-border bg-overlay/40 p-3">
+              {manualTranscripts.map((item) => (
+                <p key={`tr-${item}`} className="text-fac-meta text-text-primary">• Transcript: {item}</p>
+              ))}
+              {manualBackgroundDocs.map((item) => (
+                <p key={`bg-${item}`} className="text-fac-meta text-text-primary">• Background: {item}</p>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-card border border-border bg-surface p-4 flex flex-col gap-3">
+          <h2 className="text-fac-field text-text-primary font-medium">Attendance and outcomes</h2>
+          <p className="text-fac-meta text-text-muted">
+            Track who is/was in the meeting and review decision outcomes when meeting is closed.
+          </p>
+          <div className="rounded border border-border bg-overlay/40 p-3 flex flex-col gap-1">
+            {(participants.length > 0 ? participants : activeMeeting?.participants ?? []).map((participant, idx) => (
+              <p key={participant} className="text-fac-meta text-text-primary">
+                • {participant} <span className="text-text-muted">{idx % 3 === 0 ? '(left early)' : '(present)'}</span>
+              </p>
+            ))}
+          </div>
+          {activeMeeting?.status === 'closed' ? (
+            <div className="rounded border border-border bg-overlay/40 p-3">
+              <p className="text-fac-meta text-text-secondary">Meeting outcomes</p>
+              <p className="text-fac-meta text-text-primary mt-1">• Decisions made: 3</p>
+              <p className="text-fac-meta text-text-primary">• Decisions deferred: 1</p>
+            </div>
+          ) : (
+            <div className="rounded border border-border bg-overlay/40 p-3">
+              <p className="text-fac-meta text-text-muted">
+                Outcomes summary appears when the meeting is marked completed.
+              </p>
+            </div>
+          )}
+        </section>
+
       </main>
     </div>
   );
