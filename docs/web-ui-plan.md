@@ -133,6 +133,8 @@ The web app splits into two modes via separate routes — not a toggle — becau
 - As a facilitator, I can add or remove tags on the active context by name
 - As a facilitator, I can add a relation from the current context to another decision or context
 - As a facilitator, I can add an existing open decision context (from a prior meeting or sub-committee) to the current meeting's agenda without cloning it *(G6 — Flow 2)*
+- As a facilitator, I can find related meetings by date, title, and tag when adding cross-meeting context *(G6 extension)*
+- As a facilitator, I can use autocomplete search and a calendar popup to select related meetings quickly *(G6 extension)*
 - As a facilitator, I can start a live transcript stream for the current meeting, see its status and row count, and stop it when the meeting ends *(G8 — Flow 2)*
 - As a facilitator, I can see how many new transcript rows have arrived since the last regeneration pass *(G9 — Flow 2)*
 - As a facilitator, I can quickly flag a future decision by title only — adding it to the candidate queue without switching away from the current active context *(G10 — Flow 2)*
@@ -145,6 +147,7 @@ The web app splits into two modes via separate routes — not a toggle — becau
 **Layout**:
 - Header action strip: `[ + Flag decision ]  [ Live stream ● ]  [ Generate draft ]  [ Finalise ]`
 - Left panel: candidate queue with `Suggested` / `Agenda` tabs; agenda items are reorderable; "Add existing context" action at bottom of Agenda tab
+- Related-meeting picker (within "Add existing context"): autocomplete by title/tag/date text plus calendar month view
 - Main panel: decision workspace — same field view as shared display, plus per-field controls
 - Per-field controls: lock/unlock toggle · regenerate (+ recency badge when new rows since last pass) · zoom · inline guidance input
 - Right sidebar (collapsible): LLM interaction log · field version history
@@ -174,6 +177,8 @@ The web app splits into two modes via separate routes — not a toggle — becau
 - `GET /api/decision-contexts?status=open` — open context picker for add-to-agenda (G6, after M4.9)
 - `POST /api/meetings/:id/decision-contexts/:contextId/activate` — add existing context to this meeting (G6, after M4.9)
 - `POST /api/meetings/:id/decision-contexts/:contextId/defer` — defer context from this meeting (G11, after M4.9)
+- `GET /api/meetings?query=<text>&dateFrom=<iso>&dateTo=<iso>&tag=<name>` — related-meeting autocomplete source (G6 extension, after M5.1)
+- `GET /api/meetings/calendar?month=<YYYY-MM>` — related-meeting calendar popup source (G6 extension, after M5.1)
 - `POST /api/meetings/:id/transcripts/stream` — start live transcript stream (G8)
 - `GET /api/meetings/:id/streaming/status` — live stream status (G8)
 
@@ -249,6 +254,8 @@ Endpoints that are **missing** and must be added before the dependent screen can
 | `GET /api/decision-contexts?status=open` | Screen 3 add-to-agenda picker (G6) | M4.9 |
 | `POST /api/meetings/:id/decision-contexts/:contextId/activate` | Screen 3 add existing context (G6) | M4.9 |
 | `POST /api/meetings/:id/decision-contexts/:contextId/defer` | Screen 3 deferral (G11) | M4.9 |
+| `GET /api/meetings?query=<text>&dateFrom=<iso>&dateTo=<iso>&tag=<name>` | Screen 3 related-meeting autocomplete picker (G6 extension) | M5.1 |
+| `GET /api/meetings/calendar?month=<YYYY-MM>` | Screen 3 related-meeting calendar popup (G6 extension) | M5.1 |
 
 Endpoints that already exist and are immediately usable:
 `POST /api/decision-contexts/:id/generate-draft`, `PUT/DELETE /api/decision-contexts/:id/lock-field`, `POST /api/decision-contexts/:id/fields/:fieldId/regenerate`, `PATCH /api/decision-contexts/:id/fields/:fieldId`, `GET /api/decision-contexts/:id/versions`, `POST /api/decision-contexts/:id/rollback`, `GET /api/decision-contexts/:id/llm-interactions`, `POST /api/decision-contexts/:id/log`, `GET /api/decisions/:id`, `GET /api/decisions/:id/export`, `GET /api/meetings`, `POST /api/meetings`, `GET /api/meetings/:id`

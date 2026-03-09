@@ -113,6 +113,8 @@ Key user stories:
 - As a facilitator, I can finalise the decision with method, actors, and logged-by details.
 - As a facilitator, I can add or remove tags on the active context by name.
 - As a facilitator, I can add a relation to another decision or context.
+- As a facilitator, I can find related meetings quickly by date, title, or tag when attaching cross-meeting context.
+- As a facilitator, I can use autocomplete and a calendar-based meeting picker to attach related meetings without scanning long lists.
 
 Mode implications: candidate queue panel, per-field lock/unlock/regenerate/zoom/guidance controls, LLM log sidebar, action strip in header. Facilitator-only components are isolated in `src/components/facilitator/`.
 
