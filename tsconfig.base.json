@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "composite": false,
+    "declaration": true,
+    "declarationMap": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@repo/schema": ["./packages/schema/src"],
+      "@repo/db": ["./packages/db/src"],
+      "@repo/core": ["./packages/core/src"]
+    }
+  }
+}

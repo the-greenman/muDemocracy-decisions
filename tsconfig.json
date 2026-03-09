@@ -1,30 +1,15 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-    "composite": false,
-    "declaration": true,
-    "declarationMap": true,
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "skipLibCheck": true,
-    "paths": {
-      "@repo/schema": ["./packages/schema/src"],
-      "@repo/db": ["./packages/db/src"],
-      "@repo/core": ["./packages/core/src"]
-    }
+    "noEmit": true
   },
+  "references": [
+    { "path": "./packages/schema" },
+    { "path": "./packages/db" },
+    { "path": "./packages/core" },
+    { "path": "./apps/api" },
+    { "path": "./apps/cli" }
+  ],
   "include": [
     "packages/*/src/**/*",
     "apps/*/src/**/*"

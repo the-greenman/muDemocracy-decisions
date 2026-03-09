@@ -30,7 +30,7 @@
     "db:validate": "drizzle-kit check:pg",
     "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run --minWorkers=1 --maxWorkers=1",
-    "type-check": "tsc --noEmit --rootDir ../.."
+    "type-check": "tsc --build --emitDeclarationOnly"
   },
   "dependencies": {
     "@repo/schema": "workspace:*",

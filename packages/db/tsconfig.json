@@ -1,11 +1,14 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./src",
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "composite": true,
+    "noEmit": false
   },
-  "include": ["src/**/*", "scripts/**/*"],
+  "references": [{ "path": "../schema" }],
+  "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }

@@ -3,22 +3,22 @@
   "version": "0.0.0",
   "description": "Zod schemas - Single Source of Truth",
   "type": "module",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "default": "./dist/index.mjs"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch --no-dts",
     "test": "vitest run --passWithNoTests",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --build --emitDeclarationOnly"
   },
   "dependencies": {
     "zod": "^3.22.0",

@@ -1,114 +1,92 @@
 # TypeScript Workspace Type System Remediation
 
-Fix persistent type resolution issues by implementing TypeScript project references and aligning build/type-check workflows across all packages.
+Stabilize the remaining workspace type/build issues by preserving the completed TypeScript project-reference refactor and focusing the remaining work on the `@repo/db` DTS bundling blocker documented in `docs/type-remediation-log.md`.
 
-## Root Causes
+## Current Status
 
-**Path Mapping vs Distribution Mismatch**
-- Root `tsconfig.json` maps `@repo/*` to `src/`, but builds consume from `dist/`
-- Creates IDE vs runtime vs build mismatches
-- Stale dist artifacts cause "missing export" errors
+### Completed
 
-**Missing TypeScript Project References**
-- No package uses `references` array despite workspace dependencies
-- TypeScript can't track cross-package type changes incrementally
-- Manual rebuild order (schema → db → core) is a workaround, not a solution
+- **Root config split**
+  - Added `tsconfig.base.json` for build-safe shared compiler settings
+  - Kept root `tsconfig.json` as the workspace/editor `noEmit` config
 
-**Type-Check Scope Issues**
-- `@repo/db` and `@repo/core` use `--rootDir ../..` to access src mappings
-- Creates divergence: type-check validates src/, build validates dist/
+- **Project references added**
+  - `@repo/db` references `@repo/schema`
+  - `@repo/core` references `@repo/schema` and `@repo/db`
+  - `@repo/api` references `@repo/schema`, `@repo/db`, and `@repo/core`
 
-## Pragmatic Solution (All Packages, All at Once)
+- **Package type-check scripts updated**
+  - Removed stale `--rootDir ../..` workarounds
+  - Shifted referenced packages toward project-build-aware type-check commands
 
-### 1. Implement TypeScript Project References
+- **Schema runtime metadata aligned**
+  - `@repo/schema` package metadata now matches actual emitted files
+  - Runtime export investigation confirmed the built bundle exports the expected schemas
 
-**Update `packages/schema/tsconfig.json`:**
-- Already has `composite: true` ✓
-- No changes needed (no dependencies)
+- **Core declaration-path issue improved**
+  - `@repo/core` no longer shows the earlier TS6305 failure against `@repo/db`
 
-**Update `packages/db/tsconfig.json`:**
-- Add `composite: true`
-- Add `references: [{ "path": "../schema" }]`
+### Still Open
 
-**Update `packages/core/tsconfig.json`:**
-- Add `composite: true`
-- Add `references: [{ "path": "../schema" }, { "path": "../db" }]`
+- **Active blocker: `@repo/db` DTS bundling during `pnpm build`**
+  - JavaScript bundling succeeds
+  - `tsup` DTS generation still fails with `TS6307`
+  - This is the current bottleneck for full workspace validation
 
-**Update root `tsconfig.json`:**
-- Keep current strict settings
-- Keep path mappings (IDE needs them for navigation)
-- Add top-level `references` array pointing to all packages
-- This enables `tsc --build` from root
+## Reference Material
 
-### 2. Fix Type-Check Scripts
+- **Detailed findings log**
+  - See `docs/type-remediation-log.md`
+  - Use that file as the running source of truth for discovered failure modes and partial remediations
 
-**All packages:** Change from `tsc --noEmit --rootDir ../..` to just `tsc --noEmit`
-- Each package validates its own scope against referenced packages' declarations
-- No more root-level type validation workaround
+## Revised Plan
 
-**Root package.json:** Keep existing Turbo-based `type-check` script
-- Turbo handles parallel execution and dependency order
-- Already has `dependsOn: ["^build"]` configured correctly
+### 1. Resolve `@repo/db` DTS bundling failure
 
-### 3. Establish Required Build Workflow
+- Determine why `tsup`'s DTS worker reports imported `src` files as outside the project file list
+- Prefer a fix local to `packages/db` (`tsconfig`, `tsup.config`, or declaration-specific config)
+- Avoid reopening already-completed repo-wide TypeScript refactors unless required
 
-**Document as explicit requirement:**
-```bash
-# First-time setup or after clean:
-pnpm build
+### 2. Revalidate downstream consumers
 
-# Then start dev mode:
-pnpm dev
-```
+- Confirm `@repo/db` build succeeds
+- Confirm `@repo/core` still type-checks cleanly after the db fix
+- Confirm `@repo/api` starts cleanly against rebuilt workspace packages
 
-**Why not auto-build in dev?**
-- Adds complexity to watch mode coordination
-- Build is fast with Turbo cache
-- Explicit build step is clearer and safer
-- Matches existing remediation log pattern
+### 3. Finalize documentation and workflow
 
-### 4. Verify Turbo Configuration
-
-**Confirm `turbo.json` already handles this correctly:**
-- `type-check.dependsOn: ["^build"]` ensures upstream packages build first
-- `dev` has no build dependency (expects manual build first)
-- No changes needed to Turbo config
-
-## Implementation Steps
-
-1. **Update all three package tsconfigs** (schema, db, core)
-2. **Add root-level references array** to root tsconfig.json
-3. **Update type-check scripts** in all three package.json files
-4. **Test the workflow:**
-   ```bash
-   # Clean slate
-   rm -rf packages/*/dist
-   
-   # Should build in correct order
-   pnpm build
-   
-   # Should pass using project references
-   pnpm type-check
-   
-   # Should work without type errors
-   pnpm dev
-   ```
-5. **Update type-remediation-log.md** with solution and workflow
+- Update `docs/type-remediation-log.md` with the final db fix and validation outcome
+- Keep the recommended workflow explicit and minimal
 
 ## Validation Checkpoints
 
-- [ ] All packages have `composite: true` and correct `references`
-- [ ] Root tsconfig has `references` array
-- [ ] All package type-check scripts use `tsc --noEmit` only
-- [ ] Clean build succeeds: `rm -rf packages/*/dist && pnpm build`
-- [ ] Type-check passes after clean build: `pnpm type-check`
-- [ ] Dev mode works after build: `pnpm build && pnpm dev`
-- [ ] Schema change triggers proper rebuild chain
+- [x] Root/shared tsconfig layering split is in place
+- [x] Workspace project references are in place
+- [x] Schema package metadata matches actual emitted runtime files
+- [x] Core no longer fails with the previous TS6305 declaration-path issue
+- [ ] `@repo/db` `pnpm build` passes without TS6307 DTS errors
+- [ ] Full workspace `pnpm build` passes
+- [ ] Full workspace `pnpm type-check` passes
+- [ ] `pnpm dev` starts without the previous `@repo/schema` runtime export error
+
+## Working Validation Sequence
+
+```bash
+pnpm --filter @repo/schema build
+pnpm --filter @repo/db build
+pnpm --filter @repo/core type-check
+pnpm build
+pnpm type-check
+pnpm dev
+```
+
+## Notes
+
+- The original broad remediation plan is mostly complete; avoid redoing those steps unless the `@repo/db` investigation proves they were incorrect.
+- The current plan intentionally narrows scope to the single remaining build blocker.
 
 ## Benefits
 
-- **Eliminates manual rebuild order** - TypeScript knows the dependency graph
-- **Consistent validation** - type-check and build use same artifact paths
-- **Clear workflow** - explicit build requirement, no hidden complexity
-- **IDE support** - path mappings remain for Go to Definition
-- **Turbo optimization** - existing cache and parallelization work correctly
+- **Less plan churn** - completed repo-wide changes stay marked done
+- **Focused debugging** - remaining effort is centered on one concrete blocker
+- **Better historical record** - plan and remediation log now point at the same current bottleneck
