@@ -3,9 +3,9 @@
  */
 
 import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
-import type { FlaggedDecisionSelect } from '../schema';
-import { db } from '../client';
-import { flaggedDecisions } from '../schema';
+import type { FlaggedDecisionSelect } from '../schema.js';
+import { db } from '../client.js';
+import { flaggedDecisions } from '../schema.js';
 import { eq, desc } from 'drizzle-orm';
 
 // Interface definition to avoid circular dependency

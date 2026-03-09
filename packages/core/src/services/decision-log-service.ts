@@ -4,12 +4,12 @@
  */
 
 import type { DecisionLog, CreateDecisionLog } from '@repo/schema';
-import type { IDecisionLogRepository } from '../interfaces/i-decision-log-repository';
-import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
-import type { IDecisionLogService } from '../interfaces/i-decision-log-service';
-import type { IChunkRelevanceRepository } from '../interfaces/transcript-repositories';
-import type { IDecisionTemplateRepository, ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
-import { logger, withContext } from '../logger';
+import type { IDecisionLogRepository } from '../interfaces/i-decision-log-repository.js';
+import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
+import type { IDecisionLogService } from '../interfaces/i-decision-log-service.js';
+import type { IChunkRelevanceRepository } from '../interfaces/transcript-repositories.js';
+import type { IDecisionTemplateRepository, ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository.js';
+import { logger, withContext } from '../logger/index.js';
 
 const FIELD_META_KEY = '__fieldMeta';
 

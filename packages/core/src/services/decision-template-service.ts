@@ -13,9 +13,9 @@ import type { IDecisionTemplateService } from '../interfaces/i-decision-template
 import type {
   IDecisionTemplateRepository,
   ITemplateFieldAssignmentRepository,
+  TemplateFieldAssignmentInsert,
   DecisionTemplateIdentityLookup,
 } from '../interfaces/i-decision-template-repository';
-import type { TemplateFieldAssignmentInsert } from '@repo/db';
 
 export class DecisionTemplateService implements IDecisionTemplateService {
   constructor(

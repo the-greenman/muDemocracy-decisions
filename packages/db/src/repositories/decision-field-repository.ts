@@ -3,8 +3,8 @@
  */
 
 import { and, eq, sql } from 'drizzle-orm';
-import { db } from '../client';
-import { decisionFields } from '../schema';
+import { db } from '../client.js';
+import { decisionFields } from '../schema.js';
 import type { 
   DecisionField,
   CreateDecisionField

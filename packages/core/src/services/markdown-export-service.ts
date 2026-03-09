@@ -2,11 +2,11 @@
  * Service for exporting decision drafts to markdown format
  */
 
-import { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
-import { IDecisionTemplateRepository } from '../interfaces/i-decision-template-repository';
-import { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
-import { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository';
-import { IMeetingRepository } from '../interfaces/i-meeting-repository';
+import { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
+import { IDecisionTemplateRepository } from '../interfaces/i-decision-template-repository.js';
+import { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository.js';
+import { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository.js';
+import { IMeetingRepository } from '../interfaces/i-meeting-repository.js';
 import type { TemplateFieldAssignment, DecisionField } from '@repo/schema';
 
 const FIELD_META_KEY = '__fieldMeta';

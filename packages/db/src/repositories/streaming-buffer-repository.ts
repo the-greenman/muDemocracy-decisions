@@ -6,8 +6,8 @@
  * use Redis or another streaming solution.
  */
 
-import { db } from '../client';
-import { transcriptChunks, TranscriptChunkInsert } from '../schema';
+import { db } from '../client.js';
+import { transcriptChunks, TranscriptChunkInsert } from '../schema.js';
 import { TranscriptChunk, CreateTranscriptChunk } from '@repo/schema';
 
 interface StreamingEvent {

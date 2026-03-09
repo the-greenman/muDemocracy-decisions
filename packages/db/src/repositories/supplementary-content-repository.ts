@@ -1,6 +1,6 @@
 import { arrayContains, eq } from 'drizzle-orm';
-import { db } from '../client';
-import { supplementaryContent } from '../schema';
+import { db } from '../client.js';
+import { supplementaryContent } from '../schema.js';
 import type { SupplementaryContent, CreateSupplementaryContent } from '@repo/schema';
 
 export class DrizzleSupplementaryContentRepository {

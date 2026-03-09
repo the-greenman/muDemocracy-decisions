@@ -8,8 +8,8 @@ import {
   type DecisionTemplateSelect,
   type TemplateFieldAssignmentSelect,
   type TemplateFieldAssignmentInsert
-} from '../schema';
-import { db } from '../client';
+} from '../schema.js';
+import { db } from '../client.js';
 import { eq, and, ilike, asc, inArray } from 'drizzle-orm';
 import type { 
   DecisionTemplate,

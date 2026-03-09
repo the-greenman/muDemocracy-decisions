@@ -8,7 +8,13 @@ import type {
   CreateDecisionTemplate,
   TemplateFieldAssignment
 } from '@repo/schema';
-import type { TemplateFieldAssignmentInsert } from '@repo/db';
+
+export type TemplateFieldAssignmentInsert = {
+  templateId: string;
+  fieldId: string;
+  order: number;
+  required: boolean;
+};
 
 export type DecisionTemplateIdentityLookup = {
   namespace?: string;

@@ -2,14 +2,14 @@
  * TranscriptService - Business logic for transcript management
  */
 
-import { logger } from '../logger';
+import { logger } from '../logger/index.js';
 import {
   IRawTranscriptRepository,
   ITranscriptChunkRepository,
   IStreamingBufferRepository,
   IChunkRelevanceRepository,
   IDecisionContextWindowRepository,
-} from '../interfaces/transcript-repositories';
+} from '../interfaces/transcript-repositories.js';
 import {
   RawTranscript,
   ReadableTranscriptRow,
@@ -23,7 +23,7 @@ import {
   createDefaultTranscriptPreprocessorRegistry,
   type CanonicalTranscriptSegment,
   type TranscriptPreprocessorRegistry,
-} from '../transcript-preprocessing';
+} from '../transcript-preprocessing.js';
 
 export interface TranscriptUploadData {
   meetingId: string;

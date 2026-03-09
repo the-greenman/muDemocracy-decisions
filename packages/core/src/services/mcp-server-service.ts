@@ -8,8 +8,8 @@ import type {
   CreateMCPServer,
   UpdateMCPServer
 } from '@repo/schema';
-import type { IMCPServerRepository } from '../interfaces/i-mcp-server-repository';
-import { logger } from '../logger';
+import type { IMCPServerRepository } from '../interfaces/i-mcp-server-repository.js';
+import { logger } from '../logger/index.js';
 
 export interface IMCPServerService {
   // Basic CRUD operations

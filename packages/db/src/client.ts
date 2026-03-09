@@ -7,7 +7,7 @@
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from './schema';
+import * as schema from './schema.js';
 
 // Connection string from environment
 const connectionString = process.env.DATABASE_URL || 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev';

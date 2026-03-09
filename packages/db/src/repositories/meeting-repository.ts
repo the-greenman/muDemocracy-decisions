@@ -5,8 +5,8 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { db } from '../client';
-import { meetings, MeetingSelect, MeetingInsert } from '../schema';
+import { db } from '../client.js';
+import { meetings, MeetingSelect, MeetingInsert } from '../schema.js';
 import { Meeting, CreateMeeting } from '@repo/schema';
 
 function toMeetingIsoDate(value: string | Date): string {

@@ -3,8 +3,8 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { db } from '../client';
-import { rawTranscripts, RawTranscriptSelect, RawTranscriptInsert } from '../schema';
+import { db } from '../client.js';
+import { rawTranscripts, RawTranscriptSelect, RawTranscriptInsert } from '../schema.js';
 import { RawTranscript, CreateRawTranscript } from '@repo/schema';
 
 export class DrizzleRawTranscriptRepository {

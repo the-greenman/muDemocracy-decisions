@@ -3,13 +3,13 @@
  */
 
 import { eq, and, desc, arrayContains } from 'drizzle-orm';
-import { db } from '../client';
+import { db } from '../client.js';
 import { 
   decisionContextWindows, 
   transcriptChunks,
   DecisionContextWindowSelect, 
   DecisionContextWindowInsert 
-} from '../schema';
+} from '../schema.js';
 import { DecisionContextWindow, TranscriptChunk } from '@repo/schema';
 
 export class DrizzleDecisionContextWindowRepository {

@@ -43,7 +43,7 @@ export {
   createTemplateFieldAssignmentRepository,
   createServices,
   type ServiceContainer
-} from './service-factory';
+} from './service-factory.js';
 
 // Logger
 export { Logger, logger, withContext, getContext, getCorrelationId, addContext, correlationMiddleware } from './logger/index.js';

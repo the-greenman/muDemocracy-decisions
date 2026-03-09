@@ -2,7 +2,7 @@
  * Service for managing LLM interactions
  */
 
-import { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository';
+import { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository.js';
 import type { LLMInteraction } from '@repo/schema';
 
 export class LLMInteractionService {

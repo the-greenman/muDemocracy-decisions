@@ -5,24 +5,24 @@
  * leaking repository implementations into application layers.
  */
 
-import { MeetingService } from './services/meeting-service';
-import { DecisionLogService } from './services/decision-log-service';
-import { DecisionContextService } from './services/decision-context-service';
-import { TranscriptService } from './services/transcript-service';
-import { DecisionFieldService } from './services/decision-field-service';
-import { DraftGenerationService } from './services/draft-generation-service';
-import { FlaggedDecisionService } from './services/flagged-decision-service';
-import { DecisionTemplateService } from './services/decision-template-service';
-import { GlobalContextService, FileGlobalContextStore } from './services/global-context-service';
-import { LLMInteractionService } from './services/llm-interaction-service';
-import { MarkdownExportService } from './services/markdown-export-service';
-import { SupplementaryContentService } from './services/supplementary-content-service';
-import { VercelAILLMService } from './llm/vercel-ai-llm-service';
-import type { ITranscriptManager } from './transcript-manager';
-import type { IDecisionLogGenerator } from './decision-log-generator/i-decision-log-generator';
-import type { IContentCreator } from './decision-log-generator/i-content-creator';
-import { InProcessEventBus } from './events/in-process-event-bus';
-import type { IEventBus } from './events/i-event-bus';
+import { MeetingService } from './services/meeting-service.js';
+import { DecisionLogService } from './services/decision-log-service.js';
+import { DecisionContextService } from './services/decision-context-service.js';
+import { TranscriptService } from './services/transcript-service.js';
+import { DecisionFieldService } from './services/decision-field-service.js';
+import { DraftGenerationService } from './services/draft-generation-service.js';
+import { FlaggedDecisionService } from './services/flagged-decision-service.js';
+import { DecisionTemplateService } from './services/decision-template-service.js';
+import { GlobalContextService, FileGlobalContextStore } from './services/global-context-service.js';
+import { LLMInteractionService } from './services/llm-interaction-service.js';
+import { MarkdownExportService } from './services/markdown-export-service.js';
+import { SupplementaryContentService } from './services/supplementary-content-service.js';
+import { VercelAILLMService } from './llm/vercel-ai-llm-service.js';
+import type { ITranscriptManager } from './transcript-manager/index.js';
+import type { IDecisionLogGenerator } from './decision-log-generator/i-decision-log-generator.js';
+import type { IContentCreator } from './decision-log-generator/i-content-creator.js';
+import { InProcessEventBus } from './events/in-process-event-bus.js';
+import type { IEventBus } from './events/i-event-bus.js';
 
 // Import repository implementations from db package
 import {

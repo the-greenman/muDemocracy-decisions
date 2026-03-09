@@ -9,8 +9,8 @@ import {
   type ExpertTemplateSelect,
   type ExpertAdviceSelect,
   type MCPServerSelect
-} from '../schema';
-import { db } from '../client';
+} from '../schema.js';
+import { db } from '../client.js';
 import { eq, and, ilike, desc, asc, gte, lte, sql } from 'drizzle-orm';
 import type { 
   ExpertTemplate,

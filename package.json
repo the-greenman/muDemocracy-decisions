@@ -18,7 +18,9 @@
     "test:coverage": "turbo run test:coverage",
     "test:e2e": "turbo run test:e2e",
     "test:llm": "turbo run test:llm",
-    "lint": "turbo run lint",
+    "lint": "eslint apps packages scripts eslint.config.js",
+    "lint:workspace": "node ./scripts/validate-workspace-types.mjs",
+    "lint:all": "pnpm lint && pnpm lint:workspace",
     "format": "turbo run format",
     "type-check": "turbo run type-check",
     "db:generate": "turbo run db:generate --filter=@repo/db",
@@ -27,14 +29,18 @@
     "db:studio": "turbo run db:studio --filter=@repo/db",
     "db:validate": "turbo run db:validate --filter=@repo/db",
     "db:seed": "turbo run db:seed --filter=@repo/db",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "prepare": "node ./scripts/install-git-hooks.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.22.0",
     "@types/node": "^20.11.0",
     "eslint": "^8.56.0",
+    "eslint-plugin-import": "^2.31.0",
     "prettier": "^3.2.0",
     "turbo": "^1.11.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.26.1"
   },
   "engines": {
     "node": ">=18.0.0",

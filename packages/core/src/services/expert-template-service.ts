@@ -8,8 +8,8 @@ import type {
   CreateExpertTemplate,
   UpdateExpertTemplate,
 } from '@repo/schema';
-import type { IExpertTemplateRepository } from '../interfaces/i-expert-template-repository';
-import { logger } from '../logger';
+import type { IExpertTemplateRepository } from '../interfaces/i-expert-template-repository.js';
+import { logger } from '../logger/index.js';
 
 export interface IExpertTemplateService {
   // Basic CRUD operations

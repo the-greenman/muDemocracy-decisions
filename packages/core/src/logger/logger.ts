@@ -3,9 +3,9 @@
  */
 
 import pino, { type Logger as PinoLogger } from 'pino';
-import type { LogContext, LoggerConfig, LogLevel } from './types';
-import { DEFAULT_REDACT_FIELDS } from './types';
-import { getContext, getCorrelationId } from './context';
+import type { LogContext, LoggerConfig, LogLevel } from './types.js';
+import { DEFAULT_REDACT_FIELDS } from './types.js';
+import { getContext, getCorrelationId } from './context.js';
 
 export class Logger {
   private pino: PinoLogger;

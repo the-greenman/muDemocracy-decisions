@@ -7,9 +7,9 @@ import type {
   ExpertAdvice,
   CreateExpertAdvice,
 } from '@repo/schema';
-import type { IExpertAdviceHistoryRepository } from '../interfaces/i-expert-advice-history-repository';
-import type { IExpertTemplateRepository } from '../interfaces/i-expert-template-repository';
-import { logger } from '../logger';
+import type { IExpertAdviceHistoryRepository } from '../interfaces/i-expert-advice-history-repository.js';
+import type { IExpertTemplateRepository } from '../interfaces/i-expert-template-repository.js';
+import { logger } from '../logger/index.js';
 
 export interface IExpertAdviceService {
   // Advice history management

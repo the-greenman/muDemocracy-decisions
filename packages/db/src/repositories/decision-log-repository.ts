@@ -4,8 +4,8 @@
 
 import { 
   decisionLogs
-} from '../schema';
-import { db } from '../client';
+} from '../schema.js';
+import { db } from '../client.js';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { DecisionLog } from '@repo/schema';
 

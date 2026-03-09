@@ -8,10 +8,10 @@ import type {
   DraftVersion,
   CreateDecisionContext 
 } from '@repo/schema';
-import type { IDecisionContextService } from '../interfaces/i-decision-context-service';
-import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
-import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
-import { logger } from '../logger';
+import type { IDecisionContextService } from '../interfaces/i-decision-context-service.js';
+import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
+import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository.js';
+import { logger } from '../logger/index.js';
 
 const FIELD_META_KEY = '__fieldMeta';
 

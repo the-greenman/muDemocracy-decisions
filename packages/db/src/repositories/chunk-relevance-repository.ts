@@ -3,8 +3,8 @@
  */
 
 import { eq, and } from 'drizzle-orm';
-import { db } from '../client';
-import { chunkRelevance, ChunkRelevanceSelect, ChunkRelevanceInsert } from '../schema';
+import { db } from '../client.js';
+import { chunkRelevance, ChunkRelevanceSelect, ChunkRelevanceInsert } from '../schema.js';
 import { ChunkRelevance } from '@repo/schema';
 
 export class DrizzleChunkRelevanceRepository {

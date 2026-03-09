@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm';
-import { db } from '../client';
-import { llmInteractions } from '../schema';
+import { db } from '../client.js';
+import { llmInteractions } from '../schema.js';
 import type { LLMInteraction, CreateLLMInteraction } from '@repo/schema';
 
 export class DrizzleLLMInteractionRepository {

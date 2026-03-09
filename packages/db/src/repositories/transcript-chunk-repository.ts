@@ -3,8 +3,8 @@
  */
 
 import { eq, and, ilike, arrayContains } from 'drizzle-orm';
-import { db } from '../client';
-import { transcriptChunks, TranscriptChunkSelect, TranscriptChunkInsert } from '../schema';
+import { db } from '../client.js';
+import { transcriptChunks, TranscriptChunkSelect, TranscriptChunkInsert } from '../schema.js';
 import { TranscriptChunk } from '@repo/schema';
 
 export class DrizzleTranscriptChunkRepository {

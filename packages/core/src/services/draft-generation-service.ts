@@ -1,14 +1,14 @@
 import type { DecisionContext, DecisionField, SupplementaryContent } from '@repo/schema';
-import type { ILLMService, GuidanceSegment } from '../llm/i-llm-service';
+import type { ILLMService, GuidanceSegment } from '../llm/i-llm-service.js';
 import type { PromptSegmentData } from '@repo/schema';
-import { buildDraftPrompt, buildFieldRegenerationPrompt, buildDraftPromptFromTemplate } from '../llm/prompt-builder';
-import type { ITranscriptChunkRepository } from '../interfaces/transcript-repositories';
-import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
-import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
-import type { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository';
-import type { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository';
-import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository';
-import type { ISupplementaryContentRepository } from '../interfaces/i-supplementary-content-repository';
+import { buildDraftPrompt, buildFieldRegenerationPrompt, buildDraftPromptFromTemplate } from '../llm/prompt-builder.js';
+import type { ITranscriptChunkRepository } from '../interfaces/transcript-repositories.js';
+import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository.js';
+import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
+import type { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository.js';
+import type { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository.js';
+import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository.js';
+import type { ISupplementaryContentRepository } from '../interfaces/i-supplementary-content-repository.js';
 import type { FlaggedDecision } from '@repo/schema';
 
 const FIELD_META_KEY = '__fieldMeta';

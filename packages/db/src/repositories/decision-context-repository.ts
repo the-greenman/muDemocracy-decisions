@@ -4,8 +4,8 @@
 
 import { 
   decisionContexts
-} from '../schema';
-import { db } from '../client';
+} from '../schema.js';
+import { db } from '../client.js';
 import { eq, sql } from 'drizzle-orm';
 import { DecisionContext, CreateDecisionContext } from '@repo/schema';
 
