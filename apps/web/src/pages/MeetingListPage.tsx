@@ -61,8 +61,15 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
 
   function handleCreate() {
     if (!title.trim()) return;
-    // In prototype: navigate directly to facilitator view for the existing meeting
-    navigate('/meetings/mtg-1/facilitator');
+    navigate('/meetings/mtg-1/facilitator/home', {
+      state: {
+        setupDraft: {
+          meetingTitle: title.trim(),
+          meetingDate: date,
+          participants,
+        },
+      },
+    });
   }
 
   return (
@@ -149,7 +156,7 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
           className="flex items-center gap-1.5 px-4 py-2 text-fac-meta bg-accent text-white rounded hover:bg-accent/90 transition-colors disabled:opacity-40"
         >
           <Plus size={13} />
-          Create &amp; open
+          Create meeting
         </button>
       </div>
     </div>
@@ -161,7 +168,7 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
 function MeetingRow({ meeting }: { meeting: Meeting }) {
   return (
     <Link
-      to={`/meetings/${meeting.id}/facilitator`}
+      to={`/meetings/${meeting.id}/facilitator/home`}
       className="block p-4 rounded-card border border-border bg-surface hover:border-border-strong transition-colors"
     >
       <div className="flex items-start justify-between gap-4">

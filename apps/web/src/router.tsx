@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import { MeetingListPage } from './pages/MeetingListPage';
 import { SharedMeetingPage } from './pages/SharedMeetingPage';
 import { FacilitatorMeetingPage } from './pages/FacilitatorMeetingPage';
+import { FacilitatorMeetingHomePage } from './pages/FacilitatorMeetingHomePage';
 import { TranscriptPage } from './pages/TranscriptPage';
 import { LoggedDecisionPage } from './pages/LoggedDecisionPage';
 import { PrototypeGallery } from './pages/PrototypeGallery';
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
   { path: '/meetings/:id', element: <SharedMeetingPage /> },
 
   // ── Route 3: Facilitator meeting view ───────────────────────────
+  { path: '/meetings/:id/facilitator/home', element: <FacilitatorMeetingHomePage /> },
   { path: '/meetings/:id/facilitator', element: <FacilitatorMeetingPage /> },
 
   // ── Route 4: Segment selection ───────────────────────────────────

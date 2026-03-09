@@ -308,6 +308,12 @@ export function FacilitatorMeetingPage() {
       tags: [],
       relations: [],
     });
+    refreshSuggestedTagsFromDraft({
+      title: payload.title,
+      summary: payload.summary,
+      focus: 'initial draft',
+      acceptedTags: [],
+    });
 
     setLeftTab('agenda');
     setModal(null);
@@ -340,13 +346,15 @@ export function FacilitatorMeetingPage() {
     setActiveContext((prev) => ({ ...prev, tags: prev.tags.filter((tag) => tag.id !== tagId) }));
   }
 
-  function queueSuggestedTags(focus: string) {
-    const existing = new Set([
-      ...activeContext.tags.map((tag) => tag.name.toLowerCase()),
-      ...suggestedTags.map((tag) => tag.name.toLowerCase()),
-    ]);
-
-    const focusText = `${activeContext.title} ${activeContext.summary} ${focus}`.toLowerCase();
+  function refreshSuggestedTagsFromDraft(params: {
+    title: string;
+    summary: string;
+    focus?: string;
+    acceptedTags?: Tag[];
+  }) {
+    const accepted = params.acceptedTags ?? activeContext.tags;
+    const existingAccepted = new Set(accepted.map((tag) => tag.name.toLowerCase()));
+    const focusText = `${params.title} ${params.summary} ${params.focus ?? ''}`.toLowerCase();
     const ranked = [...SUGGESTED_TAG_SEEDS].sort((a, b) => {
       const aScore = focusText.includes(a.name.toLowerCase()) ? 1 : 0;
       const bScore = focusText.includes(b.name.toLowerCase()) ? 1 : 0;
@@ -354,12 +362,9 @@ export function FacilitatorMeetingPage() {
     });
 
     const next = ranked
-      .filter((tag) => !existing.has(tag.name.toLowerCase()))
-      .slice(0, 2)
+      .filter((tag) => !existingAccepted.has(tag.name.toLowerCase()))
+      .slice(0, 3)
       .map((tag) => ({ ...tag, id: `st-${Date.now()}-${tag.name.replace(/\s+/g, '-')}` }));
-
-    if (next.length === 0) return;
-    setSuggestedTags((prev) => [...next, ...prev]);
 
     setLlmLog((prev) => [
       {
@@ -367,10 +372,16 @@ export function FacilitatorMeetingPage() {
         at: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
         model: 'claude-opus-4-5',
         action: 'suggest tags',
-        note: `Generated ${next.length} facilitator-review tags.`,
+        note:
+          next.length > 0
+            ? `Generated ${next.length} facilitator-review tags and replaced pending suggestions.`
+            : 'No new tag suggestions generated; accepted tags already cover current draft.',
       },
       ...prev,
     ]);
+
+    // Regeneration refreshes pending suggestions only. Accepted tags stay on the context.
+    setSuggestedTags(next);
   }
 
   function handleApproveSuggestedTag(suggestedTagId: string) {
@@ -579,7 +590,11 @@ export function FacilitatorMeetingPage() {
             : f,
         ),
       );
-      queueSuggestedTags(focus);
+      refreshSuggestedTagsFromDraft({
+        title: activeContext.title,
+        summary: activeContext.summary,
+        focus,
+      });
     }, 2000);
   }
 
@@ -616,6 +631,12 @@ export function FacilitatorMeetingPage() {
       fields: newFields,
       tags: [],
       relations: [],
+    });
+    refreshSuggestedTagsFromDraft({
+      title,
+      summary,
+      focus: 'initial draft',
+      acceptedTags: [],
     });
 
     setModal(null);
@@ -747,6 +768,13 @@ export function FacilitatorMeetingPage() {
         >
           <ExternalLink size={13} />
           Shared view
+        </Link>
+        <Link
+          to="/meetings/mtg-1/facilitator/home"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary hover:text-text-primary border border-border rounded transition-colors"
+        >
+          <ExternalLink size={13} />
+          Meeting home
         </Link>
 
         <button
@@ -1080,7 +1108,13 @@ export function FacilitatorMeetingPage() {
                 Add tag
               </button>
               <button
-                onClick={() => queueSuggestedTags('manual request')}
+                onClick={() =>
+                  refreshSuggestedTagsFromDraft({
+                    title: activeContext.title,
+                    summary: activeContext.summary,
+                    focus: 'manual request',
+                  })
+                }
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-text-secondary text-fac-meta hover:text-text-primary hover:bg-overlay transition-colors"
               >
                 <Lightbulb size={12} />
