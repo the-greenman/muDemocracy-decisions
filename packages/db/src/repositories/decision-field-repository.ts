@@ -9,7 +9,12 @@ import type {
   DecisionField,
   CreateDecisionField
 } from '@repo/schema';
-import type { DecisionFieldIdentityLookup } from '@repo/core';
+
+type DecisionFieldIdentityLookup = {
+  namespace?: string;
+  name: string;
+  version?: number;
+};
 
 // Interface definition to avoid circular dependency
 interface IDecisionFieldRepository {

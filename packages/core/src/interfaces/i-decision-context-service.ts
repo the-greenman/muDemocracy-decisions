@@ -3,7 +3,7 @@
  * Manages draft state, field locking, and field-specific transcript retrieval
  */
 
-import type { DecisionContext, CreateDecisionContext } from '@repo/core';
+import type { DecisionContext, CreateDecisionContext } from '@repo/schema';
 
 export interface DraftVersionSummary {
   version: number;

@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm'],
-  dts: false, // Disable DTS generation due to circular dependency issues
+  dts: true,
   clean: true,
   external: ['@repo/schema', 'drizzle-orm', 'postgres'],
 });

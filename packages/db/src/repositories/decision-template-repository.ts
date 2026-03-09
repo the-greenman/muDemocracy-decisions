@@ -16,7 +16,12 @@ import type {
   CreateDecisionTemplate,
   TemplateFieldAssignment
 } from '@repo/schema';
-import type { DecisionTemplateIdentityLookup } from '@repo/core';
+
+type DecisionTemplateIdentityLookup = {
+  namespace?: string;
+  name: string;
+  version?: number;
+};
 
 // Interface definitions to avoid circular dependency
 interface IDecisionTemplateRepository {

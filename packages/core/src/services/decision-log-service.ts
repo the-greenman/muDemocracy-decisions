@@ -3,13 +3,10 @@
  * Handles immutable decision recording with business logic
  */
 
-import type { 
-  IDecisionLogRepository, 
-  IDecisionContextRepository,
-  IDecisionLogService,
-  DecisionLog,
-  CreateDecisionLog 
-} from '@repo/core';
+import type { DecisionLog, CreateDecisionLog } from '@repo/schema';
+import type { IDecisionLogRepository } from '../interfaces/i-decision-log-repository';
+import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository';
+import type { IDecisionLogService } from '../interfaces/i-decision-log-service';
 import type { IChunkRelevanceRepository } from '../interfaces/transcript-repositories';
 import type { IDecisionTemplateRepository, ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository';
 import { logger, withContext } from '../logger';
