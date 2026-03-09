@@ -1,10 +1,19 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
     "declaration": true,
     "declarationMap": false,
-    "noEmit": false
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "composite": false,
+    "tsBuildInfoFile": "./tsconfig.declarations.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@repo/db": ["../db/dist/index.d.ts"],
+      "@repo/schema": ["../schema/dist/index.d.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "**/*.test.ts"]

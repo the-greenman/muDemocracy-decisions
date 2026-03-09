@@ -36,10 +36,10 @@ Stabilize the remaining workspace type/build issues by preserving the completed 
 
 ### Still Open
 
-- **Active blocker: published declaration availability for downstream type-check**
-  - `pnpm build` now passes, but downstream packages still need published declarations in the paths they consume
-  - `@repo/api type-check` remains the best signal for the remaining mismatch
-  - Current focus is `@repo/core` / `@repo/db` declaration publication, not JavaScript bundling
+- **Active blocker: root workspace orchestration still needs a fresh diagnostic**
+  - isolated package-level build/type-check tasks are now passing for `api`, `core`, `db`, `schema`, `web`, and the CLI package
+  - the remaining issue is root `pnpm build` / `pnpm type-check` still exiting nonzero through Turbo orchestration in this session
+  - current focus is confirming whether any task still fails in the root graph or whether the remaining nonzero result is orchestration-specific
 
 ## Reference Material
 
@@ -49,16 +49,17 @@ Stabilize the remaining workspace type/build issues by preserving the completed 
 
 ## Revised Plan
 
-### 1. Resolve published declaration output for `@repo/core` / `@repo/db`
+### 1. Capture the remaining root Turbo diagnostic
 
-- Ensure declaration files are emitted into the package paths advertised by `package.json`
-- Verify downstream packages resolve those declaration files during `type-check`
-- Keep fixes local to package publishing/build configuration where possible
+- Run root `pnpm type-check` and `pnpm build` against the current green package state
+- Identify the exact failing Turbo task, if one still exists
+- Reopen package-level declaration/publication work only if the fresh root diagnostic points back there
 
-### 2. Revalidate downstream consumers
+### 2. Revalidate root orchestration on top of the now-green package tasks
 
-- Confirm `@repo/api type-check` passes
-- Confirm `pnpm type-check` passes workspace-wide
+- Confirm root `pnpm type-check` passes workspace-wide
+- Confirm root `pnpm build` passes workspace-wide
+- If either still fails, capture the Turbo task name and treat that as the final remaining blocker
 - Confirm `pnpm dev` starts cleanly once the local port conflict is removed
 
 ### 3. Finalize documentation and workflow
@@ -76,7 +77,10 @@ Stabilize the remaining workspace type/build issues by preserving the completed 
 - [x] Full workspace `pnpm build` passes
 - [ ] Full workspace `pnpm type-check` passes
 - [x] `pnpm dev` starts without the previous `@repo/schema` runtime export error
-- [ ] Published declarations for `@repo/core` / `@repo/db` are available in the paths downstream consumers resolve
+- [x] Published declarations for `@repo/core` / `@repo/db` are available in the paths downstream consumers resolve
+- [x] `@repo/api type-check` passes with package-local `tsc --noEmit`
+- [x] Isolated `@repo/core` declaration/type-check passes
+- [x] Isolated CLI package type-check passes
 - [ ] `pnpm dev` starts cleanly when port `3000` is free
 
 ## Working Validation Sequence
@@ -92,10 +96,10 @@ pnpm dev
 ## Notes
 
 - The original broad remediation plan is mostly complete; avoid redoing those steps unless the remaining declaration-publication investigation proves they were incorrect.
-- The current plan intentionally narrows scope to the remaining downstream declaration-consumption blocker.
+- The current plan intentionally narrows scope to the remaining workspace-level orchestration blocker.
 
 ## Benefits
 
 - **Less plan churn** - completed repo-wide changes stay marked done
-- **Focused debugging** - remaining effort is centered on one concrete downstream packaging blocker
+- **Focused debugging** - remaining effort is centered on one concrete root-level diagnostic
 - **Better historical record** - plan and remediation log now point at the same current bottleneck

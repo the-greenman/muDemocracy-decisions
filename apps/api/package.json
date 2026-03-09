@@ -12,7 +12,7 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "type-check": "tsc --build --noEmit"
+    "type-check": "tsc --project tsconfig.typecheck.json --noEmit"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",

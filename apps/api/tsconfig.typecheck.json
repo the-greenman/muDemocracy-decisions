@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "composite": true,
-    "noEmit": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "composite": false,
     "baseUrl": ".",
     "paths": {
       "@repo/schema": ["../../packages/schema/dist/index.d.ts"],
@@ -11,11 +12,6 @@
       "@repo/core": ["../../packages/core/dist/index.d.ts"]
     }
   },
-  "references": [
-    { "path": "../../packages/schema" },
-    { "path": "../../packages/db" },
-    { "path": "../../packages/core" }
-  ],
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }

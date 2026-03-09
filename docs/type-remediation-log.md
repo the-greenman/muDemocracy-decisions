@@ -251,7 +251,15 @@ pnpm dev
 - `pnpm build` passes.
 - `pnpm dev` gets past the previous schema export/runtime mismatch.
 - `pnpm dev` currently fails only because another process is already bound to port `3000`.
-- Remaining technical blocker: make `@repo/core` / `@repo/db` publish declarations in the exact paths consumed by downstream package type-check.
+- `@repo/api type-check` now passes after restoring package-local `tsc --noEmit` and leaving declaration emission to upstream packages.
+- Remaining technical blocker: workspace-level `pnpm type-check` still fails somewhere above the now-passing package-local `@repo/api type-check` path.
+
+### Additional finding
+- `tsc --build --noEmit` is not a valid replacement for package-local type-check on a project that references emit-capable upstream packages.
+- For `@repo/api`, build mode with `noEmit` triggered `TS6310` because referenced projects in a build graph may not disable emit.
+- The working rule is:
+  - referenced buildable packages produce declarations as part of their own build flow
+  - downstream app/package type-check should use plain `tsc --noEmit`
 
 ### Notes
 - Treat `EADDRINUSE` as a local environment/runtime issue, not as evidence that the type-system remediation regressed.
@@ -269,3 +277,121 @@ pnpm build
 - Keep distinguishing `tsc` project-reference success from `tsup` DTS bundling success; they are not currently equivalent in this repo.
 - `@repo/db` no longer needs `tsup` DTS bundling in its `build` script as long as declaration emission is handled explicitly by `tsc` first.
 - Downstream/full-workspace validation can still fail for separate reasons; treat `@repo/db` DTS worker failure as resolved unless it reappears through another path.
+
+## 2026-03-09 - Remaining blocker narrowed to `@repo/core` consuming `@repo/db` types reliably
+
+### Symptom
+- `pnpm --filter @repo/api type-check` now passes.
+- `pnpm dev` reaches `@repo/api` startup and fails only with `EADDRINUSE` on port `3000`.
+- The remaining unresolved TypeScript failure is centered on `@repo/core` package-local type-check / declaration analysis.
+
+### Trigger observed
+- `@repo/db` declaration-only work produced `.d.ts` files, but publication into the package surface remained inconsistent during iterative build-script changes.
+- `@repo/core` surfaced `TS7016` against `@repo/db` when the package root resolved to `dist/index.js` without a reliably available matching declaration surface.
+- One specific failing type dependency was `TemplateFieldAssignmentInsert`, which `core` originally imported from `@repo/db`.
+
+### Fixes applied during this phase
+1. Restored `@repo/api` to package-local `tsc --noEmit` so it no longer trips `TS6310` under build mode.
+2. Isolated `@repo/db` declaration-only config from workspace source path mappings so `@repo/schema` is not pulled into the declaration project.
+3. Re-exported `TemplateFieldAssignmentInsert` from `@repo/db`'s public entrypoint.
+4. Reduced one `@repo/core` dependency on `@repo/db`'s published type surface by defining the field-assignment payload shape locally in the core interface layer.
+
+### Current verified state
+- `pnpm --filter @repo/api type-check` passes.
+- `pnpm dev` no longer indicates the original workspace type/export issue; its visible failure is operational (`EADDRINUSE`).
+- `@repo/db` build behavior improved, but declaration publication/persistence across the full build flow still needs tighter alignment with package exports.
+- `@repo/core` remains the last unresolved package-level blocker before workspace `pnpm type-check` can be considered stable.
+
+### Working interpretation
+1. The repo is no longer blocked by broad project-reference architecture decisions.
+2. The remaining work is concentrated in package-surface consistency:
+   - what `@repo/db` actually publishes
+   - what `@repo/core` expects from `@repo/db`
+3. Further fixes should stay local to package entrypoints, declaration publication, and minimal type-surface cleanup.
+
+### Next strategy
+- Keep validating package-local tasks directly instead of relying only on root Turbo output.
+- Prefer reducing unnecessary type-only dependencies on `@repo/db` package exports when the shape belongs to schema/domain contracts.
+- Make `@repo/db` declaration publication deterministic before treating workspace `pnpm type-check` as the final acceptance signal.
+
+## 2026-03-09 - Isolated package-level validation is green; remaining uncertainty is root Turbo orchestration
+
+### Verified passing tasks
+- `pnpm --filter @repo/api type-check`
+- `pnpm --filter @repo/core exec tsc --project tsconfig.declarations.json --pretty false`
+- `pnpm --filter @repo/db build`
+- `pnpm --filter @repo/db type-check`
+- `pnpm --filter @repo/schema type-check`
+- `pnpm --filter ./apps/cli exec tsc --noEmit --pretty false`
+- `pnpm --filter ./apps/cli build`
+- `pnpm --filter @repo/web type-check`
+- `pnpm --filter @repo/web build`
+- `pnpm --filter @repo/api build`
+
+### Additional fixes applied to reach this state
+1. `@repo/core` declaration checking was redirected to published `@repo/db` / `@repo/schema` declaration entrypoints.
+2. The remaining `@repo/core` contract mismatch was resolved by aligning `TemplateFieldAssignmentInsert` with the injected repository contract.
+3. The CLI package was updated to resolve workspace packages through published declaration entrypoints during type-check instead of following workspace source.
+
+### Current state
+- Package-level build/type-check validation is now substantially green across the isolated workspace tasks.
+- `pnpm dev` still reaches API startup and only visibly fails with `EADDRINUSE` on port `3000`.
+- Root `pnpm type-check` and `pnpm build` still return nonzero through the wrapper used in this session, but that failure has not yet been reproduced as a specific package-level TypeScript or build error after the latest fixes.
+
+### Working interpretation
+1. The previously known package-local blockers have been resolved.
+2. The remaining uncertainty is at the root orchestration layer unless a fresh root diagnostic surfaces another package failure.
+3. The next useful validation step is to capture a root Turbo diagnostic that names the still-failing task, if any remains after these package-level fixes.
+
+## 2026-03-09 - `@repo/core` package metadata and build scripts pointed at declarations that were not being emitted
+
+### Symptom
+- `pnpm --filter @repo/api type-check` failed with `TS6305` against `@repo/core`.
+- The compiler reported that `/packages/core/dist/index.d.ts` had not been built from `/packages/core/src/index.ts`.
+- Root `pnpm type-check` remained red even after `@repo/core build` had otherwise appeared successful.
+
+### Trigger observed
+- `packages/core/package.json` advertised `types: ./dist/index.d.ts` and exported that same declaration entrypoint.
+- `packages/core` had been moved away from `tsup` DTS bundling, but the declaration pipeline was left in an inconsistent state.
+- `packages/core/tsup.config.ts` still had `dts: true` while the package scripts used `tsup --no-dts`.
+- During validation, `packages/core/dist` contained JavaScript bundles but no `.d.ts` files.
+
+### Working remediation
+1. Keep declaration generation in the explicit `tsc` declaration build path.
+2. Disable `tsup` DTS generation so runtime bundling and declaration emission are not split across conflicting tools/config.
+3. Ensure the declaration build writes a real `dist/*.d.ts` surface before downstream packages type-check against `@repo/core`.
+
+### Fix applied
+```text
+packages/core/package.json
+  - keep `build` as `tsc --project tsconfig.declarations.json && tsup --no-dts`
+  - keep `type-check` on the explicit declaration-project path
+
+packages/core/tsup.config.ts
+  - change `dts: true` to `dts: false`
+
+packages/core/tsconfig.declarations.json
+  - keep declaration-only emission to `./dist`
+  - give the declaration build its own `tsBuildInfoFile`
+```
+
+### Verification notes
+- After rebuilding `@repo/core`, `packages/core/dist` now contains `index.d.ts` and the expected declaration tree for interfaces, services, logger, llm, and related modules.
+- This confirms the prior `@repo/core` declaration-publication failure was real and not just a downstream resolver false positive.
+- Root `pnpm build` is green after this fix.
+
+### Current remaining blocker
+- `@repo/api type-check` and root `pnpm type-check` still need one fresh validation pass against the updated on-disk API type-check configuration.
+- The terminal output captured so far still reflects the earlier `tsc --noEmit` API script invocation, so the next useful diagnostic should come from the updated package-local type-check path.
+
+### Follow-up resolution
+- Running the standalone API type-check path exposed the next real errors after package-resolution was fixed:
+  - `TS2835` for local ESM imports in `apps/api/src/index.ts`
+  - `TS7006` for untyped `segment` callback parameters in two guidance-mapping callbacks
+- Fixes applied:
+  - updated local relative imports in `apps/api/src/index.ts` to use explicit `.js` extensions
+  - typed the `segment` callback parameters as `GuidanceSegment`
+  - kept the explicit `IMeetingRepository` annotation on the selected repository instance
+- Validation result:
+  - `pnpm --filter @repo/api exec tsc --project tsconfig.typecheck.json --noEmit --pretty false` passes
+  - `pnpm type-check` passes workspace-wide

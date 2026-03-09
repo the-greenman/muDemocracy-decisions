@@ -9,7 +9,7 @@ import {
   listMeetingDecisionContextsRoute,
   getMeetingRoute,
   updateMeetingRoute,
-} from './routes/meetings';
+} from './routes/meetings.js';
 import {
   createDecisionLogGenerator,
   createDecisionLogService,
@@ -26,10 +26,11 @@ import {
   createMeetingService,
   createTemplateFieldAssignmentRepository,
   createTranscriptService,
+  type IMeetingRepository,
   MeetingService,
 } from '@repo/core';
 import { DrizzleMeetingRepository } from '@repo/db';
-import { MockMeetingRepository } from './mock-repository';
+import { MockMeetingRepository } from './mock-repository.js';
 import {
   clearDecisionContextRoute,
   clearFieldContextRoute,
@@ -38,7 +39,7 @@ import {
   setDecisionContextRoute,
   setFieldContextRoute,
   setMeetingContextRoute,
-} from './routes/context';
+} from './routes/context.js';
 import {
   createDecisionContextRoute,
   createSupplementaryContentRoute,
@@ -62,13 +63,13 @@ import {
   updateFlaggedDecisionRoute,
   updateFieldValueRoute,
   uploadTranscriptRoute,
-} from './routes/decision-workflow';
+} from './routes/decision-workflow.js';
 
 // Determine which repository to use
 const useDatabase = process.env.DATABASE_URL !== undefined;
 
 // Create repository and service instances
-const repo = useDatabase 
+const repo: IMeetingRepository = useDatabase 
   ? new DrizzleMeetingRepository() 
   : new MockMeetingRepository();
 
@@ -657,7 +658,7 @@ app.openapi(generateDraftRoute, async (c) => {
   try {
     const { id } = c.req.valid('param');
     const data = c.req.valid('json');
-    const guidance: GuidanceSegment[] | undefined = data.guidance?.map((segment) => {
+    const guidance: GuidanceSegment[] | undefined = data.guidance?.map((segment: GuidanceSegment) => {
       if (segment.fieldId !== undefined) {
         return {
           fieldId: segment.fieldId,
@@ -798,7 +799,7 @@ app.openapi(regenerateFieldRoute, async (c) => {
     const { id, fieldId } = c.req.valid('param');
     const resolvedFieldId = await resolveContextFieldId(services, id, fieldId);
     const { guidance } = c.req.valid('json');
-    const normalizedGuidance: GuidanceSegment[] | undefined = guidance?.map((segment) => {
+    const normalizedGuidance: GuidanceSegment[] | undefined = guidance?.map((segment: GuidanceSegment) => {
       if (segment.fieldId === undefined) {
         return {
           content: segment.content,
