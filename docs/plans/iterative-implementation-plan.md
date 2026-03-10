@@ -37,6 +37,43 @@ Phases 0–2 are complete: Zod schemas, full service layer, Drizzle repositories
 
 ---
 
+## Triage: M5 Blockers vs Post-M5 Backlog
+
+**Date**: March 10, 2026. Goal: ship a working web UI (M5) without completing non-essential architecture work first.
+
+### Must complete before M5
+
+| Sub-item | Status |
+|---|---|
+| M4.1–M4.6: Field regen, manual edit, decision logging | ✅ Done |
+| M4.7a: Field/template identity hardening | ✅ Done (parity tests remain) |
+| M4.12: `outstanding_issues` field | ⏳ Small — do in M4 pass |
+| M5-CLI: HTTP client CLI | ✅ Done |
+| M5.0: Multi-decision workflow foundation | ⏳ |
+| M5.1: Core API endpoints (meeting, context, flagged-decisions, draft, log, export) | ⏳ |
+| M5.4: Interactive CLI UX (Clack) | ⏳ |
+| M5.5 Phases 0–2: Web scaffolding + shared display + facilitator view (core workflow) | ⏳ |
+
+### Deferred to post-M5 backlog
+
+| Sub-item | Reason for deferral |
+|---|---|
+| M4.7b: Definition immutability + context pinning | Major undertaking; 7 named code incompatibilities; no user-visible impact before M5 |
+| M4.8: Modular Foundation B | Infrastructure seams only; no user value before M5 |
+| M4.9: Cross-meeting decision context | Schema migration + API changes; G6/G11 defer until post-M5 |
+| M4.10: Decision tagging + cross-references | Non-core; web Phase 5 depends on it but Phase 5 is post-M5 |
+| M4.11: Supplementary content store | Useful but not blocking the core workflow |
+| Versioning Architecture Phases A–E | Snapshot model is sufficient for M5; full field-version model is post-M5 |
+| M5.1a: Transcript reading mode | Enhancement; raw chunk list works for M5 core workflow |
+| M5.1a.1: Transcript preprocessing seam | Infrastructure; defer |
+| M5.1b: AI-assisted segment suggestions | Manual flagging is sufficient for M5 |
+| M5.2: Modular activation gate | Infrastructure check; defer |
+| M5.5 Phases 3–5: SSE streaming, tags, relations | Non-core for a working web UI |
+
+**Effect on M5 exit criteria**: items that depend solely on deferred work have been removed from the M5 exit criteria list. They are tracked in the Post-M5 Backlog section at the end of this document.
+
+---
+
 ## Architecture Decisions
 
 ### LLM SDK: Vercel AI SDK (provider-agnostic)
@@ -474,7 +511,7 @@ curl http://localhost:3001/docs
 - ✅ M1.4: Prompt builder implemented with typed segments and delimiters
 - ✅ M1.5: LLM interaction storage implemented (schema, table, repository)
 - ✅ M1.6: Draft generation service implemented with full test coverage
-- ⏳ Real LLM generates populated draft from sample transcript - pending M1.7 implementation
+- ⏳ Optional live-provider validation: real LLM generates populated draft from sample transcript when provider credentials are configured
 - ✅ Locked fields unchanged after regeneration (verified in tests)
 - ✅ LLM interaction stored with prompt segments (implemented in draft service)
 - ✅ Markdown export renders all fields in template order (implemented in M1.9 and verified via API export endpoint)
@@ -487,9 +524,11 @@ curl http://localhost:3001/docs
 
 **Deliverable**: Add transcript content incrementally to a meeting. View draft history. Roll back to a prior draft version. Global context management for active meeting/decision/field state.
 
+**Status**: ✅ Substantially complete. Core context management, auto-tagging, snapshot versioning, rollback flows, and API/CLI surfaces are implemented. Remaining work in this milestone is primarily documentation refresh and any parity polish not yet covered by focused tests.
+
 ---
 
-### M2.1 — Global Context Management
+### M2.1 — Global Context Management ✅ COMPLETE
 
 Implements persistent session state for the CLI (active meeting, decision, field).
 
@@ -524,9 +563,14 @@ context clear-decision
 context clear-meeting
 ```
 
+**Delivered**:
+- Global context service and factory wiring implemented
+- CLI context commands implemented against the HTTP API client
+- API coverage exists for active meeting / decision / field context workflows
+
 ---
 
-### M2.2 — Auto-Tagging Transcript Chunks
+### M2.2 — Auto-Tagging Transcript Chunks ✅ COMPLETE
 
 When a transcript chunk is added, it is automatically tagged based on the active context.
 
@@ -547,6 +591,10 @@ expect(chunk.contexts).toContain('meeting:mtg_1');
 expect(chunk.contexts).toContain('decision:ctx_1');
 expect(chunk.contexts).toContain('decision:ctx_1:options');
 ```
+
+**Delivered**:
+- Transcript chunk creation and streaming flows apply meeting / decision / field context tags
+- API e2e coverage verifies context-aware transcript and streaming behavior
 
 ---
 
@@ -578,9 +626,11 @@ pnpm cli decisions flag <meeting-id> --title "Escalate risk controls" --segments
 pnpm cli decisions update <flagged-id> --segments all
 ```
 
+**Status**: ⏳ Not yet confirmed complete in this plan. Keep as the next M2 follow-up if range-based selection is still desired beyond the current chunk-ID workflow.
+
 ---
 
-### M2.3 — Draft Versioning Schema
+### M2.3 — Draft Versioning Schema ✅ COMPLETE
 
 **Update**: `packages/schema/src/index.ts` — add `draftVersions` to `DecisionContextSchema`
 
@@ -594,9 +644,13 @@ Drizzle migration required.
 
 > **Long-term direction**: `draft_versions` is a transitional snapshot model. The target architecture is field-centric versioning per `docs/versioning-architecture.md`.
 
+**Delivered**:
+- Snapshot-based draft version persistence is implemented and exercised through API e2e coverage
+- The snapshot model remains the active M5-compatible versioning approach
+
 ---
 
-### M2.4 — Version Service Methods
+### M2.4 — Version Service Methods ✅ COMPLETE
 
 **Update**: `packages/core/src/services/decision-context-service.ts`
 - `saveSnapshot(id)` — pushes current `draft_data` + timestamp into `draft_versions` before overwriting
@@ -607,9 +661,16 @@ Drizzle migration required.
 
 > **Implementation note**: decision-level snapshot rollback may remain temporarily while field-based restore is completed, but the target behavior is field-based orchestration.
 
+**Delivered**:
+- Version list and rollback service behavior implemented
+- Workflow routes and API handlers shipped for listing versions and restoring snapshots
+- API e2e tests cover successful version listing, successful rollback, and missing-context failure cases
+
 ---
 
 ### Versioning Architecture Implementation (Dedicated Plan Section)
+
+> **Triage: DEFERRED — post-M5 backlog.** The snapshot model (M2.3/M2.4) is sufficient for M5. Phases A–E below are the correct long-term direction but do not need to ship before the web UI. Move to post-M5 backlog.
 
 **Architecture source-of-truth**: `docs/versioning-architecture.md`
 
@@ -689,15 +750,19 @@ This section defines implementation sequencing for the long-term field-based ver
 
 ---
 
-### M2.5 — Ongoing Transcript
+### M2.5 — Ongoing Transcript ✅ COMPLETE
 
 - `transcript upload` allows re-uploading to an existing meeting (appends chunks, does not replace)
 - `transcript add --text "..."` correctly uses active meeting context + auto-tagging
 - CLI command `transcript add --field <name> --text "..."` tags chunk at field level
 
+**Delivered**:
+- Incremental transcript upload and streaming flows are implemented
+- Context-aware transcript additions are covered through API e2e workflows
+
 ---
 
-### M2.6 — CLI + API for Versions
+### M2.6 — CLI + API for Versions ✅ COMPLETE
 
 **Add to `draft` commands**:
 ```
@@ -718,6 +783,11 @@ draft rollback <version>   — restore draft to version N
   - `GET /api/decision-contexts/:id/fields/:fieldRef/versions`
   - `GET /api/decision-contexts/:id/fields/:fieldRef/versions/:version`
   - `POST /api/decision-contexts/:id/fields/:fieldRef/restore`
+
+**Delivered**:
+- Snapshot version list and rollback flows are available via API
+- API e2e coverage exists for `GET /api/decision-contexts/:id/versions` and `POST /api/decision-contexts/:id/rollback`
+- Field-level history/restore remains part of the deferred long-term field-version architecture
 
 ---
 
@@ -985,6 +1055,8 @@ decision log --type <consensus|vote|authority|defer|reject|manual|ai_assisted> \
 
 ### M4.7b — Definition Immutability And Context Pinning
 
+> **Triage: DEFERRED — post-M5 backlog.** Lists 7 named code incompatibilities with no single clear endpoint. Critical long-term work, but does not block the web UI. Tackle after M5 ships.
+
 **Goal**:
 - Make field-definition and template-definition versions immutable.
 - Replace in-place semantic/composition mutation with version creation.
@@ -1068,6 +1140,8 @@ The following existing code conflicts with or is incomplete relative to the new 
 
 ### M4.8 — Modular Foundation B (Content + Coaching Seams)
 
+> **Triage: DEFERRED — post-M5 backlog.** Infrastructure seams with no user-visible output. Does not block M5.
+
 Add pluggable draft-content and coaching seams while keeping the current draft path as the active implementation.
 
 **Add**:
@@ -1082,6 +1156,8 @@ Add pluggable draft-content and coaching seams while keeping the current draft p
 ---
 
 ### M4.9 — Cross-Meeting Decision Context Planning
+
+> **Triage: DEFERRED — post-M5 backlog.** Requires a new join table migration, changes to multiple API routes, and G6/G11 UI flows. This is M6-level scope. `DecisionContext.meetingId` remains the sole meeting association for M5.
 
 Add the architectural seam for decisions that are prepared over time, not only inside one meeting.
 
@@ -1160,6 +1236,8 @@ INDEX on (contextId)
 ---
 
 ### M4.10 — Decision Tagging and Cross-References (Foundation)
+
+> **Triage: DEFERRED — post-M5 backlog.** Valuable feature, but the core workflow (flag → generate → log → export) does not require tags or relations. Web Phase 5 consumes these APIs; Phase 5 is post-M5. Implement after the core web UI ships.
 
 **Goal**: Give decisions and decision contexts lightweight metadata — tags for topics, teams, committees, and projects — and allow them to reference each other. The initial design must be simple enough to ship now but structured so it can evolve toward a full graph model without a breaking migration.
 
@@ -1327,6 +1405,8 @@ The initial schema is graph-compatible by design:
 ---
 
 ### M4.11 — Supplementary Content Store
+
+> **Triage: DEFERRED — post-M5 backlog.** Useful enrichment but not part of the core workflow. LLM draft generation works without it. The web prototype validated the interaction model; implement after the core web UI ships.
 
 **Goal**: Allow facilitators to attach non-transcript text evidence — meeting background, comparison tables, prior documents — to a meeting, decision context, or specific field. This material participates in LLM context retrieval alongside transcript chunks using the same `{scope}:{id}[:{field}]` tagging hierarchy.
 
@@ -1503,6 +1583,9 @@ pnpm test --filter=@repo/core
 ```
 
 ### M4 Exit Criteria
+
+> Items from M4.7b, M4.8, M4.9, M4.10, and M4.11 are deferred (post-M5). Only the criteria below gate M5 entry.
+
 - Single field regeneration stores separate `LLMInteraction` with `fieldId`
 - Field-tagged transcript clearly separated from transcript in prompt (verifiable via `draft debug`)
 - Manual field edits persist, are marked as manually edited, and are surfaced in CLI/API reads
@@ -1512,18 +1595,6 @@ pnpm test --filter=@repo/core
 - Logged export reuses shared formatting rules or equivalent centralized rendering to avoid drift from draft export
 - Field/template identity hardened (namespace + uniqueness + stable seed UUIDs)
 - Field-level API/CLI contracts are aligned on identifier semantics and reject fields not assigned to the active template
-- `IContentCreator` seam exists with AI adapter bound to current implementation
-- Field provenance metadata supported without breaking existing draft_data consumers
-- No-op coaching hook wired and verified non-disruptive
-- `supplementary_content` table exists with GIN index on `contexts`
-- Context builder queries both transcript chunks and supplementary items by context tag
-- Supplementary content API endpoints (`POST /api/supplementary-content`, `GET`, `DELETE`) implemented and tested
-- Supplementary evidence appears in draft generation prompt as a distinct section, separated from transcript evidence
-- `decision_context_meetings` join table exists with `status` column (`active` / `deferred` / `completed`)
-- `GET /api/meetings/:id/decision-contexts` reads from the join table rather than `decision_contexts.meetingId`
-- `POST /api/meetings/:id/decision-contexts/:contextId/activate` adds an existing open context to a meeting's agenda
-- `POST /api/meetings/:id/decision-contexts/:contextId/defer` marks a context as deferred on the current meeting's agenda
-- `GET /api/decision-contexts?status=open` lists all open contexts across meetings for the add-to-agenda picker
 - `outstanding_issues` field seeded and assigned to Proposal Acceptance, Strategy Decision, and Standard Decision templates
 
 ---
@@ -1575,6 +1646,8 @@ Before the web UI, the API and CLI must support working on multiple decisions si
 - Flag multiple decisions in one meeting: `decisions flag <meeting-id> --title "..."` (repeat for each)
 - List all flagged decisions: `decisions list --meeting-id <id>` (shows status, draft state)
 - Switch active decision: `context set-decision <flagged-id>` (loads existing `DecisionContext` if one exists)
+- Activating an agenda item may create a `DecisionContext` with the current default template when no template has been explicitly confirmed yet
+- Template assignment remains changeable after context creation; changing templates must not require recreating the flagged decision or losing agenda position
 - Each decision has its own isolated draft state, version history, and LLM interactions
 - `draft show` always refers to the currently active decision context
 - Candidate queue distinguishes `suggested` from `agenda` items
@@ -1600,6 +1673,8 @@ Do not use `decision-candidates` routes in M5. All candidate queue API work in M
 - `GET /api/flagged-decisions/:id/context` — get the `DecisionContext` for a flagged decision (enables web UI "resume" flow)
 - `PATCH /api/meetings/:id` — update meeting metadata/participants during session
 - `PATCH /api/flagged-decisions/:id` — update title/summary/priority/status; use `{ status: 'accepted', priority: n }` to promote to Agenda and set position
+- `GET /api/templates/:id/fields` — list the ordered field definitions assigned to a template so clients can drive client-side field reassignment during template changes
+- `POST /api/decision-contexts/:id/template-change` — change the active template for an existing decision context; initial M5 behavior preserves draft data and leaves reassignment decisions to the client
 
 **Future API planning for cross-meeting work**:
 - `GET /api/decision-contexts/:id` should remain the canonical way to resume one long-running decision context.
@@ -1662,6 +1737,7 @@ Complete all remaining API endpoints. All use Zod + `@hono/zod-openapi`.
 - `GET /api/mcp/servers` — list registered MCP servers
 
 **Field/Template endpoints** (add to existing, after M4.7 identity hardening):
+- `GET /api/templates/:id/fields` — ordered template field definitions for client-side reassignment and template-change UX
 - `POST /api/fields`, `PATCH /api/fields/:id`, `DELETE /api/fields/:id`
 - `POST /api/templates`, `PATCH /api/templates/:id`, `DELETE /api/templates/:id`
 - `POST /api/templates/:id/set-default`
@@ -1675,7 +1751,7 @@ Public definition-package distribution, upstream update flows, and diff re-impor
 - `GET /api/decision-contexts/:id/fields/:fieldRef/versions`
 - `GET /api/decision-contexts/:id/fields/:fieldRef/versions/:version`
 - `POST /api/decision-contexts/:id/fields/:fieldRef/restore`
-- `POST /api/decision-contexts/:id/template-change` with explicit transform mode semantics
+- `POST /api/decision-contexts/:id/template-change` with explicit transform mode semantics; M5 first ships a minimal preserve-draft-data version, then later adds transform/visibility modes
 
 **Preserved future-facing API notes**:
 - Expert and MCP surfaces are expected to include CRUD-style expert management plus MCP server inspection/registration flows, but exact contracts remain subordinate to the M6/M7 milestone implementation.
@@ -1696,6 +1772,8 @@ curl http://localhost:3000/api/meetings/<id>/summary  # Returns stats
 ---
 
 ### M5.1a — Transcript Reading Mode (UI-Critical)
+
+> **Triage: DEFERRED — post-M5 backlog.** The reading-mode projection improves UX for segment selection but is not required for the core workflow (flag → generate → log → export). Segment selection via raw chunk list is sufficient for M5. Implement before web Phase 3 (segment selection screen).
 
 For human segment selection, overlapped chunk text is hard to read. Add a dedicated reading projection that is non-overlapping and sequence-ordered.
 
@@ -1740,6 +1818,8 @@ curl "http://localhost:3000/api/meetings/<id>/transcript-reading"
 
 ### M5.1a.1 — Transcript Preprocessing Seam (Whisper-Canonical)
 
+> **Triage: DEFERRED — post-M5 backlog.** Infrastructure concern. Plain-text upload works today. Implement when a second transcript source (e.g. Whisper JSON) is actively needed.
+
 Introduce a lightweight preprocessing layer to normalize transcript input into one canonical segment shape before chunking and reading projection.
 
 **Architecture reference**: `docs/transcript-preprocessing-architecture.md`
@@ -1783,6 +1863,8 @@ pnpm cli draft debug
 ---
 
 ### M5.1b — AI-Assisted Segment Suggestions (Review First)
+
+> **Triage: DEFERRED — post-M5 backlog.** Manual segment selection is sufficient for M5. AI-assisted suggestions are an enhancement layered on top of M5.1a. Implement after reading mode and the segment selection screen (web Phase 3).
 
 Manual decision creation should support title/summary-driven AI suggestions for relevant transcript evidence.
 
@@ -1829,6 +1911,8 @@ pnpm cli decisions suggest-segments --meeting-id <id> \
 ---
 
 ### M5.2 — Modular Activation Gate (v1-safe)
+
+> **Triage: DEFERRED — post-M5 backlog.** A useful checkpoint but not a user-deliverable. Run after M5 ships as a health check before starting M6.
 
 Before broad web/API adoption, verify that modular seams are usable without forcing activation of unfinished v2 behaviors.
 
@@ -1942,6 +2026,8 @@ Additional Screen 4 story added from Flow 1 gap analysis:
 
 #### API gaps to fill before each phase
 
+Rows marked **[DEFERRED]** depend on post-M5 sub-items and do not block web Phases 0–2.
+
 | Endpoint | Blocks | Milestone |
 |---|---|---|
 | `GET /api/meetings/:id/decision-contexts` | Shared display agenda | M5.1 |
@@ -1951,19 +2037,19 @@ Additional Screen 4 story added from Flow 1 gap analysis:
 | `PATCH /api/meetings/:id` | Participant updates | M5.1 |
 | `PATCH /api/decision-contexts/:id` | Edit active context title/summary (G2.1) | M5.1 |
 | `POST /api/decision-contexts/:id/regenerate` | Full regen (all unlocked) | M5.1 |
-| `GET /api/meetings/:id/transcript-reading` | Segment selection | M5.1a |
-| `POST /api/meetings/:id/segment-suggestions` | AI segment assist | M5.1b |
-| Tag + relation endpoints | Tag pills, related decisions | M4.10 |
-| `POST /api/supplementary-content` | Field-zoom evidence add | M4.11 |
-| `GET /api/supplementary-content?context={tag}` | Context builder retrieval | M4.11 |
-| `DELETE /api/supplementary-content/:id` | Remove supplementary item | M4.11 |
-| `GET /api/decision-contexts?status=open` | Add-to-agenda picker (G6) | M4.9 |
-| `POST /api/meetings/:id/decision-contexts/:contextId/activate` | Add existing context to meeting agenda (G6) | M4.9 |
-| `POST /api/meetings/:id/decision-contexts/:contextId/defer` | Defer context from meeting agenda (G11) | M4.9 |
-| `GET /api/meetings?query=<text>&dateFrom=<iso>&dateTo=<iso>&tag=<name>` | Related-meeting autocomplete/filter picker (G6 extension) | M5.1 |
-| `GET /api/meetings/calendar?month=<YYYY-MM>` | Related-meeting calendar popup (G6 extension) | M5.1 |
-| `POST /api/meetings/:id/transcripts/stream` | Start live transcript stream (G8) | M5.1 |
-| `GET /api/meetings/:id/streaming/status` | Live stream status indicator (G8) | M5.1 |
+| `GET /api/meetings/:id/transcript-reading` | Segment selection | **[DEFERRED]** M5.1a |
+| `POST /api/meetings/:id/segment-suggestions` | AI segment assist | **[DEFERRED]** M5.1b |
+| Tag + relation endpoints | Tag pills, related decisions | **[DEFERRED]** M4.10 |
+| `POST /api/supplementary-content` | Field-zoom evidence add | **[DEFERRED]** M4.11 |
+| `GET /api/supplementary-content?context={tag}` | Context builder retrieval | **[DEFERRED]** M4.11 |
+| `DELETE /api/supplementary-content/:id` | Remove supplementary item | **[DEFERRED]** M4.11 |
+| `GET /api/decision-contexts?status=open` | Add-to-agenda picker (G6) | **[DEFERRED]** M4.9 |
+| `POST /api/meetings/:id/decision-contexts/:contextId/activate` | Add existing context to meeting agenda (G6) | **[DEFERRED]** M4.9 |
+| `POST /api/meetings/:id/decision-contexts/:contextId/defer` | Defer context from meeting agenda (G11) | **[DEFERRED]** M4.9 |
+| `GET /api/meetings?query=<text>&dateFrom=<iso>&dateTo=<iso>&tag=<name>` | Related-meeting autocomplete/filter picker (G6 extension) | **[DEFERRED]** post-M5 |
+| `GET /api/meetings/calendar?month=<YYYY-MM>` | Related-meeting calendar popup (G6 extension) | **[DEFERRED]** post-M5 |
+| `POST /api/meetings/:id/transcripts/stream` | Start live transcript stream (G8) | **[DEFERRED]** post-M5 |
+| `GET /api/meetings/:id/streaming/status` | Live stream status indicator (G8) | **[DEFERRED]** post-M5 |
 
 Implementation note (March 9, 2026): the related-meeting search/calendar endpoints and `PATCH /api/decision-contexts/:id` are required by the facilitator UI workflow but are not yet present in `apps/api/src/routes/*`.
 
@@ -2036,40 +2122,44 @@ open http://localhost:5173  # Decision draft editor, multi-decision switcher
 ```
 
 ### M5 Exit Criteria
+
+> Criteria removed from this list because they depend on deferred items (M4.9, M4.10, M4.11, M5.1a, M5.1b, M5.2) are tracked in the Post-M5 Backlog section.
+
+**Core workflow (gates M5 done):**
 - ✅ Multiple decisions flagged and worked on independently within one meeting
 - ✅ Switching between active decisions preserves independent draft state
-- ✅ All API endpoints implemented (expert/MCP as stubs), tested, and in OpenAPI spec
-- ✅ Transcript reading mode exists in API + CLI with documented parity
-- ✅ Web transcript workflow defaults to reading mode for segment selection (chunk overlap hidden by default)
-- ✅ AI segment suggestion endpoint + CLI command implemented with parity
-- ✅ Manual + AI-assisted segment selection both require explicit user confirmation before persistence
-- ✅ Confirmed selection persistence stores both reading-row IDs and resolved chunk IDs
-- ✅ Transcript append does not invalidate previously confirmed selection mappings
+- ✅ Core API endpoints implemented (expert/MCP as stubs), tested, and in OpenAPI spec — covers meeting, transcript, flagged-decisions, decision-contexts, draft, log, export
 - ✅ Candidate queue supports `suggested` vs `agenda` states with explicit agenda ordering controls
 - ✅ Template selected before initial draft generation in candidate promotion flow
-- ✅ Field content preserved across template changes; hidden fields excluded from export
-- ✅ Field-level version navigation available in zoomed field workflow
 - ✅ New transcript in decision/field context is recency-weighted for manual regeneration
 - ✅ Decision completion persists free-text agreement notes and timestamp; incomplete decisions can be resumed
-- ✅ Modular activation gate passed (seams present; advanced v2 features still optional)
 - ✅ `apps/cli` has zero `@repo/core` or `@repo/db` imports
 - ✅ CLI works against local and remote API URLs
-- ✅ Web UI: flag → draft → multi-decision switch → export full workflow
-- ✅ Real-time draft generation streaming in web UI
-- ✅ UI/UX behavior for each shipped screen is documented and maintained in `docs/ui-ux-overview.md`
+
+**Web UI (gates M5 done):**
+- ✅ Web UI: flag → draft → multi-decision switch → export — full workflow works end-to-end in browser
+- ✅ UI/UX behavior for each shipped screen documented and maintained in `docs/ui-ux-overview.md`
 - ✅ Shared-display experience remains uncluttered; facilitator-only controls are separated or explicitly gated
-- ✅ Transcript upload available in facilitator view (G1 — upload action + attribution-optional flag)
+- ✅ Transcript upload available in facilitator view (G1)
 - ✅ Direct decision context creation available in facilitator view without prior candidate (G2)
-- ✅ Regenerate dialog exposes optional "Focus for this pass" input, sent as `additionalContext` (G5)
-- ✅ Transcript view has jump-to-row control (sequence number input) in toolbar (G3)
-- ✅ Supplementary content endpoints (M4.11) consumed by facilitator view; field zoom shows add/remove evidence UI
-- ✅ Facilitator view exposes "add existing context to agenda" picker — loads open contexts from other meetings (G6, M4.9)
-- ✅ Live transcript stream can be started and stopped from the facilitator view; stream status indicator visible in header (G8)
-- ✅ Regeneration recency signal shows new row count since last pass when transcript is streaming (G9)
+- ✅ Active context title/summary editable in place (G2.1)
+- ✅ Regenerate dialog exposes optional "Focus for this pass" input (G5)
 - ✅ Lightweight "flag for later" action captures a future decision title without changing the active context (G10)
-- ✅ Facilitator can defer an open decision context from the current meeting's agenda without logging or deleting it (G11, M4.9)
 - ✅ `outstanding_issues` field visible and editable in field zoom for relevant templates (G12, M4.12)
 - ✅ E2E test suite passes
+
+**Post-M5 (tracked in backlog, do not gate M5):**
+- Transcript reading mode (G3, M5.1a)
+- AI-assisted segment suggestions (M5.1b)
+- Supplementary content in facilitator view (G4, M4.11)
+- Add existing context to agenda picker (G6, M4.9)
+- Live transcript streaming (G8, M5.1)
+- Regeneration recency signal (G9)
+- Context deferral from agenda (G11, M4.9)
+- Field-level version navigation in field zoom
+- Real-time SSE draft generation streaming
+- Tags and relations (M4.10)
+- Modular activation gate (M5.2)
 
 ---
 
@@ -2609,6 +2699,58 @@ pnpm cli template list --fields
 | `packages/core/src/mcp/mcp-tool-registry.ts` | M8 | New: tool access control |
 | `packages/core/package.json` | M1 | Add ai, @ai-sdk/anthropic, @ai-sdk/openai |
 | `.env.example` | M1 | Add LLM_PROVIDER, LLM_MODEL |
+
+---
+
+## Post-M5 Backlog
+
+Items triaged out of M4 and M5 to unblock the working web UI. Tackle in order after M5 ships.
+
+### Priority 1 — Web UI completeness (needed for full facilitator workflow)
+
+**M5.1a — Transcript reading mode**
+De-overlapped display stream for segment selection. Blocks web Phase 3 (segment selection screen). Implement before adding AI-assisted selection.
+
+**M5.1b — AI-assisted segment suggestions**
+Depends on M5.1a reading mode. Implement after Phase 3 segment selection works manually.
+
+**M4.11 — Supplementary content store**
+New `supplementary_content` table + service + API endpoints + context builder integration. Blocks facilitator field-zoom evidence panel (G4).
+
+**M4.9 — Cross-meeting decision context**
+`decision_context_meetings` join table, `activate`/`defer` endpoints, `GET /api/decision-contexts?status=open` picker. Blocks G6 (add existing context to agenda) and G11 (defer from agenda).
+
+**M5.5 Phase 3 — Segment selection screen** (depends on M5.1a)
+Reading mode, drag-to-select, AI suggestions, confirmation persistence.
+
+**M5.5 Phase 4 — SSE streaming**
+Per-field progress events in shared display and facilitator view. Real-time draft generation.
+
+### Priority 2 — Correctness and auditability
+
+**M4.7b — Definition immutability + context pinning**
+Replace in-place field/template mutation with version creation. Pin template+field versions on `DecisionContext`. Resolve the 7 named code incompatibilities in sequence.
+Order: incompatibilities 5 → 4 → 3 → 2 → 7 → 6 → 1 (schema → lineage → services → logs).
+
+**Versioning Architecture Phases A–E** (depends on M4.7b)
+Full field-version append-only model. Phase A (schema) → B (writes) → C (reads) → D (rollback) → E (template transform + cross-meeting alignment).
+
+### Priority 3 — Enrichment features
+
+**M4.10 — Decision tagging + cross-references**
+Tag library, `decision_context_tags`, `decision_log_tags`, `decision_relations`. Blocks web Phase 5.
+
+**M5.5 Phase 5 — Tags and relations UI** (depends on M4.10)
+Tag pills, related decisions panel, tag management in facilitator view.
+
+**M4.8 — Modular Foundation B**
+`IContentCreator` seam, field provenance metadata, no-op coaching hook.
+
+**M5.2 — Modular activation gate**
+Health check verifying v2 seams are non-disruptive before M6 starts.
+
+**M5.1a.1 — Transcript preprocessing seam**
+Whisper-canonical normalization layer. Implement when a second transcript source is actively needed.
 
 ---
 
