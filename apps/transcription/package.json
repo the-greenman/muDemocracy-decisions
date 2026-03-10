@@ -1,0 +1,26 @@
+{
+  "name": "@repo/transcription",
+  "version": "0.0.0",
+  "description": "Standalone transcription service client",
+  "main": "./dist/index.js",
+  "type": "module",
+  "bin": {
+    "transcription-service": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "tsx": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  }
+}
