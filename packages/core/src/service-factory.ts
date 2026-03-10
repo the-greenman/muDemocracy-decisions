@@ -69,6 +69,8 @@ export function createTranscriptManager(): ITranscriptManager {
     clearStream: transcriptService.clearStream.bind(transcriptService),
     tagChunkRelevance: transcriptService.tagChunkRelevance.bind(transcriptService),
     createContextWindow: transcriptService.createContextWindow.bind(transcriptService),
+    getContextWindows: transcriptService.getContextWindows.bind(transcriptService),
+    previewContextWindow: transcriptService.previewContextWindow.bind(transcriptService),
   };
 }
 

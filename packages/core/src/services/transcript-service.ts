@@ -474,6 +474,18 @@ export class TranscriptService {
     return this.contextWindowRepo.findByDecisionContextId(decisionContextId);
   }
 
+  async previewContextWindow(
+    decisionContextId: string,
+    strategy: 'all' | 'recent' | 'relevant' | 'weighted',
+    limit: number = 10,
+  ): Promise<{
+    chunks: TranscriptChunk[];
+    totalTokens: number;
+    estimatedRelevance: Record<string, number>;
+  }> {
+    return this.contextWindowRepo.preview(decisionContextId, strategy, limit);
+  }
+
   // Utility methods
   private estimateTokens(text: string): number {
     // Rough estimation: ~4 characters per token

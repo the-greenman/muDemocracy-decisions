@@ -2,10 +2,17 @@ import { createRoute, z } from '@hono/zod-openapi';
 import {
   DecisionLogSchema,
   DecisionContextSchema,
+  DecisionFieldSchema,
+  DecisionContextWindowSchema,
   FlaggedDecisionSchema,
+  FlaggedDecisionListItemSchema,
   LLMInteractionSchema,
   RawTranscriptSchema,
   SupplementaryContentSchema,
+  StreamFlushResponseSchema,
+  StreamStatusResponseSchema,
+  StreamTranscriptEventSchema,
+  StreamTranscriptResponseSchema,
   CreateSupplementaryContentSchema,
   TranscriptChunkSchema,
 } from '@repo/schema';
@@ -114,6 +121,10 @@ const UpdateFieldValueRequestSchema = z.object({
   value: z.unknown(),
 }).openapi('UpdateFieldValueRequest');
 
+const ChangeTemplateRequestSchema = z.object({
+  templateId: z.string().uuid(),
+}).openapi('ChangeTemplateRequest');
+
 const FieldTranscriptResponseSchema = z.object({
   chunks: z.array(TranscriptChunkSchema),
 }).openapi('FieldTranscriptResponse');
@@ -154,8 +165,32 @@ const FlaggedDecisionStatusQuerySchema = z.object({
 });
 
 const FlaggedDecisionListResponseSchema = z.object({
-  decisions: z.array(FlaggedDecisionSchema),
+  decisions: z.array(FlaggedDecisionListItemSchema),
 }).openapi('FlaggedDecisionListResponse');
+
+const TemplateFieldsResponseSchema = z.object({
+  fields: z.array(DecisionFieldSchema),
+}).openapi('TemplateFieldsResponse');
+
+const DecisionContextWindowsResponseSchema = z.object({
+  windows: z.array(DecisionContextWindowSchema),
+}).openapi('DecisionContextWindowsResponse');
+
+const DecisionContextWindowPreviewQuerySchema = z.object({
+  strategy: z.enum(['all', 'recent', 'relevant', 'weighted']).default('relevant'),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+const DecisionContextWindowPreviewResponseSchema = z.object({
+  chunks: z.array(TranscriptChunkSchema),
+  totalTokens: z.number().int().min(0),
+  estimatedRelevance: z.record(z.number()),
+}).openapi('DecisionContextWindowPreviewResponse');
+
+const CreateDecisionContextWindowRequestSchema = z.object({
+  selectionStrategy: z.enum(['recent', 'relevant', 'weighted']).default('relevant'),
+  usedFor: z.enum(['draft', 'regenerate', 'field-specific']).default('draft'),
+}).openapi('CreateDecisionContextWindowRequest');
 
 const UpdateFlaggedDecisionRequestSchema = z.object({
   suggestedTitle: z.string().min(1).optional(),
@@ -195,6 +230,124 @@ export const uploadTranscriptRoute = createRoute({
         },
       },
       description: 'Invalid request data',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const streamTranscriptRoute = createRoute({
+  method: 'post',
+  path: '/api/meetings/:id/transcripts/stream',
+  tags: ['transcripts'],
+  request: {
+    params: MeetingIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: StreamTranscriptEventSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        'application/json': {
+          schema: StreamTranscriptResponseSchema,
+        },
+      },
+      description: 'Transcript stream event buffered successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid request data',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const getStreamingStatusRoute = createRoute({
+  method: 'get',
+  path: '/api/meetings/:id/streaming/status',
+  tags: ['transcripts'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: StreamStatusResponseSchema,
+        },
+      },
+      description: 'Streaming buffer status returned successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const flushStreamingRoute = createRoute({
+  method: 'post',
+  path: '/api/meetings/:id/streaming/flush',
+  tags: ['transcripts'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: StreamFlushResponseSchema,
+        },
+      },
+      description: 'Streaming buffer flushed successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const clearStreamingBufferRoute = createRoute({
+  method: 'delete',
+  path: '/api/meetings/:id/streaming/buffer',
+  tags: ['transcripts'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    204: {
+      description: 'Streaming buffer cleared successfully',
     },
     503: {
       content: {
@@ -468,6 +621,41 @@ export const getFlaggedDecisionContextRoute = createRoute({
   },
 });
 
+export const listTemplateFieldsRoute = createRoute({
+  method: 'get',
+  path: '/api/templates/:id/fields',
+  tags: ['templates'],
+  request: {
+    params: UuidParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: TemplateFieldsResponseSchema,
+        },
+      },
+      description: 'Ordered template fields returned successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Template not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
 export const createDecisionContextRoute = createRoute({
   method: 'post',
   path: '/api/decision-contexts',
@@ -497,6 +685,161 @@ export const createDecisionContextRoute = createRoute({
         },
       },
       description: 'Invalid request data',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const changeDecisionContextTemplateRoute = createRoute({
+  method: 'post',
+  path: '/api/decision-contexts/:id/template-change',
+  tags: ['decision-contexts'],
+  request: {
+    params: UuidParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: ChangeTemplateRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionContextSchema,
+        },
+      },
+      description: 'Decision context template changed successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context or template not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listDecisionContextWindowsRoute = createRoute({
+  method: 'get',
+  path: '/api/decision-contexts/:id/context-window',
+  tags: ['decision-contexts'],
+  request: {
+    params: UuidParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionContextWindowsResponseSchema,
+        },
+      },
+      description: 'Saved context windows returned successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const createDecisionContextWindowRoute = createRoute({
+  method: 'post',
+  path: '/api/decision-contexts/:id/context-window',
+  tags: ['decision-contexts'],
+  request: {
+    params: UuidParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: CreateDecisionContextWindowRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      content: {
+        'application/json': {
+          schema: DecisionContextWindowSchema,
+        },
+      },
+      description: 'Context window created successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const previewDecisionContextWindowRoute = createRoute({
+  method: 'get',
+  path: '/api/decision-contexts/:id/context-window/preview',
+  tags: ['decision-contexts'],
+  request: {
+    params: UuidParamSchema,
+    query: DecisionContextWindowPreviewQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionContextWindowPreviewResponseSchema,
+        },
+      },
+      description: 'Context window preview returned successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
     },
     503: {
       content: {

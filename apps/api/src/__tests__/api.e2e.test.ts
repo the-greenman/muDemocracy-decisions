@@ -11,6 +11,7 @@ const {
   createDecisionFieldService,
   createDecisionContextService,
   createDecisionTemplateService,
+  createTranscriptService,
 } = core;
 
 describe('API E2E Tests', () => {
@@ -18,6 +19,7 @@ describe('API E2E Tests', () => {
   let createdFieldId: string;
   let createdFieldName: string;
   let createdTemplateId: string;
+  let alternateTemplateId: string;
   let createdChunkId: string;
   let createdDecisionId: string;
   let createdContextId: string;
@@ -58,6 +60,21 @@ describe('API E2E Tests', () => {
       ],
     });
     createdTemplateId = template.id;
+
+    const alternateTemplate = await templateService.createTemplate({
+      namespace: 'test',
+      name: `API E2E Alternate Template ${Date.now()}`,
+      description: 'Alternate template for API E2E tests',
+      category: 'strategy',
+      fields: [
+        {
+          fieldId: field.id,
+          order: 0,
+          required: true,
+        },
+      ],
+    });
+    alternateTemplateId = alternateTemplate.id;
   });
 
   it('POST /api/meetings - should create a meeting', async () => {
@@ -98,6 +115,17 @@ describe('API E2E Tests', () => {
     expect(data.title).toBe('Updated Test Meeting');
     expect(data.participants).toEqual(['Alice', 'Bob', 'Charlie']);
     expect(data.status).toBe('active');
+  });
+
+  it('GET /api/templates/:id/fields - should list ordered fields for a template', async () => {
+    const response = await app.request(`/api/templates/${createdTemplateId}/fields`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.fields).toBeInstanceOf(Array);
+    expect(data.fields).toHaveLength(1);
+    expect(data.fields[0].id).toBe(createdFieldId);
+    expect(data.fields[0].name).toBe(createdFieldName);
   });
 
   it('POST /api/context/meeting - should set the active meeting context', async () => {
@@ -200,7 +228,13 @@ describe('API E2E Tests', () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.decisions).toBeInstanceOf(Array);
-    expect(data.decisions.some((decision: { id: string }) => decision.id === createdDecisionId)).toBe(true);
+    const decision = data.decisions.find((item: { id: string }) => item.id === createdDecisionId);
+    expect(decision).toBeDefined();
+    expect(decision.contextId).toBeNull();
+    expect(decision.contextStatus).toBeNull();
+    expect(decision.hasDraft).toBe(false);
+    expect(decision.draftFieldCount).toBe(0);
+    expect(decision.versionCount).toBe(0);
   });
 
   it('PATCH /api/flagged-decisions/:id - should update a flagged decision', async () => {
@@ -253,6 +287,92 @@ describe('API E2E Tests', () => {
     expect(data.lockedFields).toEqual([]);
 
     createdContextId = data.id;
+  });
+
+  it('POST /api/decision-contexts/:id/template-change - should update the template while preserving draft data', async () => {
+    const updateDraftResponse = await app.request(`/api/decision-contexts/${createdContextId}/fields/${createdFieldId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: 'Preserve this text' }),
+    });
+
+    expect(updateDraftResponse.status).toBe(200);
+
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/template-change`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: alternateTemplateId }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.id).toBe(createdContextId);
+    expect(data.templateId).toBe(alternateTemplateId);
+    expect(data.draftData?.[createdFieldId]).toBe('Preserve this text');
+  });
+
+  it('GET /api/decision-contexts/:id/context-window - should list saved context windows', async () => {
+    const transcriptService = createTranscriptService();
+    await transcriptService.addTranscriptText({
+      meetingId: createdMeetingId,
+      text: 'Decision context window source text for API tests.',
+      uploadedBy: 'api-e2e',
+      contexts: [`decision:${createdContextId}`],
+    });
+    await transcriptService.createContextWindow(createdContextId, 'relevant', 'draft');
+
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/context-window`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.windows).toBeInstanceOf(Array);
+    expect(data.windows.length).toBeGreaterThanOrEqual(1);
+    expect(data.windows[0].decisionContextId).toBe(createdContextId);
+    expect(data.windows[0].usedFor).toBe('draft');
+  });
+
+  it('POST /api/decision-contexts/:id/context-window - should persist a context window', async () => {
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/context-window`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selectionStrategy: 'relevant', usedFor: 'regenerate' }),
+    });
+
+    expect(response.status).toBe(201);
+    const data = await response.json();
+    expect(data.decisionContextId).toBe(createdContextId);
+    expect(data.selectionStrategy).toBe('relevant');
+    expect(data.usedFor).toBe('regenerate');
+    expect(Array.isArray(data.chunkIds)).toBe(true);
+  });
+
+  it('GET /api/decision-contexts/:id/context-window/preview - should preview matching context chunks', async () => {
+    const response = await app.request(
+      `/api/decision-contexts/${createdContextId}/context-window/preview?strategy=relevant&limit=5`
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.chunks).toBeInstanceOf(Array);
+    expect(data.chunks.length).toBeGreaterThanOrEqual(1);
+    expect(data.totalTokens).toBeGreaterThan(0);
+    expect(Object.keys(data.estimatedRelevance).length).toBeGreaterThanOrEqual(1);
+    expect(data.chunks[0].contexts).toContain(`decision:${createdContextId}`);
+  });
+
+  it('GET /api/meetings/:id/flagged-decisions - should include context and draft summary once a context exists', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/flagged-decisions`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    const decision = data.decisions.find((item: { id: string }) => item.id === createdDecisionId);
+
+    expect(decision).toBeDefined();
+    expect(decision.contextId).toBe(createdContextId);
+    expect(decision.contextStatus).toBe('drafting');
+    expect(decision.hasDraft).toBe(false);
+    expect(decision.draftFieldCount).toBe(0);
+    expect(decision.versionCount).toBe(0);
   });
 
   it('GET /api/meetings/:id/decision-contexts - should list decision contexts for a meeting', async () => {
@@ -369,6 +489,71 @@ describe('API E2E Tests', () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.lockedFields).not.toContain(createdFieldId);
+  });
+
+  it('POST /api/meetings/:id/transcripts/stream - should buffer a text event with auto-injected contexts', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/transcripts/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'We should defer the vendor selection until next week.',
+        speaker: 'Alice',
+        contexts: ['manual:note'],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const data = await response.json();
+    expect(data.buffering).toBe(true);
+    expect(data.bufferSize).toBeGreaterThanOrEqual(1);
+    expect(data.appliedContexts).toContain(`meeting:${createdMeetingId}`);
+    expect(data.appliedContexts).toContain(`decision:${createdContextId}`);
+    expect(data.appliedContexts).toContain(`decision:${createdContextId}:${createdFieldId}`);
+    expect(data.appliedContexts).toContain('manual:note');
+  });
+
+  it('GET /api/meetings/:id/streaming/status - should return buffer status', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/streaming/status`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.status).toBe('active');
+    expect(data.eventCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('POST /api/meetings/:id/streaming/flush - should flush buffered events into transcript chunks', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/streaming/flush`, {
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.chunks).toBeInstanceOf(Array);
+    expect(data.chunks.length).toBeGreaterThanOrEqual(1);
+    expect(data.chunks[0].contexts).toContain(`meeting:${createdMeetingId}`);
+    expect(data.chunks[0].contexts).toContain(`decision:${createdContextId}`);
+    expect(data.chunks[0].contexts).toContain(`decision:${createdContextId}:${createdFieldId}`);
+  });
+
+  it('DELETE /api/meetings/:id/streaming/buffer - should clear the streaming buffer', async () => {
+    const seedResponse = await app.request(`/api/meetings/${createdMeetingId}/transcripts/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'Buffer item to clear' }),
+    });
+    expect(seedResponse.status).toBe(201);
+
+    const response = await app.request(`/api/meetings/${createdMeetingId}/streaming/buffer`, {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(204);
+
+    const statusResponse = await app.request(`/api/meetings/${createdMeetingId}/streaming/status`);
+    expect(statusResponse.status).toBe(200);
+    const statusData = await statusResponse.json();
+    expect(statusData.status).toBe('idle');
+    expect(statusData.eventCount).toBe(0);
   });
 
   it('GET /api/decision-contexts/:id/versions - should return saved versions', async () => {
@@ -674,6 +859,10 @@ describe('API E2E Tests', () => {
     expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/context/decision'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/context/field'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/transcripts/upload'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/transcripts/stream'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/streaming/status'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/streaming/flush'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/streaming/buffer'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/summary'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/decision-contexts'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/versions'))).toBe(true);

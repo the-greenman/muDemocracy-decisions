@@ -170,6 +170,53 @@ export const CreateTranscriptChunkSchema = TranscriptChunkSchema.pick({
 
 export type CreateTranscriptChunk = z.infer<typeof CreateTranscriptChunkSchema>;
 
+export const StreamTranscriptEventSchema = z.object({
+  text: z.string().min(1),
+  speaker: z.string().optional(),
+  timestamp: z.string().optional(),
+  sequenceNumber: z.number().int().positive().optional(),
+  contexts: z.array(z.string().min(1)).optional(),
+}).openapi('StreamTranscriptEvent', {
+  description: 'A streaming transcript text event submitted during an active meeting',
+  example: {
+    text: 'We decided to defer the vendor selection',
+    speaker: 'Alice',
+    timestamp: '00:12:33',
+    contexts: ['custom:note'],
+  },
+});
+
+export const StreamTranscriptResponseSchema = z.object({
+  buffering: z.boolean(),
+  bufferSize: z.number().int().min(0),
+  chunkId: z.string().uuid().optional(),
+  appliedContexts: z.array(z.string()),
+}).openapi('StreamTranscriptResponse', {
+  description: 'Acknowledgement that a streaming transcript event was buffered',
+  example: {
+    buffering: true,
+    bufferSize: 2,
+    appliedContexts: ['meeting:550e8400-e29b-41d4-a716-446655440000'],
+  },
+});
+
+export const StreamStatusResponseSchema = z.object({
+  status: z.enum(['active', 'idle', 'flushing']),
+  eventCount: z.number().int().min(0),
+}).openapi('StreamStatusResponse', {
+  description: 'Current streaming buffer status for a meeting',
+  example: {
+    status: 'active',
+    eventCount: 3,
+  },
+});
+
+export const StreamFlushResponseSchema = z.object({
+  chunks: z.array(TranscriptChunkSchema),
+}).openapi('StreamFlushResponse', {
+  description: 'Transcript chunks created by flushing the streaming buffer',
+});
+
 // ============================================================================
 // SUPPLEMENTARY CONTENT SCHEMAS
 // ============================================================================
@@ -313,6 +360,37 @@ export const FlaggedDecisionSchema = z.object({
 
 export type FlaggedDecision = z.infer<typeof FlaggedDecisionSchema>;
 export type CreateFlaggedDecision = Omit<FlaggedDecision, 'id' | 'status' | 'createdAt' | 'updatedAt'>;
+
+export const FlaggedDecisionListItemSchema = FlaggedDecisionSchema.extend({
+  contextId: z.string().uuid().nullable(),
+  contextStatus: z.enum(['drafting', 'reviewing', 'locked', 'logged']).nullable(),
+  hasDraft: z.boolean(),
+  draftFieldCount: z.number().int().min(0),
+  versionCount: z.number().int().min(0),
+}).openapi('FlaggedDecisionListItem', {
+  description: 'A flagged decision enriched with decision-context and draft summary for meeting queue views',
+  example: {
+    id: '550e8400-e29b-41d4-a716-446655440007',
+    meetingId: '550e8400-e29b-41d4-a716-446655440000',
+    suggestedTitle: 'Architecture Decision',
+    contextSummary: 'Team discussed microservices vs monolith',
+    confidence: 0.89,
+    chunkIds: ['550e8400-e29b-41d4-a716-446655440002'],
+    suggestedTemplateId: '550e8400-e29b-41d4-a716-446655440008',
+    templateConfidence: 0.92,
+    status: 'accepted',
+    priority: 1,
+    createdAt: '2026-02-27T10:00:00Z',
+    updatedAt: '2026-02-27T10:05:00Z',
+    contextId: '550e8400-e29b-41d4-a716-446655440004',
+    contextStatus: 'drafting',
+    hasDraft: true,
+    draftFieldCount: 3,
+    versionCount: 1,
+  },
+});
+
+export type FlaggedDecisionListItem = z.infer<typeof FlaggedDecisionListItemSchema>;
 
 // ============================================================================
 // DECISION CONTEXT SCHEMAS

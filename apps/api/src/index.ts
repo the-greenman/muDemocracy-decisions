@@ -16,6 +16,7 @@ import {
   createDecisionContextService,
   createDecisionContextRepository,
   createDecisionFieldService,
+  createDecisionTemplateService,
   createDraftGenerationService,
   createFlaggedDecisionService,
   createGlobalContextService,
@@ -41,24 +42,33 @@ import {
   setMeetingContextRoute,
 } from './routes/context.js';
 import {
+  clearStreamingBufferRoute,
+  changeDecisionContextTemplateRoute,
   createDecisionContextRoute,
+  createDecisionContextWindowRoute,
   createSupplementaryContentRoute,
   createFlaggedDecisionRoute,
   deleteSupplementaryContentRoute,
   exportDecisionLogRoute,
   exportMarkdownRoute,
+  flushStreamingRoute,
   getFlaggedDecisionContextRoute,
   getDecisionLogRoute,
   getFieldTranscriptRoute,
+  getStreamingStatusRoute,
   generateDraftRoute,
   listDraftVersionsRoute,
   listFlaggedDecisionsRoute,
+  listDecisionContextWindowsRoute,
   listLLMInteractionsRoute,
   listSupplementaryContentRoute,
+  listTemplateFieldsRoute,
   logDecisionRoute,
   lockFieldRoute,
+  previewDecisionContextWindowRoute,
   regenerateFieldRoute,
   rollbackDraftRoute,
+  streamTranscriptRoute,
   unlockFieldRoute,
   updateFlaggedDecisionRoute,
   updateFieldValueRoute,
@@ -88,6 +98,7 @@ const markdownExportService = useDatabase ? createMarkdownExportService() : null
 const llmInteractionService = useDatabase ? createLLMInteractionService() : null;
 const decisionContextRepository = useDatabase ? createDecisionContextRepository() : null;
 const decisionFieldService = useDatabase ? createDecisionFieldService() : null;
+const decisionTemplateService = useDatabase ? createDecisionTemplateService() : null;
 const templateFieldAssignmentRepository = useDatabase ? createTemplateFieldAssignmentRepository() : null;
 
 function getWorkflowServices() {
@@ -450,6 +461,98 @@ app.openapi(uploadTranscriptRoute, async (c) => {
   }
 });
 
+app.openapi(streamTranscriptRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services || !globalContextService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const event = c.req.valid('json');
+  const globalContext = await globalContextService.getContext();
+  const autoContexts = [`meeting:${id}`];
+
+  if (globalContext.activeDecisionContextId) {
+    autoContexts.push(`decision:${globalContext.activeDecisionContextId}`);
+    if (globalContext.activeField) {
+      autoContexts.push(`decision:${globalContext.activeDecisionContextId}:${globalContext.activeField}`);
+    }
+  }
+
+  const appliedContexts = Array.from(new Set([...autoContexts, ...(event.contexts ?? [])]));
+
+  const streamEventData: {
+    text: string;
+    contexts: string[];
+    speaker?: string;
+    startTime?: string;
+    sequenceNumber?: number;
+  } = {
+    text: event.text,
+    contexts: appliedContexts,
+  };
+
+  if (event.speaker !== undefined) {
+    streamEventData.speaker = event.speaker;
+  }
+
+  if (event.timestamp !== undefined) {
+    streamEventData.startTime = event.timestamp;
+  }
+
+  if (event.sequenceNumber !== undefined) {
+    streamEventData.sequenceNumber = event.sequenceNumber;
+  }
+
+  await services.transcriptService.addStreamEvent(id, {
+    type: 'text',
+    data: streamEventData,
+  });
+
+  const status = await services.transcriptService.getStreamStatus(id);
+  return c.json({
+    buffering: true,
+    bufferSize: status.eventCount,
+    appliedContexts,
+  }, 201);
+});
+
+app.openapi(getStreamingStatusRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const status = await services.transcriptService.getStreamStatus(id);
+  return c.json({
+    status: status.status as 'active' | 'idle' | 'flushing',
+    eventCount: status.eventCount,
+  });
+});
+
+app.openapi(flushStreamingRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const chunks = await services.transcriptService.flushStream(id);
+  return c.json({ chunks });
+});
+
+app.openapi(clearStreamingBufferRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  await services.transcriptService.clearStream(id);
+  return c.body(null, 204);
+});
+
 app.openapi(createSupplementaryContentRoute, async (c) => {
   const services = getWorkflowServices();
   if (!services) {
@@ -568,7 +671,21 @@ app.openapi(listFlaggedDecisionsRoute, async (c) => {
   const { status } = c.req.valid('query');
   const decisions = await services.flaggedDecisionService.getDecisionsForMeeting(id);
   const filtered = status ? decisions.filter((decision: { status: string }) => decision.status === status) : decisions;
-  return c.json({ decisions: filtered });
+  const enriched = await Promise.all(
+    filtered.map(async (decision) => {
+      const context = await services.decisionContextService.getContextByFlaggedDecision(decision.id);
+      const draftFieldCount = Object.keys(context?.draftData ?? {}).filter((key) => key !== '__fieldMeta').length;
+      return {
+        ...decision,
+        contextId: context?.id ?? null,
+        contextStatus: context?.status ?? null,
+        hasDraft: draftFieldCount > 0,
+        draftFieldCount,
+        versionCount: context?.draftVersions?.length ?? 0,
+      };
+    })
+  );
+  return c.json({ decisions: enriched });
 });
 
 app.openapi(updateFlaggedDecisionRoute, async (c) => {
@@ -633,6 +750,28 @@ app.openapi(getFlaggedDecisionContextRoute, async (c) => {
   return c.json(context);
 });
 
+app.openapi(listTemplateFieldsRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services || !decisionTemplateService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const template = await decisionTemplateService.getTemplate(id);
+  if (!template) {
+    return c.json({ error: 'Template not found' }, 404);
+  }
+
+  const assignments = await services.templateFieldAssignmentRepository.findByTemplateId(id);
+  const fields = await Promise.all(
+    assignments
+      .sort((a, b) => a.order - b.order)
+      .map(async (assignment) => services.decisionFieldService.getField(assignment.fieldId))
+  );
+
+  return c.json({ fields: fields.filter((field): field is NonNullable<typeof field> => field !== null) });
+});
+
 app.openapi(createDecisionContextRoute, async (c) => {
   const services = getWorkflowServices();
   if (!services) {
@@ -647,6 +786,77 @@ app.openapi(createDecisionContextRoute, async (c) => {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ error: message }, 400);
   }
+});
+
+app.openapi(changeDecisionContextTemplateRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services || !decisionTemplateService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const { templateId } = c.req.valid('json');
+  const template = await decisionTemplateService.getTemplate(templateId);
+  if (!template) {
+    return c.json({ error: 'Template not found' }, 404);
+  }
+
+  const context = await services.decisionContextService.changeTemplate(id, templateId);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
+  return c.json(context);
+});
+
+app.openapi(listDecisionContextWindowsRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const context = await services.decisionContextRepository.findById(id);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
+  const windows = await services.transcriptService.getContextWindows(id);
+  return c.json({ windows });
+});
+
+app.openapi(createDecisionContextWindowRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const context = await services.decisionContextRepository.findById(id);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
+  const body = c.req.valid('json');
+  const window = await services.transcriptService.createContextWindow(id, body.selectionStrategy, body.usedFor);
+  return c.json(window, 201);
+});
+
+app.openapi(previewDecisionContextWindowRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const context = await services.decisionContextRepository.findById(id);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
+  const query = c.req.valid('query');
+  const preview = await services.transcriptService.previewContextWindow(id, query.strategy, query.limit);
+  return c.json(preview);
 });
 
 app.openapi(generateDraftRoute, async (c) => {

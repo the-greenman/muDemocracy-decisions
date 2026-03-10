@@ -2,6 +2,12 @@ import type { RawTranscript, TranscriptChunk, ChunkRelevance, DecisionContextWin
 import type { CreateTranscriptChunk } from '@repo/schema';
 import type { TranscriptUploadData, AddTranscriptTextData, ChunkCreationOptions, StreamEventData } from '../services/transcript-service';
 
+export interface DecisionContextWindowPreview {
+  chunks: TranscriptChunk[];
+  totalTokens: number;
+  estimatedRelevance: Record<string, number>;
+}
+
 export interface ITranscriptManager {
   uploadTranscript(data: TranscriptUploadData): Promise<RawTranscript>;
   getTranscriptsByMeeting(meetingId: string): Promise<RawTranscript[]>;
@@ -23,4 +29,10 @@ export interface ITranscriptManager {
     maxTokens?: number,
     fieldId?: string,
   ): Promise<DecisionContextWindow>;
+  getContextWindows(decisionContextId: string): Promise<DecisionContextWindow[]>;
+  previewContextWindow(
+    decisionContextId: string,
+    selectionStrategy: DecisionContextWindow['selectionStrategy'],
+    limit?: number,
+  ): Promise<DecisionContextWindowPreview>;
 }
