@@ -156,6 +156,26 @@ describe('DrizzleStreamingBufferRepository', () => {
       expect(chunks[1]!.text).toBe('Second message');
     });
 
+    it('should create a fallback raw transcript when event rawTranscriptId is missing', async () => {
+      await repository.appendEvent(testMeetingId, {
+        type: 'text',
+        data: { text: 'Message without raw transcript id' },
+      });
+
+      const chunks = await repository.flush(testMeetingId);
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]!.rawTranscriptId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+
+      const persistedRaw = await rawTranscriptRepo.findById(chunks[0]!.rawTranscriptId);
+      expect(persistedRaw).not.toBeNull();
+      expect(persistedRaw!.meetingId).toBe(testMeetingId);
+      expect(persistedRaw!.source).toBe('stream');
+      expect(persistedRaw!.content).toContain('Message without raw transcript id');
+    });
+
     it('should ignore non-text events', async () => {
       await repository.appendEvent(testMeetingId, {
         type: 'metadata',

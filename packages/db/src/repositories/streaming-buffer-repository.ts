@@ -7,7 +7,7 @@
  */
 
 import { db } from '../client.js';
-import { transcriptChunks, TranscriptChunkInsert } from '../schema.js';
+import { rawTranscripts, transcriptChunks, TranscriptChunkInsert } from '../schema.js';
 import { TranscriptChunk, CreateTranscriptChunk } from '@repo/schema';
 
 interface StreamingEvent {
@@ -75,6 +75,8 @@ export class DrizzleStreamingBufferRepository {
     buffer.status = 'flushing';
 
     try {
+      const fallbackRawTranscriptId = await this.createFallbackRawTranscript(meetingId, buffer.events);
+
       // Group events by type and create chunks
       const chunks: TranscriptChunk[] = [];
       let sequenceNumber = 1;
@@ -85,7 +87,7 @@ export class DrizzleStreamingBufferRepository {
         if (event.type === 'text' && event.data.text) {
           const chunkData: CreateTranscriptChunk = {
             meetingId,
-            rawTranscriptId: event.data.rawTranscriptId || '',
+            rawTranscriptId: event.data.rawTranscriptId || fallbackRawTranscriptId,
             sequenceNumber: sequenceNumber++,
             text: event.data.text,
             speaker: event.data.speaker,
@@ -145,6 +147,33 @@ export class DrizzleStreamingBufferRepository {
 
   private countWords(text: string): number {
     return text.split(/\s+/).filter(word => word.length > 0).length;
+  }
+
+  private async createFallbackRawTranscript(meetingId: string, events: StreamingEvent[]): Promise<string> {
+    const combinedText = events
+      .filter((event) => event.type === 'text' && typeof event.data?.text === 'string')
+      .map((event) => String(event.data.text).trim())
+      .filter(Boolean)
+      .join('\n');
+
+    const [rawTranscript] = await db.insert(rawTranscripts)
+      .values({
+        meetingId,
+        source: 'stream',
+        format: 'txt',
+        content: combinedText.length > 0 ? combinedText : '[stream flush without text payload]',
+        metadata: {
+          generatedBy: 'streaming-buffer-flush',
+          eventCount: events.length,
+        },
+      })
+      .returning({ id: rawTranscripts.id });
+
+    if (!rawTranscript) {
+      throw new Error('Failed to create raw transcript for stream flush');
+    }
+
+    return rawTranscript.id;
   }
 
   private mapToSchema(row: any): TranscriptChunk {
