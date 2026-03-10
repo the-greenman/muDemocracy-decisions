@@ -52,6 +52,7 @@ export class DraftGenerationService {
 
     const chunks = await this.fetchDraftChunks(context.meetingId, decisionContextId);
     const supplementaryItems = await this.fetchDraftSupplementaryContent(context.meetingId, decisionContextId);
+    const currentDraftText = this.buildCurrentDraftText(context.draftData ?? {}, fields);
 
     // Check if we should use the template-based prompt
     const useTemplatePrompt = process.env['USE_TEMPLATE_PROMPT'] === 'true';
@@ -72,7 +73,7 @@ export class DraftGenerationService {
         contextSummary
       );
     } else {
-      prompt = buildDraftPrompt(chunks, supplementaryItems, unlockedFields, guidance ?? []);
+      prompt = buildDraftPrompt(chunks, supplementaryItems, unlockedFields, guidance ?? [], currentDraftText);
     }
 
     const provider = process.env['LLM_PROVIDER'] ?? 'anthropic';
@@ -239,6 +240,26 @@ export class DraftGenerationService {
       if (!aTagged && bTagged) return 1;
       return a.sequenceNumber - b.sequenceNumber;
     });
+  }
+
+  private buildCurrentDraftText(draftData: Record<string, unknown>, fields: DecisionField[]): string | undefined {
+    const lines = fields
+      .map((field) => {
+        const value = draftData[field.id];
+        if (typeof value !== 'string') {
+          return null;
+        }
+
+        const trimmed = value.trim();
+        if (trimmed.length === 0) {
+          return null;
+        }
+
+        return `${field.name}: ${trimmed}`;
+      })
+      .filter((line): line is string => line !== null);
+
+    return lines.length > 0 ? lines.join('\n') : undefined;
   }
 
   private async fetchFieldChunks(meetingId: string, decisionContextId: string, fieldId: string) {

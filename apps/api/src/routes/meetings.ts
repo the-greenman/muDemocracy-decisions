@@ -200,6 +200,14 @@ export const updateMeetingRoute = createRoute({
       },
       description: 'Meeting not found',
     },
+    409: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Meeting cannot be deleted because dependent records still exist',
+    },
   },
 });
 

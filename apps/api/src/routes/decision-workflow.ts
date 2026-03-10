@@ -186,6 +186,19 @@ const MCPServersListResponseSchema = z.object({
   servers: z.array(MCPServerSchema),
 }).openapi('MCPServersListResponse');
 
+const RawTranscriptsListResponseSchema = z.object({
+  transcripts: z.array(RawTranscriptSchema),
+}).openapi('RawTranscriptsListResponse');
+
+const MeetingChunksListResponseSchema = z.object({
+  chunks: z.array(TranscriptChunkSchema),
+}).openapi('MeetingChunksListResponse');
+
+const SearchChunksRequestSchema = z.object({
+  meetingId: z.string().uuid(),
+  query: z.string().min(1),
+}).openapi('SearchChunksRequest');
+
 const DecisionContextWindowPreviewQuerySchema = z.object({
   strategy: z.enum(['all', 'recent', 'relevant', 'weighted']).default('relevant'),
   limit: z.coerce.number().int().positive().max(100).optional(),
@@ -239,7 +252,7 @@ export const uploadTranscriptRoute = createRoute({
           schema: ErrorResponseSchema,
         },
       },
-      description: 'Invalid request data',
+      description: 'Invalid regenerate request',
     },
     503: {
       content: {
@@ -281,7 +294,7 @@ export const streamTranscriptRoute = createRoute({
           schema: ErrorResponseSchema,
         },
       },
-      description: 'Invalid request data',
+      description: 'Invalid regenerate request',
     },
     503: {
       content: {
@@ -358,6 +371,101 @@ export const clearStreamingBufferRoute = createRoute({
   responses: {
     204: {
       description: 'Streaming buffer cleared successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listRawTranscriptsRoute = createRoute({
+  method: 'get',
+  path: '/api/meetings/:id/transcripts/raw',
+  tags: ['transcripts'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: RawTranscriptsListResponseSchema,
+        },
+      },
+      description: 'Raw transcripts returned successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listMeetingChunksRoute = createRoute({
+  method: 'get',
+  path: '/api/meetings/:id/chunks',
+  tags: ['transcripts'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: MeetingChunksListResponseSchema,
+        },
+      },
+      description: 'Transcript chunks returned successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const searchChunksRoute = createRoute({
+  method: 'post',
+  path: '/api/chunks/search',
+  tags: ['transcripts'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: SearchChunksRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: MeetingChunksListResponseSchema,
+        },
+      },
+      description: 'Matching transcript chunks returned successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid search request',
     },
     503: {
       content: {
@@ -624,6 +732,36 @@ export const updateFlaggedDecisionRoute = createRoute({
         },
       },
       description: 'Invalid request data',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Flagged decision not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const deleteFlaggedDecisionRoute = createRoute({
+  method: 'delete',
+  path: '/api/flagged-decisions/:id',
+  tags: ['flagged-decisions'],
+  request: {
+    params: UuidParamSchema,
+  },
+  responses: {
+    204: {
+      description: 'Flagged decision deleted successfully',
     },
     404: {
       content: {
@@ -960,6 +1098,58 @@ export const generateDraftRoute = createRoute({
   },
 });
 
+export const regenerateDraftRoute = createRoute({
+  method: 'post',
+  path: '/api/decision-contexts/:id/regenerate',
+  tags: ['decision-contexts'],
+  request: {
+    params: UuidParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            guidance: z.array(GuidanceSegmentSchema).optional(),
+          }).openapi('RegenerateDraftRequest'),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionContextSchema,
+        },
+      },
+      description: 'Draft regenerated successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid request data',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
 export const exportMarkdownRoute = createRoute({
   method: 'get',
   path: '/api/decision-contexts/:id/export/markdown',
@@ -1136,7 +1326,7 @@ export const rollbackDraftRoute = createRoute({
           schema: ErrorResponseSchema,
         },
       },
-      description: 'Invalid rollback request',
+      description: 'Invalid rollback request or unavailable draft version',
     },
     404: {
       content: {
@@ -1186,7 +1376,7 @@ export const regenerateFieldRoute = createRoute({
           schema: ErrorResponseSchema,
         },
       },
-      description: 'Invalid field regeneration request',
+      description: 'Invalid regenerate request or field cannot be regenerated',
     },
     404: {
       content: {

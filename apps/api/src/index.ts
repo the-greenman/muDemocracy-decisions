@@ -50,6 +50,7 @@ import {
   createDecisionContextWindowRoute,
   createSupplementaryContentRoute,
   createFlaggedDecisionRoute,
+  deleteFlaggedDecisionRoute,
   deleteSupplementaryContentRoute,
   exportDecisionLogRoute,
   exportMarkdownRoute,
@@ -60,6 +61,8 @@ import {
   getStreamingStatusRoute,
   generateDraftRoute,
   listExpertsRoute,
+  listMeetingChunksRoute,
+  listRawTranscriptsRoute,
   listDraftVersionsRoute,
   listFlaggedDecisionsRoute,
   listDecisionContextWindowsRoute,
@@ -70,8 +73,10 @@ import {
   logDecisionRoute,
   lockFieldRoute,
   previewDecisionContextWindowRoute,
+  regenerateDraftRoute,
   regenerateFieldRoute,
   rollbackDraftRoute,
+  searchChunksRoute,
   streamTranscriptRoute,
   unlockFieldRoute,
   updateFlaggedDecisionRoute,
@@ -139,6 +144,17 @@ function getWorkflowServices() {
     llmInteractionService,
     templateFieldAssignmentRepository,
   };
+}
+
+function isNotFoundErrorMessage(message: string): boolean {
+  return message.includes('not found');
+}
+
+function isDependencyConflictErrorMessage(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes('foreign key')
+    || normalized.includes('constraint')
+    || normalized.includes('dependent');
 }
 
 async function resolveContextFieldId(
@@ -384,8 +400,15 @@ app.openapi(deleteMeetingRoute, async (c) => {
     return c.body(null, 204);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const statusCode = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, statusCode as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    if (isDependencyConflictErrorMessage(message)) {
+      return c.json({ error: message }, 409);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -478,6 +501,44 @@ app.openapi(uploadTranscriptRoute, async (c) => {
     const chunks = await services.transcriptService.processTranscript(transcript.id, chunkOptions);
 
     return c.json({ transcript, chunks }, 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: message }, 400);
+  }
+});
+
+app.openapi(listRawTranscriptsRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const transcripts = await services.transcriptService.getTranscriptsByMeeting(id);
+  return c.json({ transcripts });
+});
+
+app.openapi(listMeetingChunksRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const chunks = await services.transcriptService.getChunksByMeeting(id);
+  return c.json({ chunks });
+});
+
+app.openapi(searchChunksRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  try {
+    const { meetingId, query } = c.req.valid('json');
+    const chunks = await services.transcriptService.searchChunks(meetingId, query);
+    return c.json({ chunks });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ error: message }, 400);
@@ -776,6 +837,22 @@ app.openapi(updateFlaggedDecisionRoute, async (c) => {
   }
 });
 
+app.openapi(deleteFlaggedDecisionRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const deleted = await services.flaggedDecisionService.deleteDecision(id);
+
+  if (!deleted) {
+    return c.json({ error: 'Decision not found' }, 404);
+  }
+
+  return c.body(null, 204);
+});
+
 app.openapi(getFlaggedDecisionContextRoute, async (c) => {
   const services = getWorkflowServices();
   if (!services) {
@@ -927,8 +1004,47 @@ app.openapi(generateDraftRoute, async (c) => {
     return c.json(context);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
+  }
+});
+
+app.openapi(regenerateDraftRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  try {
+    const { id } = c.req.valid('param');
+    const data = c.req.valid('json');
+    const guidance: GuidanceSegment[] | undefined = data.guidance?.map((segment: GuidanceSegment) => {
+      if (segment.fieldId !== undefined) {
+        return {
+          fieldId: segment.fieldId,
+          content: segment.content,
+          source: segment.source,
+        };
+      }
+
+      return {
+        content: segment.content,
+        source: segment.source,
+      };
+    });
+
+    const context = await services.draftGenerationService.generateDraft(id, guidance);
+    return c.json(context);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -1068,8 +1184,11 @@ app.openapi(regenerateFieldRoute, async (c) => {
     return c.json({ value });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 

@@ -162,6 +162,7 @@ export function buildDraftPrompt(
   supplementaryItems: SupplementaryContent[],
   templateFields: DecisionField[],
   guidance: GuidanceSegment[] = [],
+  currentDraftText?: string,
 ): BuiltPrompt {
   const builder = new PromptBuilder();
   builder.addSystem(DEFAULT_DRAFT_SYSTEM_PROMPT);
@@ -172,6 +173,18 @@ export function buildDraftPrompt(
 
   for (const item of supplementaryItems) {
     builder.addSupplementaryContent(item);
+  }
+
+  if (currentDraftText && currentDraftText.trim().length > 0) {
+    builder.addSupplementaryContent({
+      id: 'current-draft-context',
+      meetingId: transcriptChunks[0]?.meetingId ?? 'unknown-meeting',
+      body: currentDraftText,
+      sourceType: 'manual',
+      contexts: ['draft:current'],
+      createdAt: new Date(0).toISOString(),
+      label: 'Current draft text',
+    });
   }
 
   for (const segment of guidance) {

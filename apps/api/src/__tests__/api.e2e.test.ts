@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 process.env.DATABASE_URL = 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test';
 
@@ -16,6 +17,11 @@ const {
   createTranscriptService,
 } = core;
 
+const whisperVerboseJsonFixture = readFileSync(
+  new URL('../../../../test-cases/transcription/whisper-verbose-json.sample.json', import.meta.url),
+  'utf8',
+);
+
 describe('API E2E Tests', () => {
   let createdMeetingId: string;
   let deletableMeetingId: string;
@@ -25,6 +31,7 @@ describe('API E2E Tests', () => {
   let alternateTemplateId: string;
   let createdChunkId: string;
   let createdDecisionId: string;
+  let deletableDecisionId: string;
   let createdContextId: string;
   let createdExpertId: string;
   let loggedDecisionId: string;
@@ -242,6 +249,87 @@ describe('API E2E Tests', () => {
     createdChunkId = data.chunks[0].id;
   });
 
+  it('POST /api/meetings/:id/transcripts/upload - should accept Whisper verbose_json fixture', async () => {
+    const meetingResponse = await app.request('/api/meetings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Whisper Fixture Meeting ${Date.now()}`,
+        date: '2026-03-10T10:00:00Z',
+        participants: ['Fixture Tester'],
+      }),
+    });
+    expect(meetingResponse.status).toBe(201);
+    const meeting = await meetingResponse.json();
+
+    const uploadResponse = await app.request(`/api/meetings/${meeting.id}/transcripts/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: whisperVerboseJsonFixture,
+        format: 'json',
+        chunkStrategy: 'speaker',
+      }),
+    });
+
+    expect(uploadResponse.status).toBe(201);
+    const uploadData = await uploadResponse.json();
+    expect(uploadData.transcript.meetingId).toBe(meeting.id);
+    expect(uploadData.transcript.format).toBe('json');
+    expect(uploadData.chunks).toBeInstanceOf(Array);
+    expect(uploadData.chunks.length).toBeGreaterThan(0);
+    expect(uploadData.chunks.every((chunk: { meetingId: string }) => chunk.meetingId === meeting.id)).toBe(true);
+
+    const readingResponse = await app.request(`/api/meetings/${meeting.id}/transcript-reading`);
+    expect(readingResponse.status).toBe(200);
+    const readingData = await readingResponse.json();
+    expect(readingData.rows).toBeInstanceOf(Array);
+    expect(readingData.rows.length).toBeGreaterThanOrEqual(20);
+    expect(readingData.rows[0].startTime).toBe('00:00:00');
+    expect(readingData.rows[0].endTime).toBe('00:00:02');
+    expect(readingData.rows[0].displayText).toContain('starting from the front door');
+
+    await app.request(`/api/meetings/${meeting.id}`, { method: 'DELETE' });
+  });
+
+  it('GET /api/meetings/:id/transcripts/raw - should list raw transcripts for a meeting', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/transcripts/raw`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.transcripts).toBeInstanceOf(Array);
+    expect(data.transcripts.length).toBeGreaterThan(0);
+    expect(data.transcripts[0].meetingId).toBe(createdMeetingId);
+  });
+
+  it('GET /api/meetings/:id/chunks - should list transcript chunks for a meeting', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/chunks`);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.chunks).toBeInstanceOf(Array);
+    expect(data.chunks.length).toBeGreaterThan(0);
+    expect(data.chunks.some((chunk: { id: string }) => chunk.id === createdChunkId)).toBe(true);
+    expect(data.chunks.every((chunk: { meetingId: string }) => chunk.meetingId === createdMeetingId)).toBe(true);
+  });
+
+  it('POST /api/chunks/search - should search transcript chunks for a meeting', async () => {
+    const response = await app.request('/api/chunks/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meetingId: createdMeetingId,
+        query: 'migration',
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.chunks).toBeInstanceOf(Array);
+    expect(data.chunks.length).toBeGreaterThan(0);
+    expect(data.chunks.some((chunk: { text: string }) => chunk.text.toLowerCase().includes('migration'))).toBe(true);
+  });
+
   it('GET /api/meetings/:id/transcript-reading - should return normalized readable transcript rows', async () => {
     const response = await app.request(`/api/meetings/${createdMeetingId}/transcript-reading`);
 
@@ -281,6 +369,26 @@ describe('API E2E Tests', () => {
     createdDecisionId = data.id;
   });
 
+  it('POST /api/meetings/:id/flagged-decisions - should create a second flagged decision for delete coverage', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/flagged-decisions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        suggestedTitle: 'Archive old rollout plan',
+        contextSummary: 'Secondary decision used for delete endpoint coverage.',
+        confidence: 1,
+        chunkIds: [createdChunkId],
+        suggestedTemplateId: createdTemplateId,
+        templateConfidence: 1,
+        priority: 2,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const data = await response.json();
+    deletableDecisionId = data.id;
+  });
+
   it('GET /api/meetings/:id/flagged-decisions - should list flagged decisions for a meeting', async () => {
     const response = await app.request(`/api/meetings/${createdMeetingId}/flagged-decisions`);
 
@@ -313,6 +421,19 @@ describe('API E2E Tests', () => {
     expect(data.status).toBe('accepted');
     expect(data.priority).toBe(3);
     expect(data.contextSummary).toBe('Promoted to agenda for active drafting.');
+  });
+
+  it('DELETE /api/flagged-decisions/:id - should delete a flagged decision', async () => {
+    const response = await app.request(`/api/flagged-decisions/${deletableDecisionId}`, {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(204);
+
+    const listResponse = await app.request(`/api/meetings/${createdMeetingId}/flagged-decisions`);
+    expect(listResponse.status).toBe(200);
+    const data = await listResponse.json();
+    expect(data.decisions.some((decision: { id: string }) => decision.id === deletableDecisionId)).toBe(false);
   });
 
   it('GET /api/meetings/:id/flagged-decisions?status=accepted - should filter flagged decisions by status', async () => {
@@ -648,6 +769,50 @@ describe('API E2E Tests', () => {
     expect(data.draftVersions).toBeInstanceOf(Array);
   });
 
+  it('POST /api/decision-contexts/:id/rollback - should return 404 for a missing context', async () => {
+    const response = await app.request('/api/decision-contexts/11111111-1111-4111-8111-111111111111/rollback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: 1 }),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
+  it('POST /api/decision-contexts/:id/regenerate - should regenerate a draft using fresh guidance', async () => {
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/regenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        guidance: [
+          {
+            content: 'Incorporate the current decision text and emphasize migration urgency.',
+            source: 'user_text',
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.id).toBe(createdContextId);
+    expect(data.draftData).toBeDefined();
+  });
+
+  it('POST /api/decision-contexts/:id/regenerate - should return 404 for a missing context', async () => {
+    const response = await app.request('/api/decision-contexts/11111111-1111-4111-8111-111111111111/regenerate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
   it('PATCH /api/decision-contexts/:id/fields/:fieldId - should manually update a field value', async () => {
     const response = await app.request(`/api/decision-contexts/${createdContextId}/fields/${createdFieldId}`, {
       method: 'PATCH',
@@ -899,6 +1064,16 @@ describe('API E2E Tests', () => {
     expect(getResponse.status).toBe(404);
   });
 
+  it('DELETE /api/meetings/:id - should return 404 for a missing meeting', async () => {
+    const response = await app.request('/api/meetings/11111111-1111-4111-8111-111111111111', {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
   it('GET /api/meetings/:id - should return 404 for non-existent meeting', async () => {
     const response = await app.request('/api/meetings/11111111-1111-4111-8111-111111111111');
     
@@ -937,6 +1112,7 @@ describe('API E2E Tests', () => {
     expect(pathKeys.some((path) => path.includes('/api/meetings/') && path.endsWith('/decision-contexts'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/versions'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/rollback'))).toBe(true);
+    expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/regenerate'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.includes('/fields/') && path.endsWith('/regenerate'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.includes('/fields/') && path.endsWith('/transcript'))).toBe(true);
     expect(pathKeys.some((path) => path.includes('/decision-contexts/') && path.endsWith('/log'))).toBe(true);
