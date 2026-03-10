@@ -20,6 +20,11 @@ See `docs/transcription-architecture.md` for the full architecture. See `docs/pl
 - ❌ `/stream` handler does not auto-inject active decision/field context
 - ❌ No transcription service (OpenAI Whisper or local)
 - ❌ No Docker setup for local Whisper
+- ✅ Standalone transcription service supports:
+  - `transcribe-local` for local-only verification
+  - `transcribe --mode upload|stream` for API delivery
+  - `smoke-upload` and `smoke-stream` integrated smoke flows
+  - `live` session mode with chunked capture and final flush
 
 ---
 
@@ -191,6 +196,26 @@ interface ITranscriptionProvider {
 - Local smoke test: `transcription-service transcribe-local test.wav` prints non-empty segments
 - Integration: Send a real `.wav` file (use files from `test-cases/` if audio samples added)
 - End-to-end: `transcription-service transcribe test.wav --meeting-id $ID` → verify DB chunks
+
+### T1 Integrated Smoke Commands (validated)
+
+```bash
+# Upload-mode smoke (creates meeting if --meeting-id omitted)
+pnpm --filter @repo/transcription exec tsx src/index.ts smoke-upload \
+  /home/greenman/dev/decision-logger/examples/9\ Dec\ at\ 21-45\ -\ party\ utility\ tasks.m4a \
+  --api-url http://localhost:3001 \
+  --chunk-strategy speaker
+
+# Stream-mode smoke (creates meeting if --meeting-id omitted)
+pnpm --filter @repo/transcription exec tsx src/index.ts smoke-stream \
+  /home/greenman/dev/decision-logger/examples/9\ Dec\ at\ 21-45\ -\ party\ utility\ tasks.m4a \
+  --api-url http://localhost:3001 \
+  --chunk-strategy speaker
+```
+
+Validated on March 10, 2026:
+- `smoke-upload`: transcript created and transcript-reading returned timestamped rows.
+- `smoke-stream`: 421 stream events delivered + flush succeeded; transcript-reading returned persisted rows.
 
 ---
 

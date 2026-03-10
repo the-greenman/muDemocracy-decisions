@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { resolve } from 'node:path';
-import { runBatchTranscription, runLocalTranscription, runUploadSmoke } from './session.js';
+import { runBatchTranscription, runLiveTranscription, runLocalTranscription, runUploadSmoke } from './session.js';
 
 interface ParsedArgs {
-  command: 'transcribe' | 'transcribe-local' | 'smoke-upload' | null;
+  command: 'transcribe' | 'transcribe-local' | 'smoke-upload' | 'smoke-stream' | 'live' | null;
   audioFilePath: string | null;
   meetingId: string | null;
   apiUrl?: string;
@@ -12,6 +12,7 @@ interface ParsedArgs {
   outputPath?: string;
   outputTextPath?: string;
   outputSrtPath?: string;
+  chunkMs?: number;
   mode: 'upload' | 'stream';
   chunkStrategy: 'fixed' | 'semantic' | 'speaker' | 'streaming';
 }
@@ -20,6 +21,8 @@ function printUsage(): void {
   console.log('Usage: transcription-service transcribe <audio-file> --meeting-id <uuid> [--api-url <url>] [--language <code>] [--mode upload|stream] [--chunk-strategy fixed|semantic|speaker|streaming]');
   console.log('       transcription-service transcribe-local <audio-file> [--language <code>] [--output <path>] [--output-text <path>] [--output-srt <path>]');
   console.log('       transcription-service smoke-upload <audio-file> [--meeting-id <uuid>] [--api-url <url>] [--language <code>] [--chunk-strategy fixed|semantic|speaker|streaming]');
+  console.log('       transcription-service smoke-stream <audio-file> [--meeting-id <uuid>] [--api-url <url>] [--language <code>] [--chunk-strategy fixed|semantic|speaker|streaming]');
+  console.log('       transcription-service live --meeting-id <uuid> [--api-url <url>] [--language <code>] [--chunk-ms <milliseconds>]');
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -27,7 +30,9 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   const parsed: ParsedArgs = {
     command:
-      command === 'transcribe' || command === 'transcribe-local' || command === 'smoke-upload'
+    command === 'transcribe' || command === 'transcribe-local' || command === 'smoke-upload'
+      || command === 'smoke-stream'
+      || command === 'live'
         ? command
         : null,
     audioFilePath: audioFilePath ?? null,
@@ -105,6 +110,15 @@ function parseArgs(argv: string[]): ParsedArgs {
         parsed.chunkStrategy = value;
       }
       i += 1;
+      continue;
+    }
+
+    if (token === '--chunk-ms') {
+      const value = Number(rest[i + 1]);
+      if (Number.isFinite(value) && value > 0) {
+        parsed.chunkMs = value;
+      }
+      i += 1;
     }
   }
 
@@ -117,11 +131,23 @@ async function main(): Promise<void> {
     process.env.DECISION_LOGGER_API_URL = parsed.apiUrl;
   }
   if (!parsed.command || !parsed.audioFilePath) {
+    if (parsed.command !== 'live') {
+      printUsage();
+      process.exit(1);
+    }
+  }
+
+  if (!parsed.command) {
     printUsage();
     process.exit(1);
   }
 
   if (parsed.command === 'transcribe-local') {
+    if (!parsed.audioFilePath) {
+      printUsage();
+      process.exit(1);
+    }
+
     await runLocalTranscription({
       audioFilePath: resolve(parsed.audioFilePath),
       ...(parsed.language === undefined ? {} : { language: parsed.language }),
@@ -132,10 +158,16 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (parsed.command === 'smoke-upload') {
+  if (parsed.command === 'smoke-upload' || parsed.command === 'smoke-stream') {
+    if (!parsed.audioFilePath) {
+      printUsage();
+      process.exit(1);
+    }
+
     await runUploadSmoke({
       audioFilePath: resolve(parsed.audioFilePath),
       chunkStrategy: parsed.chunkStrategy,
+      mode: parsed.command === 'smoke-upload' ? 'upload' : 'stream',
       ...(parsed.meetingId === null ? {} : { meetingId: parsed.meetingId }),
       ...(parsed.language === undefined ? {} : { language: parsed.language }),
     });
@@ -143,6 +175,20 @@ async function main(): Promise<void> {
   }
 
   if (!parsed.meetingId) {
+    printUsage();
+    process.exit(1);
+  }
+
+  if (parsed.command === 'live') {
+    await runLiveTranscription({
+      meetingId: parsed.meetingId,
+      ...(parsed.language === undefined ? {} : { language: parsed.language }),
+      ...(parsed.chunkMs === undefined ? {} : { chunkMs: parsed.chunkMs }),
+    });
+    return;
+  }
+
+  if (!parsed.audioFilePath) {
     printUsage();
     process.exit(1);
   }

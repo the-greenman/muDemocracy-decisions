@@ -61,13 +61,11 @@ export class OpenAIWhisperProvider implements ITranscriptionProvider {
 
   private mapSegments(segments: OpenAIVerboseSegment[]): TranscriptEvent[] {
     return segments
-      .map((segment) => {
+      .map((segment, index) => {
         const event: TranscriptEvent = {
           text: segment.text?.trim() ?? '',
+          sequenceNumber: index + 1,
         };
-        if (segment.id !== undefined) {
-          event.sequenceNumber = segment.id;
-        }
         if (segment.start !== undefined) {
           event.startTimeSeconds = segment.start;
         }
