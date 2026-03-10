@@ -2,9 +2,10 @@
 
 import { resolve } from 'node:path';
 import { runBatchTranscription, runLiveTranscription, runLocalTranscription, runUploadSmoke } from './session.js';
+import { startWebServer } from './web-server.js';
 
 interface ParsedArgs {
-  command: 'transcribe' | 'transcribe-local' | 'smoke-upload' | 'smoke-stream' | 'live' | null;
+  command: 'transcribe' | 'transcribe-local' | 'smoke-upload' | 'smoke-stream' | 'live' | 'serve' | null;
   audioFilePath: string | null;
   meetingId: string | null;
   apiUrl?: string;
@@ -13,6 +14,8 @@ interface ParsedArgs {
   outputTextPath?: string;
   outputSrtPath?: string;
   chunkMs?: number;
+  port?: number;
+  host?: string;
   mode: 'upload' | 'stream';
   chunkStrategy: 'fixed' | 'semantic' | 'speaker' | 'streaming';
 }
@@ -23,6 +26,7 @@ function printUsage(): void {
   console.log('       transcription-service smoke-upload <audio-file> [--meeting-id <uuid>] [--api-url <url>] [--language <code>] [--chunk-strategy fixed|semantic|speaker|streaming]');
   console.log('       transcription-service smoke-stream <audio-file> [--meeting-id <uuid>] [--api-url <url>] [--language <code>] [--chunk-strategy fixed|semantic|speaker|streaming]');
   console.log('       transcription-service live --meeting-id <uuid> [--api-url <url>] [--language <code>] [--chunk-ms <milliseconds>]');
+  console.log('       transcription-service serve [--api-url <url>] [--host <host>] [--port <port>]');
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -33,6 +37,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     command === 'transcribe' || command === 'transcribe-local' || command === 'smoke-upload'
       || command === 'smoke-stream'
       || command === 'live'
+      || command === 'serve'
         ? command
         : null,
     audioFilePath: audioFilePath ?? null,
@@ -119,6 +124,24 @@ function parseArgs(argv: string[]): ParsedArgs {
         parsed.chunkMs = value;
       }
       i += 1;
+      continue;
+    }
+
+    if (token === '--port') {
+      const value = Number(rest[i + 1]);
+      if (Number.isFinite(value) && value > 0) {
+        parsed.port = Math.floor(value);
+      }
+      i += 1;
+      continue;
+    }
+
+    if (token === '--host') {
+      const value = rest[i + 1];
+      if (value !== undefined) {
+        parsed.host = value;
+      }
+      i += 1;
     }
   }
 
@@ -131,7 +154,7 @@ async function main(): Promise<void> {
     process.env.DECISION_LOGGER_API_URL = parsed.apiUrl;
   }
   if (!parsed.command || !parsed.audioFilePath) {
-    if (parsed.command !== 'live') {
+    if (parsed.command !== 'live' && parsed.command !== 'serve') {
       printUsage();
       process.exit(1);
     }
@@ -171,6 +194,15 @@ async function main(): Promise<void> {
       ...(parsed.meetingId === null ? {} : { meetingId: parsed.meetingId }),
       ...(parsed.language === undefined ? {} : { language: parsed.language }),
     });
+    return;
+  }
+
+  if (parsed.command === 'serve') {
+    const server = await startWebServer({
+      ...(parsed.port === undefined ? {} : { port: parsed.port }),
+      ...(parsed.host === undefined ? {} : { host: parsed.host }),
+    });
+    console.log(`Transcription web server listening on http://${server.host}:${server.port}`);
     return;
   }
 
