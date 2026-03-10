@@ -51,4 +51,12 @@ export class MeetingService {
     }
     return this.repo.updateStatus(id, status);
   }
+
+  async delete(id: string): Promise<boolean> {
+    if (!id) {
+      throw new Error('Meeting ID is required');
+    }
+
+    return this.repo.delete(id);
+  }
 }

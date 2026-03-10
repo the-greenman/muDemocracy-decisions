@@ -18,6 +18,7 @@ const {
 
 describe('API E2E Tests', () => {
   let createdMeetingId: string;
+  let deletableMeetingId: string;
   let createdFieldId: string;
   let createdFieldName: string;
   let createdTemplateId: string;
@@ -120,6 +121,22 @@ describe('API E2E Tests', () => {
     expect(data.status).toBe('active');
     
     createdMeetingId = data.id;
+  });
+
+  it('POST /api/meetings - should create a second meeting for delete coverage', async () => {
+    const response = await app.request('/api/meetings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Meeting To Delete',
+        date: '2026-02-28T10:00:00Z',
+        participants: ['Alice'],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const data = await response.json();
+    deletableMeetingId = data.id;
   });
 
   it('PATCH /api/meetings/:id - should update meeting metadata', async () => {
@@ -869,6 +886,17 @@ describe('API E2E Tests', () => {
     const data = await response.json();
     expect(data.id).toBe(createdMeetingId);
     expect(data.title).toBe('Updated Test Meeting');
+  });
+
+  it('DELETE /api/meetings/:id - should delete a meeting', async () => {
+    const response = await app.request(`/api/meetings/${deletableMeetingId}`, {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(204);
+
+    const getResponse = await app.request(`/api/meetings/${deletableMeetingId}`);
+    expect(getResponse.status).toBe(404);
   });
 
   it('GET /api/meetings/:id - should return 404 for non-existent meeting', async () => {

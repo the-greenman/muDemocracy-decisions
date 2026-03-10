@@ -100,6 +100,15 @@ export class DrizzleMeetingRepository {
     return this.mapToMeeting(result);
   }
 
+  async delete(id: string): Promise<boolean> {
+    const [result] = await db
+      .delete(meetings)
+      .where(eq(meetings.id, id))
+      .returning();
+
+    return !!result;
+  }
+
   private mapToMeeting(dbMeeting: MeetingSelect): Meeting {
     return {
       id: dbMeeting.id,

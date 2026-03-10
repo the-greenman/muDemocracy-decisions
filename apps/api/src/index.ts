@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import {
   createMeetingRoute,
+  deleteMeetingRoute,
   getMeetingSummaryRoute,
   getMeetingTranscriptReadingRoute,
   listMeetingsRoute,
@@ -327,12 +328,12 @@ app.openapi(getMeetingRoute, async (c) => {
 app.openapi(updateMeetingRoute, async (c) => {
   try {
     const { id } = c.req.valid('param');
-    const data = c.req.valid('json');
+    const { status, ...otherUpdates } = c.req.valid('json');
 
-    if (data.status !== undefined) {
-      const meeting = await meetingService.updateStatus(id, data.status);
+    if (status !== undefined) {
+      const meeting = await meetingService.updateStatus(id, status);
 
-      if (data.title === undefined && data.participants === undefined) {
+      if (otherUpdates.title === undefined && otherUpdates.participants === undefined) {
         return c.json(meeting);
       }
     }
@@ -342,11 +343,11 @@ app.openapi(updateMeetingRoute, async (c) => {
       participants?: string[];
     } = {};
 
-    if (data.title !== undefined) {
-      updatePayload.title = data.title;
+    if (otherUpdates.title !== undefined) {
+      updatePayload.title = otherUpdates.title;
     }
-    if (data.participants !== undefined) {
-      updatePayload.participants = data.participants;
+    if (otherUpdates.participants !== undefined) {
+      updatePayload.participants = otherUpdates.participants;
     }
 
     if (Object.keys(updatePayload).length === 0) {
@@ -358,8 +359,8 @@ app.openapi(updateMeetingRoute, async (c) => {
     }
 
     const meeting = await meetingService.update(id, updatePayload);
-    if (data.status !== undefined && meeting.status !== data.status) {
-      const updatedStatusMeeting = await meetingService.updateStatus(id, data.status);
+    if (status !== undefined && meeting.status !== status) {
+      const updatedStatusMeeting = await meetingService.updateStatus(id, status);
       return c.json(updatedStatusMeeting);
     }
 
@@ -368,6 +369,23 @@ app.openapi(updateMeetingRoute, async (c) => {
     const message = error instanceof Error ? error.message : 'Unknown error';
     const status = message.includes('not found') ? 404 : 400;
     return c.json({ error: message }, status as 400 | 404);
+  }
+});
+
+app.openapi(deleteMeetingRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const deleted = await meetingService.delete(id);
+
+    if (!deleted) {
+      return c.json({ error: 'Meeting not found' }, 404);
+    }
+
+    return c.body(null, 204);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const statusCode = message.includes('not found') ? 404 : 400;
+    return c.json({ error: message }, statusCode as 400 | 404);
   }
 });
 

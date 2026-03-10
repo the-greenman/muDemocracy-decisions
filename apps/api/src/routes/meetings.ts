@@ -203,6 +203,28 @@ export const updateMeetingRoute = createRoute({
   },
 });
 
+export const deleteMeetingRoute = createRoute({
+  method: 'delete',
+  path: '/api/meetings/:id',
+  tags: ['meetings'],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    204: {
+      description: 'Meeting deleted successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Meeting not found',
+    },
+  },
+});
+
 export const getMeetingSummaryRoute = createRoute({
   method: 'get',
   path: '/api/meetings/:id/summary',

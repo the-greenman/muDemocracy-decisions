@@ -42,13 +42,17 @@ export class MockMeetingRepository implements IMeetingRepository {
   }
 
   async updateStatus(id: string, status: 'active' | 'completed'): Promise<Meeting> {
-    const meeting = this.meetings.get(id);
-    if (!meeting) {
+    const existingMeeting = this.meetings.get(id);
+    if (!existingMeeting) {
       throw new Error('Meeting not found');
     }
     
-    const updated = { ...meeting, status };
-    this.meetings.set(id, updated);
-    return updated;
+    const updatedMeeting = { ...existingMeeting, status };
+    this.meetings.set(id, updatedMeeting);
+    return updatedMeeting;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return this.meetings.delete(id);
   }
 }

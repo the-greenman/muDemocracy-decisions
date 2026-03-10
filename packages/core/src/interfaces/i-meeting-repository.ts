@@ -6,4 +6,5 @@ export interface IMeetingRepository {
   findAll(): Promise<Meeting[]>;
   update(id: string, data: Partial<Pick<CreateMeeting, 'title' | 'participants'>>): Promise<Meeting>;
   updateStatus(id: string, status: 'active' | 'completed'): Promise<Meeting>;
+  delete(id: string): Promise<boolean>;
 }
