@@ -9,6 +9,8 @@ import { db } from '../client.js';
 import { meetings, MeetingSelect, MeetingInsert } from '../schema.js';
 import { Meeting, CreateMeeting } from '@repo/schema';
 
+const POSTGRES_FOREIGN_KEY_VIOLATION = '23503';
+
 function toMeetingIsoDate(value: string | Date): string {
   if (value instanceof Date) {
     return `${value.toISOString().split('T')[0]}T00:00:00Z`;
@@ -101,12 +103,21 @@ export class DrizzleMeetingRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    const [result] = await db
-      .delete(meetings)
-      .where(eq(meetings.id, id))
-      .returning();
+    try {
+      const [result] = await db
+        .delete(meetings)
+        .where(eq(meetings.id, id))
+        .returning();
 
-    return !!result;
+      return !!result;
+    } catch (error) {
+      const postgresError = error as { code?: string; message?: string };
+      if (postgresError.code === POSTGRES_FOREIGN_KEY_VIOLATION) {
+        throw new Error('Meeting has dependent records and cannot be deleted');
+      }
+
+      throw error;
+    }
   }
 
   private mapToMeeting(dbMeeting: MeetingSelect): Meeting {

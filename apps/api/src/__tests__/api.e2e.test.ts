@@ -165,6 +165,18 @@ describe('API E2E Tests', () => {
     expect(data.status).toBe('active');
   });
 
+  it('PATCH /api/meetings/:id - should return 404 for a missing meeting', async () => {
+    const response = await app.request('/api/meetings/11111111-1111-4111-8111-111111111111', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Missing meeting update' }),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
   it('GET /api/templates/:id/fields - should list ordered fields for a template', async () => {
     const response = await app.request(`/api/templates/${createdTemplateId}/fields`);
 
@@ -205,6 +217,18 @@ describe('API E2E Tests', () => {
     const data = await response.json();
     expect(data.activeMeetingId).toBe(createdMeetingId);
     expect(data.activeMeeting?.id).toBe(createdMeetingId);
+  });
+
+  it('POST /api/context/meeting - should return 404 for a missing meeting', async () => {
+    const response = await app.request('/api/context/meeting', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meetingId: '11111111-1111-4111-8111-111111111111' }),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
   });
 
   it('GET /api/context - should return current context state', async () => {
@@ -597,6 +621,18 @@ describe('API E2E Tests', () => {
     expect(data.activeDecisionContextId).toBe(createdContextId);
   });
 
+  it('POST /api/meetings/:id/context/decision - should return 404 for a missing flagged decision', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/context/decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flaggedDecisionId: '11111111-1111-4111-8111-111111111111' }),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
   it('POST /api/meetings/:id/context/field - should set the active field context', async () => {
     const response = await app.request(`/api/meetings/${createdMeetingId}/context/field`, {
       method: 'POST',
@@ -608,6 +644,66 @@ describe('API E2E Tests', () => {
     const data = await response.json();
     expect(data.activeField).toBe(createdFieldId);
     expect(data.activeDecisionContext?.activeField).toBe(createdFieldId);
+  });
+
+  it('POST /api/meetings/:id/context/field - should return 404 for a missing field', async () => {
+    const response = await app.request(`/api/meetings/${createdMeetingId}/context/field`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fieldId: '11111111-1111-4111-8111-111111111111' }),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
+  it('POST /api/meetings/:id/context/decision - should return 404 for a missing meeting', async () => {
+    const response = await app.request('/api/meetings/11111111-1111-4111-8111-111111111111/context/decision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flaggedDecisionId: createdDecisionId }),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
+  it('POST /api/meetings/:id/context/field - should return 404 for a missing meeting', async () => {
+    const response = await app.request('/api/meetings/11111111-1111-4111-8111-111111111111/context/field', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fieldId: createdFieldId }),
+    });
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
+  it('POST /api/meetings/:id/context/field - should return 400 when the active meeting does not match', async () => {
+    const mismatchMeetingResponse = await app.request('/api/meetings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Context mismatch meeting ${Date.now()}`,
+        date: '2026-03-10T12:00:00Z',
+        participants: ['Mismatch Tester'],
+      }),
+    });
+    expect(mismatchMeetingResponse.status).toBe(201);
+    const mismatchMeeting = await mismatchMeetingResponse.json();
+
+    const response = await app.request(`/api/meetings/${mismatchMeeting.id}/context/field`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fieldId: createdFieldId }),
+    });
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
   });
 
   it('POST /api/supplementary-content - should create supplementary content', async () => {
@@ -958,6 +1054,14 @@ describe('API E2E Tests', () => {
     expect(data.decisionContextId).toBe(createdContextId);
   });
 
+  it('GET /api/decisions/:id - should return 404 for a missing decision log', async () => {
+    const response = await app.request('/api/decisions/11111111-1111-4111-8111-111111111111');
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
   it('GET /api/decisions/:id/export?format=json - should export a decision log as json', async () => {
     const response = await app.request(`/api/decisions/${loggedDecisionId}/export?format=json`);
 
@@ -965,6 +1069,14 @@ describe('API E2E Tests', () => {
     const data = await response.json();
     expect(data.format).toBe('json');
     expect(data.content.id).toBe(loggedDecisionId);
+  });
+
+  it('GET /api/decisions/:id/export - should return 404 for a missing decision log', async () => {
+    const response = await app.request('/api/decisions/11111111-1111-4111-8111-111111111111/export?format=json');
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
   });
 
   it('GET /api/decisions/:id/export?format=markdown - should export a decision log as markdown', async () => {
@@ -985,6 +1097,14 @@ describe('API E2E Tests', () => {
     expect(typeof data.markdown).toBe('string');
     expect(data.markdown).toContain('# Decision:');
     expect(data.markdown).toContain('##');
+  });
+
+  it('GET /api/decision-contexts/:id/export/markdown - should return 404 for a missing context', async () => {
+    const response = await app.request('/api/decision-contexts/11111111-1111-4111-8111-111111111111/export/markdown');
+
+    expect(response.status).toBe(404);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
   });
 
   it('GET /api/decision-contexts/:id/llm-interactions - should return interactions array', async () => {
@@ -1072,6 +1192,41 @@ describe('API E2E Tests', () => {
     expect(response.status).toBe(404);
     const data = await response.json();
     expect(data.error).toBeDefined();
+  });
+
+  it('DELETE /api/meetings/:id - should return 409 when dependent records exist', async () => {
+    const meetingResponse = await app.request('/api/meetings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Meeting With Dependencies ${Date.now()}`,
+        date: '2026-03-10T11:00:00Z',
+        participants: ['Dependency Tester'],
+      }),
+    });
+    expect(meetingResponse.status).toBe(201);
+    const meeting = await meetingResponse.json();
+
+    const uploadResponse = await app.request(`/api/meetings/${meeting.id}/transcripts/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: 'Dependency check transcript content.',
+        format: 'txt',
+        chunkStrategy: 'fixed',
+        chunkSize: 20,
+        overlap: 0,
+      }),
+    });
+    expect(uploadResponse.status).toBe(201);
+
+    const response = await app.request(`/api/meetings/${meeting.id}`, {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(409);
+    const data = await response.json();
+    expect(data.error).toContain('dependent records');
   });
 
   it('GET /api/meetings/:id - should return 404 for non-existent meeting', async () => {

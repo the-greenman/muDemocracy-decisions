@@ -106,10 +106,10 @@ Required outcomes:
 
 - [x] Stream flush no longer fails on missing `rawTranscriptId`.
 - [x] Whisper `verbose_json` fixture uploads via `/transcripts/upload` and yields timestamped transcript-reading rows.
-- [ ] `DELETE /api/meetings/:id` has explicit contract behavior for dependency conflicts.
-- [ ] `rollback`/`regenerate`/decision export endpoints return statuses matching declared schemas.
-- [ ] Focused endpoint e2e runs can execute without hidden inter-test ordering dependencies.
-- [ ] Full `@repo/api` e2e passes with no contract drift failures.
+- [x] `DELETE /api/meetings/:id` has explicit contract behavior for dependency conflicts.
+- [x] `rollback`/`regenerate`/decision export endpoints return statuses matching declared schemas.
+- [x] Focused endpoint e2e runs can execute without hidden inter-test ordering dependencies.
+- [x] Full `@repo/api` e2e passes with no contract drift failures.
 
 ## Working Validation Sequence
 

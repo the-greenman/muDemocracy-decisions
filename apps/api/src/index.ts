@@ -225,8 +225,11 @@ app.openapi(setMeetingContextRoute, async (c) => {
     return c.json(await globalContextService.getContext());
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -256,8 +259,11 @@ app.openapi(setDecisionContextRoute, async (c) => {
     return c.json(await globalContextService.getContext());
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -293,8 +299,11 @@ app.openapi(setFieldContextRoute, async (c) => {
     return c.json(await globalContextService.getContext());
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -383,8 +392,11 @@ app.openapi(updateMeetingRoute, async (c) => {
     return c.json(meeting);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -716,8 +728,11 @@ app.openapi(deleteSupplementaryContentRoute, async (c) => {
     return c.body(null, 204);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -832,8 +847,11 @@ app.openapi(updateFlaggedDecisionRoute, async (c) => {
     return c.json(decision);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -1084,8 +1102,11 @@ app.openapi(exportMarkdownRoute, async (c) => {
     return c.json({ markdown });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -1151,8 +1172,11 @@ app.openapi(rollbackDraftRoute, async (c) => {
     return c.json(context);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -1211,8 +1235,11 @@ app.openapi(updateFieldValueRoute, async (c) => {
     return c.json(context);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -1229,8 +1256,11 @@ app.openapi(getFieldTranscriptRoute, async (c) => {
     return c.json({ chunks });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -1259,8 +1289,11 @@ app.openapi(logDecisionRoute, async (c) => {
     return c.json(decision);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.includes('not found') ? 404 : 400;
-    return c.json({ error: message }, status as 400 | 404);
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
 });
 
@@ -1285,20 +1318,28 @@ app.openapi(exportDecisionLogRoute, async (c) => {
     return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
   }
 
-  const { id } = c.req.valid('param');
-  const { format } = c.req.valid('query');
-  const decision = await services.decisionLogService.getDecisionLog(id);
-  if (!decision) {
-    return c.json({ error: 'Decision log not found' }, 404);
+  try {
+    const { id } = c.req.valid('param');
+    const { format } = c.req.valid('query');
+    const decision = await services.decisionLogService.getDecisionLog(id);
+
+    if (!decision) {
+      return c.json({ error: 'Decision log not found' }, 404);
+    }
+
+    const content = format === 'json'
+      ? decision
+      : await services.markdownExportService.exportToMarkdown(decision.decisionContextId);
+
+    return c.json({ format, content });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (isNotFoundErrorMessage(message)) {
+      return c.json({ error: message }, 404);
+    }
+
+    return c.json({ error: message }, 400);
   }
-
-  if (format === 'json') {
-    return c.json({ format, content: decision });
-  }
-
-  const markdown = await services.markdownExportService.exportToMarkdown(decision.decisionContextId);
-
-  return c.json({ format, content: markdown });
 });
 
 app.openapi(listLLMInteractionsRoute, async (c) => {
