@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { api, getContext, requireActiveDecisionContext, type DecisionContext, type DecisionLog } from '../client.js';
+import { api, getContext, requireActiveDecisionContext, type DecisionContext, type DecisionField, type DecisionLog, type DecisionTemplate } from '../client.js';
 
 async function resolveContextId(flag?: string): Promise<{ contextId: string; meetingId: string }> {
   if (flag) {
@@ -29,6 +29,44 @@ function printDraft(ctx: DecisionContext) {
     const displayValue = value ? String(value) : chalk.gray('(empty)');
     console.log(`${lockedMarker}${chalk.gray(fieldId.slice(0, 8) + '…')}: ${displayValue}`);
   }
+}
+
+function printTemplateFields(fields: DecisionField[]) {
+  if (fields.length === 0) {
+    console.log(chalk.yellow('No fields found for this template'));
+    return;
+  }
+
+  fields.forEach((field, index) => {
+    console.log(chalk.white(`${index + 1}. ${field.name}`));
+    console.log(chalk.gray(`   ID:       ${field.id}`));
+    console.log(chalk.white(`   Type:     ${field.fieldType}`));
+    console.log(chalk.white(`   Required: ${field.required ? 'yes' : 'no'}`));
+    if (field.description) {
+      console.log(chalk.gray(`   Desc:     ${field.description}`));
+    }
+    console.log('');
+  });
+}
+
+function printTemplates(templates: DecisionTemplate[]) {
+  if (templates.length === 0) {
+    console.log(chalk.yellow('No templates found'));
+    return;
+  }
+
+  templates.forEach((template, index) => {
+    const defaultMarker = template.isDefault ? chalk.cyan(' [default]') : '';
+    console.log(chalk.white(`${index + 1}. ${template.name}${defaultMarker}`));
+    console.log(chalk.gray(`   ID:       ${template.id}`));
+    console.log(chalk.white(`   Category: ${template.category}`));
+    console.log(chalk.white(`   Version:  ${template.version}`));
+    console.log(chalk.white(`   Source:   ${template.isCustom ? 'custom' : template.namespace}`));
+    if (template.description) {
+      console.log(chalk.gray(`   Desc:     ${template.description}`));
+    }
+    console.log('');
+  });
 }
 
 export const draftCommand = new Command('draft')
@@ -64,6 +102,41 @@ draftCommand
   });
 
 draftCommand
+  .command('change-template')
+  .description('Change the template for a decision context')
+  .requiredOption('-t, --template-id <id>', 'New template ID')
+  .option('-c, --context-id <id>', 'Decision context ID (defaults to active context)')
+  .action(async (opts: { templateId: string; contextId?: string }) => {
+    const { contextId } = await resolveContextId(opts.contextId);
+    const ctx = await api.post<DecisionContext>(`/api/decision-contexts/${contextId}/template-change`, {
+      templateId: opts.templateId,
+    });
+    console.log(chalk.green('✓ Decision context template changed'));
+    console.log(chalk.gray(`Context:  ${ctx.id}`));
+    console.log(chalk.white(`Template: ${ctx.templateId}`));
+    console.log(chalk.white(`Status:   ${ctx.status}`));
+  });
+
+draftCommand
+  .command('templates')
+  .description('List available decision templates')
+  .action(async () => {
+    const response = await api.get<{ templates: DecisionTemplate[] }>('/api/templates');
+    console.log(chalk.white('Available templates:\n'));
+    printTemplates(response.templates);
+  });
+
+draftCommand
+  .command('template-fields')
+  .description('List fields for a template')
+  .requiredOption('-t, --template-id <id>', 'Template ID to inspect')
+  .action(async (opts: { templateId: string }) => {
+    const response = await api.get<{ fields: DecisionField[] }>(`/api/templates/${opts.templateId}/fields`);
+    console.log(chalk.white(`Template fields for ${opts.templateId}:\n`));
+    printTemplateFields(response.fields);
+  });
+
+draftCommand
   .command('lock-field')
   .description('Lock a field to prevent regeneration')
   .requiredOption('-f, --field-id <id>', 'Field ID to lock')
@@ -81,7 +154,7 @@ draftCommand
   .option('-c, --context-id <id>', 'Decision context ID (defaults to active context)')
   .action(async (opts: { fieldId: string; contextId?: string }) => {
     const { contextId } = await resolveContextId(opts.contextId);
-    await api.delete<DecisionContext>(`/api/decision-contexts/${contextId}/lock-field?fieldId=${opts.fieldId}`);
+    await api.delete<DecisionContext>(`/api/decision-contexts/${contextId}/lock-field`, { fieldId: opts.fieldId });
     console.log(chalk.green(`✓ Field ${opts.fieldId} unlocked`));
   });
 

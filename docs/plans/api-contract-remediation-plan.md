@@ -16,7 +16,8 @@ Restore strict schema-first API behavior across `apps/api` by aligning route Zod
   - R0 transcription regression protections are in place.
   - R1 high-priority error-contract normalization for delete/rollback/regenerate/export is in place.
   - R2 targeted e2e coverage and CLI parity for template discovery/field inspection are in place.
-  - Remaining work is focused on broad contract audit, cross-surface schema cleanup, and prevention guardrails.
+  - R4 progress is in place for context-setting, supplementary-content, template/context-window, and selected workflow read paths.
+  - Remaining work is focused on the last workflow-route negative-path coverage gaps and prevention guardrails.
 
 ## Cleanup Remediation Notes
 
@@ -169,10 +170,10 @@ Required outcomes:
 
 Priority route families for this pass:
 
-1. context-setting routes
-2. supplementary-content routes
-3. transcript streaming/status/buffer routes
-4. template/context-window routes not already covered by focused tests
+1. context-setting routes (done)
+2. supplementary-content routes (done)
+3. template/context-window routes not already covered by focused tests (done)
+4. remaining decision-workflow read/write routes with broad error handling or stale contract entries
 
 Required outcomes:
 
@@ -212,6 +213,17 @@ Required outcomes:
 - [ ] Remaining active decision-workflow and context routes have explicit, audited failure contracts.
 - [ ] CLI-visible template/context operations are verified against finalized API contracts.
 - [ ] Contract drift guardrails are reflected in the normal API validation flow.
+
+## R4 Progress Notes
+
+- Context-setting routes now declare the intentional `400` mismatch failures emitted by the clear-context handlers.
+- Supplementary-content routes now have focused negative-path coverage for invalid query input and missing deletes.
+- Template/context-window routes now have focused `404` coverage for missing template or decision-context resources.
+- Workflow read-path cleanup has removed stale `400` contract noise from `GET /api/flagged-decisions/:id/context` and `GET /api/decisions/:id` and added explicit field-transcript failure contracts.
+- Workflow write-path cleanup now includes explicit missing-context handling for draft versions and aligned `400` declarations for field updates.
+- CLI-visible contract validation confirmed that the shared CLI client correctly depends on the normalized `{ error: string }` error shape across template, context, and decision workflows.
+- CLI validation also found and fixed a real request-shape mismatch: `draft unlock-field` now sends `fieldId` in the DELETE request body to match the API contract.
+- Remaining R4 work should focus on routes whose handlers still broadly map thrown errors into `400`/`404` responses without equally precise focused tests.
 
 ## Working Validation Sequence
 

@@ -21,7 +21,7 @@ export const api = {
   post:   <T>(path: string, body?: unknown)    => request<T>('POST',   path, body),
   put:    <T>(path: string, body?: unknown)    => request<T>('PUT',    path, body),
   patch:  <T>(path: string, body: unknown)     => request<T>('PATCH',  path, body),
-  delete: <T>(path: string)                    => request<T>('DELETE', path),
+  delete: <T>(path: string, body?: unknown)    => request<T>('DELETE', path, body),
 };
 
 export interface GlobalContext {
@@ -75,6 +75,27 @@ export interface DecisionContext {
   lockedFields?: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DecisionField {
+  id: string;
+  name: string;
+  fieldType: string;
+  description?: string;
+  required?: boolean;
+  order?: number;
+}
+
+export interface DecisionTemplate {
+  id: string;
+  namespace: string;
+  name: string;
+  description: string;
+  category: string;
+  version: number;
+  isDefault: boolean;
+  isCustom: boolean;
+  createdAt: string;
 }
 
 export interface DecisionLog {

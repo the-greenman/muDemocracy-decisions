@@ -2,6 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import {
   DecisionLogSchema,
   DecisionContextSchema,
+  DecisionTemplateSchema,
   DecisionFieldSchema,
   DecisionContextWindowSchema,
   ExpertTemplateSchema,
@@ -169,6 +170,10 @@ const FlaggedDecisionStatusQuerySchema = z.object({
 const FlaggedDecisionListResponseSchema = z.object({
   decisions: z.array(FlaggedDecisionListItemSchema),
 }).openapi('FlaggedDecisionListResponse');
+
+const DecisionTemplateListResponseSchema = z.object({
+  templates: z.array(DecisionTemplateSchema),
+}).openapi('DecisionTemplateListResponse');
 
 const TemplateFieldsResponseSchema = z.object({
   fields: z.array(DecisionFieldSchema),
@@ -806,13 +811,29 @@ export const getFlaggedDecisionContextRoute = createRoute({
       },
       description: 'Decision context not found',
     },
-    400: {
+    503: {
       content: {
         'application/json': {
           schema: ErrorResponseSchema,
         },
       },
-      description: 'Invalid markdown export request',
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listTemplatesRoute = createRoute({
+  method: 'get',
+  path: '/api/templates',
+  tags: ['templates'],
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionTemplateListResponseSchema,
+        },
+      },
+      description: 'Decision templates returned successfully',
     },
     503: {
       content: {
@@ -1294,6 +1315,14 @@ export const listDraftVersionsRoute = createRoute({
       },
       description: 'Saved draft versions for the decision context',
     },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
+    },
     503: {
       content: {
         'application/json': {
@@ -1428,6 +1457,14 @@ export const updateFieldValueRoute = createRoute({
       },
       description: 'Field updated successfully',
     },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid field update request',
+    },
     404: {
       content: {
         'application/json': {
@@ -1462,6 +1499,22 @@ export const getFieldTranscriptRoute = createRoute({
         },
       },
       description: 'Field-tagged transcript chunks for the decision context field',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid field transcript request',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context or field not found',
     },
     503: {
       content: {
@@ -1547,14 +1600,6 @@ export const getDecisionLogRoute = createRoute({
         },
       },
       description: 'Decision log not found',
-    },
-    400: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
-      description: 'Invalid decision export request',
     },
     503: {
       content: {

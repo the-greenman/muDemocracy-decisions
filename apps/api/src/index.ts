@@ -69,6 +69,7 @@ import {
   listLLMInteractionsRoute,
   listMCPServersRoute,
   listSupplementaryContentRoute,
+  listTemplatesRoute,
   listTemplateFieldsRoute,
   logDecisionRoute,
   lockFieldRoute,
@@ -908,6 +909,15 @@ app.openapi(listTemplateFieldsRoute, async (c) => {
   return c.json({ fields: fields.filter((field): field is NonNullable<typeof field> => field !== null) });
 });
 
+app.openapi(listTemplatesRoute, async (c) => {
+  if (!decisionTemplateService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const templates = await decisionTemplateService.getAllTemplates();
+  return c.json({ templates });
+});
+
 app.openapi(createDecisionContextRoute, async (c) => {
   const services = getWorkflowServices();
   if (!services) {
@@ -1151,6 +1161,11 @@ app.openapi(listDraftVersionsRoute, async (c) => {
   }
 
   const { id } = c.req.valid('param');
+  const context = await services.decisionContextRepository.findById(id);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
   const versions = await services.decisionContextService.listVersions(id);
   return c.json({ versions });
 });
