@@ -198,4 +198,13 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
       }
     }
   }
+
+  async deleteDecision(id: string): Promise<boolean> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      return false;
+    }
+
+    return this.repository.delete(id);
+  }
 }

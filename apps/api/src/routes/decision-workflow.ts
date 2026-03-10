@@ -806,6 +806,14 @@ export const getFlaggedDecisionContextRoute = createRoute({
       },
       description: 'Decision context not found',
     },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid markdown export request',
+    },
     503: {
       content: {
         'application/json': {
@@ -1539,6 +1547,14 @@ export const getDecisionLogRoute = createRoute({
         },
       },
       description: 'Decision log not found',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Invalid decision export request',
     },
     503: {
       content: {

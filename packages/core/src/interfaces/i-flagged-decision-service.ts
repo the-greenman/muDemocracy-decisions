@@ -58,6 +58,8 @@ export interface IFlaggedDecisionService {
     decisionIds: string[],
     priorities: number[]
   ): Promise<void>;
+
+  deleteDecision(id: string): Promise<boolean>;
 }
 
 // Import types

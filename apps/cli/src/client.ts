@@ -56,6 +56,14 @@ export interface FlaggedDecision {
   createdAt: string;
 }
 
+export interface FlaggedDecisionListItem extends FlaggedDecision {
+  contextId: string | null;
+  contextStatus: string | null;
+  hasDraft: boolean;
+  draftFieldCount: number;
+  versionCount: number;
+}
+
 export interface DecisionContext {
   id: string;
   meetingId: string;

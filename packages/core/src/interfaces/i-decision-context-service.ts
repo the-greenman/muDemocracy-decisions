@@ -14,6 +14,7 @@ export interface DraftVersionSummary {
 export interface IDecisionContextService {
   // Context management
   createContext(data: CreateDecisionContext): Promise<DecisionContext>;
+  changeTemplate(id: string, templateId: string): Promise<DecisionContext | null>;
   updateDraftData(id: string, data: Record<string, any>): Promise<DecisionContext | null>;
   setFieldValue(id: string, fieldId: string, value: unknown): Promise<DecisionContext | null>;
   saveSnapshot(id: string): Promise<DecisionContext | null>;

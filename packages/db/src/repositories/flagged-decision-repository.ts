@@ -15,6 +15,7 @@ interface IFlaggedDecisionRepository {
   findByMeetingId(meetingId: string): Promise<FlaggedDecision[]>;
   update(id: string, data: Partial<Omit<CreateFlaggedDecision, 'meetingId'>>): Promise<FlaggedDecision | null>;
   updateStatus(id: string, status: FlaggedDecision['status']): Promise<FlaggedDecision | null>;
+  delete(id: string): Promise<boolean>;
 }
 
 export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionRepository {
@@ -119,6 +120,15 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
     }
 
     return this.mapToSchema(row);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const [row] = await db
+      .delete(flaggedDecisions)
+      .where(eq(flaggedDecisions.id, id))
+      .returning();
+
+    return !!row;
   }
 
   private mapToSchema(row: FlaggedDecisionSelect): FlaggedDecision {

@@ -34,6 +34,15 @@ export class DecisionContextService implements IDecisionContextService {
     return await this.repository.create(data);
   }
 
+  async changeTemplate(id: string, templateId: string): Promise<DecisionContext | null> {
+    const context = await this.repository.findById(id);
+    if (!context) {
+      return null;
+    }
+
+    return await this.repository.update(id, { templateId });
+  }
+
   async updateDraftData(id: string, data: Record<string, any>): Promise<DecisionContext | null> {
     const context = await this.repository.findById(id);
     if (!context) {

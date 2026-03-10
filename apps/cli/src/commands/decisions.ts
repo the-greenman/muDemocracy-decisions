@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { api, requireActiveMeeting, type FlaggedDecision } from '../client.js';
+import { api, requireActiveMeeting, type FlaggedDecision, type FlaggedDecisionListItem } from '../client.js';
 
-function printDecision(d: FlaggedDecision, index?: number) {
+function printDecision(d: FlaggedDecision | FlaggedDecisionListItem, index?: number) {
   const prefix = index !== undefined ? `${index + 1}. ` : '';
   console.log(chalk.gray(`${prefix}${d.id}`));
   console.log(chalk.white(`   Title:      ${d.suggestedTitle}`));
@@ -11,6 +11,15 @@ function printDecision(d: FlaggedDecision, index?: number) {
   console.log(chalk.white(`   Confidence: ${(d.confidence * 100).toFixed(0)}%`));
   if (d.contextSummary) {
     console.log(chalk.gray(`   Context:    ${d.contextSummary}`));
+  }
+  if ('contextId' in d) {
+    console.log(chalk.white(`   Draft:      ${d.contextId ? 'yes' : 'no'}`));
+    if (d.contextId) {
+      console.log(chalk.gray(`   Context ID: ${d.contextId}`));
+      console.log(chalk.white(`   Draft state:${d.contextStatus ?? 'unknown'}`));
+      console.log(chalk.white(`   Fields:     ${d.draftFieldCount}`));
+      console.log(chalk.white(`   Versions:   ${d.versionCount}`));
+    }
   }
 }
 
@@ -25,7 +34,7 @@ decisionsCommand
   .action(async (opts: { meetingId?: string; status?: string }) => {
     const meetingId = opts.meetingId ?? await requireActiveMeeting();
     const qs = opts.status ? `?status=${opts.status}` : '';
-    const { decisions } = await api.get<{ decisions: FlaggedDecision[] }>(
+    const { decisions } = await api.get<{ decisions: FlaggedDecisionListItem[] }>(
       `/api/meetings/${meetingId}/flagged-decisions${qs}`,
     );
     if (decisions.length === 0) {

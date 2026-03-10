@@ -16,4 +16,5 @@ export interface IFlaggedDecisionRepository {
   update(id: string, data: Partial<Omit<CreateFlaggedDecision, 'meetingId'>>): Promise<FlaggedDecision | null>;
   updatePriority(id: string, priority: number): Promise<FlaggedDecision | null>;
   updateStatus(id: string, status: FlaggedDecision['status']): Promise<FlaggedDecision | null>;
+  delete(id: string): Promise<boolean>;
 }

@@ -206,6 +206,31 @@ describe('DecisionContextService', () => {
     });
   });
 
+  describe('changeTemplate', () => {
+    it('should update templateId while preserving draft data', async () => {
+      const nextTemplateId = crypto.randomUUID();
+      const context = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Template Change Context',
+        templateId: testTemplateId,
+        draftData: { field1: 'keep me' },
+      });
+
+      const result = await service.changeTemplate(context.id, nextTemplateId);
+
+      expect(result).toBeDefined();
+      expect(result!.templateId).toBe(nextTemplateId);
+      expect(result!.draftData).toEqual({ field1: 'keep me' });
+    });
+
+    it('should return null for a missing context', async () => {
+      const result = await service.changeTemplate(crypto.randomUUID(), crypto.randomUUID());
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('version management', () => {
     it('should save a snapshot of the current draft data', async () => {
       const context = await repository.create({
