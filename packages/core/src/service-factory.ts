@@ -13,9 +13,11 @@ import { DecisionFieldService } from './services/decision-field-service.js';
 import { DraftGenerationService } from './services/draft-generation-service.js';
 import { FlaggedDecisionService } from './services/flagged-decision-service.js';
 import { DecisionTemplateService } from './services/decision-template-service.js';
+import { ExpertTemplateService } from './services/expert-template-service.js';
 import { GlobalContextService, FileGlobalContextStore } from './services/global-context-service.js';
 import { LLMInteractionService } from './services/llm-interaction-service.js';
 import { MarkdownExportService } from './services/markdown-export-service.js';
+import { MCPServerService } from './services/mcp-server-service.js';
 import { SupplementaryContentService } from './services/supplementary-content-service.js';
 import { VercelAILLMService } from './llm/vercel-ai-llm-service.js';
 import type { ITranscriptManager } from './transcript-manager/index.js';
@@ -39,6 +41,8 @@ import {
   DrizzleTemplateFieldAssignmentRepository,
   DrizzleFlaggedDecisionRepository,
   DrizzleDecisionTemplateRepository,
+  DrizzleExpertTemplateRepository,
+  DrizzleMCPServerRepository,
   DrizzleSupplementaryContentRepository,
 } from '@repo/db';
 
@@ -177,6 +181,18 @@ export function createDecisionTemplateService(): DecisionTemplateService {
   return new DecisionTemplateService(
     new DrizzleDecisionTemplateRepository(),
     new DrizzleTemplateFieldAssignmentRepository()
+  );
+}
+
+export function createExpertTemplateService(): ExpertTemplateService {
+  return new ExpertTemplateService(
+    new DrizzleExpertTemplateRepository()
+  );
+}
+
+export function createMCPServerService(): MCPServerService {
+  return new MCPServerService(
+    new DrizzleMCPServerRepository()
   );
 }
 

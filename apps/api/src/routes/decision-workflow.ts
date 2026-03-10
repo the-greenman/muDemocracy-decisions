@@ -4,9 +4,11 @@ import {
   DecisionContextSchema,
   DecisionFieldSchema,
   DecisionContextWindowSchema,
+  ExpertTemplateSchema,
   FlaggedDecisionSchema,
   FlaggedDecisionListItemSchema,
   LLMInteractionSchema,
+  MCPServerSchema,
   RawTranscriptSchema,
   SupplementaryContentSchema,
   StreamFlushResponseSchema,
@@ -175,6 +177,14 @@ const TemplateFieldsResponseSchema = z.object({
 const DecisionContextWindowsResponseSchema = z.object({
   windows: z.array(DecisionContextWindowSchema),
 }).openapi('DecisionContextWindowsResponse');
+
+const ExpertsListResponseSchema = z.object({
+  experts: z.array(ExpertTemplateSchema),
+}).openapi('ExpertsListResponse');
+
+const MCPServersListResponseSchema = z.object({
+  servers: z.array(MCPServerSchema),
+}).openapi('MCPServersListResponse');
 
 const DecisionContextWindowPreviewQuerySchema = z.object({
   strategy: z.enum(['all', 'recent', 'relevant', 'weighted']).default('relevant'),
@@ -348,6 +358,54 @@ export const clearStreamingBufferRoute = createRoute({
   responses: {
     204: {
       description: 'Streaming buffer cleared successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listExpertsRoute = createRoute({
+  method: 'get',
+  path: '/api/experts',
+  tags: ['experts'],
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: ExpertsListResponseSchema,
+        },
+      },
+      description: 'Registered experts returned successfully',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const listMCPServersRoute = createRoute({
+  method: 'get',
+  path: '/api/mcp/servers',
+  tags: ['mcp'],
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: MCPServersListResponseSchema,
+        },
+      },
+      description: 'Registered MCP servers returned successfully',
     },
     503: {
       content: {

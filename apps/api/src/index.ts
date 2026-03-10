@@ -17,14 +17,15 @@ import {
   createDecisionContextRepository,
   createDecisionFieldService,
   createDecisionTemplateService,
+  createExpertTemplateService,
   createDraftGenerationService,
   createFlaggedDecisionService,
   createGlobalContextService,
-  createSupplementaryContentService,
-  type GuidanceSegment,
   createLLMInteractionService,
   createMarkdownExportService,
+  createMCPServerService,
   createMeetingService,
+  createSupplementaryContentService,
   createTemplateFieldAssignmentRepository,
   createTranscriptService,
   type IMeetingRepository,
@@ -57,10 +58,12 @@ import {
   getFieldTranscriptRoute,
   getStreamingStatusRoute,
   generateDraftRoute,
+  listExpertsRoute,
   listDraftVersionsRoute,
   listFlaggedDecisionsRoute,
   listDecisionContextWindowsRoute,
   listLLMInteractionsRoute,
+  listMCPServersRoute,
   listSupplementaryContentRoute,
   listTemplateFieldsRoute,
   logDecisionRoute,
@@ -99,6 +102,8 @@ const llmInteractionService = useDatabase ? createLLMInteractionService() : null
 const decisionContextRepository = useDatabase ? createDecisionContextRepository() : null;
 const decisionFieldService = useDatabase ? createDecisionFieldService() : null;
 const decisionTemplateService = useDatabase ? createDecisionTemplateService() : null;
+const expertTemplateService = useDatabase ? createExpertTemplateService() : null;
+const mcpServerService = useDatabase ? createMCPServerService() : null;
 const templateFieldAssignmentRepository = useDatabase ? createTemplateFieldAssignmentRepository() : null;
 
 function getWorkflowServices() {
@@ -551,6 +556,24 @@ app.openapi(clearStreamingBufferRoute, async (c) => {
   const { id } = c.req.valid('param');
   await services.transcriptService.clearStream(id);
   return c.body(null, 204);
+});
+
+app.openapi(listExpertsRoute, async (c) => {
+  if (!expertTemplateService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const experts = await expertTemplateService.getAllTemplates();
+  return c.json({ experts });
+});
+
+app.openapi(listMCPServersRoute, async (c) => {
+  if (!mcpServerService) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const servers = await mcpServerService.getAllServers();
+  return c.json({ servers });
 });
 
 app.openapi(createSupplementaryContentRoute, async (c) => {

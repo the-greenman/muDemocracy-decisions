@@ -42,6 +42,8 @@ export {
   createDecisionFieldRepository,
   createTemplateFieldAssignmentRepository,
   createServices,
+  createExpertTemplateService,
+  createMCPServerService,
   type ServiceContainer
 } from './service-factory.js';
 

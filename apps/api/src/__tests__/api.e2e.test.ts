@@ -11,6 +11,8 @@ const {
   createDecisionFieldService,
   createDecisionContextService,
   createDecisionTemplateService,
+  createExpertTemplateService,
+  createMCPServerService,
   createTranscriptService,
 } = core;
 
@@ -23,7 +25,9 @@ describe('API E2E Tests', () => {
   let createdChunkId: string;
   let createdDecisionId: string;
   let createdContextId: string;
+  let createdExpertId: string;
   let loggedDecisionId: string;
+  let createdMCPServerName: string;
   let createdSupplementaryContentId: string;
 
   beforeAll(async () => {
@@ -33,6 +37,8 @@ describe('API E2E Tests', () => {
 
     const fieldService = createDecisionFieldService();
     const templateService = createDecisionTemplateService();
+    const expertTemplateService = createExpertTemplateService();
+    const mcpServerService = createMCPServerService();
 
     const field = await fieldService.createField({
       namespace: 'test',
@@ -75,6 +81,24 @@ describe('API E2E Tests', () => {
       ],
     });
     alternateTemplateId = alternateTemplate.id;
+
+    const expert = await expertTemplateService.createTemplate({
+      name: `API E2E Expert ${Date.now()}`,
+      type: 'technical',
+      promptTemplate: 'Review this decision from a technical perspective.',
+      mcpAccess: ['github'],
+      isActive: true,
+    });
+    createdExpertId = expert.id;
+
+    const server = await mcpServerService.createServer({
+      name: `api-e2e-mcp-${Date.now()}`,
+      type: 'stdio',
+      connectionConfig: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
+      capabilities: { tools: ['search_code'] },
+      status: 'active',
+    });
+    createdMCPServerName = server.name;
   });
 
   it('POST /api/meetings - should create a meeting', async () => {
@@ -126,6 +150,24 @@ describe('API E2E Tests', () => {
     expect(data.fields).toHaveLength(1);
     expect(data.fields[0].id).toBe(createdFieldId);
     expect(data.fields[0].name).toBe(createdFieldName);
+  });
+
+  it('GET /api/experts - should list registered experts', async () => {
+    const response = await app.request('/api/experts');
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.experts).toBeInstanceOf(Array);
+    expect(data.experts.some((expert: { id: string }) => expert.id === createdExpertId)).toBe(true);
+  });
+
+  it('GET /api/mcp/servers - should list registered MCP servers', async () => {
+    const response = await app.request('/api/mcp/servers');
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.servers).toBeInstanceOf(Array);
+    expect(data.servers.some((server: { name: string }) => server.name === createdMCPServerName)).toBe(true);
   });
 
   it('POST /api/context/meeting - should set the active meeting context', async () => {
