@@ -13,7 +13,7 @@ export type PromptSegment =
     }
   | {
       type: "template_fields";
-      fields: Array<{ id: string; displayName: string; description: string }>;
+      fields: Array<{ id: string; displayName: string; description: string; extractionPrompt: string }>;
     };
 
 export type BuiltPrompt = {
@@ -93,6 +93,7 @@ export class PromptBuilder {
         id: f.id,
         displayName: f.name,
         description: f.description,
+        extractionPrompt: f.extractionPrompt,
       })),
     });
     return this;
@@ -126,7 +127,9 @@ export class PromptBuilder {
         guidanceByField.set(key, existing);
       } else if (seg.type === "template_fields") {
         seg.fields.forEach((f, i) => {
-          fieldLines.push(`${i + 1}. ${f.displayName}: ${f.description}`);
+          fieldLines.push(
+            `${i + 1}. ${f.displayName}: ${f.description}\n   Extraction guidance: ${f.extractionPrompt}`,
+          );
         });
       }
     }
@@ -171,9 +174,13 @@ export function buildDraftPrompt(
   templateFields: DecisionField[],
   guidance: GuidanceSegment[] = [],
   currentDraftText?: string,
+  templatePrompt?: string | null,
 ): BuiltPrompt {
   const builder = new PromptBuilder();
-  builder.addSystem(DEFAULT_DRAFT_SYSTEM_PROMPT);
+  const systemContent = templatePrompt
+    ? `${DEFAULT_DRAFT_SYSTEM_PROMPT}\n\nDecision type context: ${templatePrompt}`
+    : DEFAULT_DRAFT_SYSTEM_PROMPT;
+  builder.addSystem(systemContent);
 
   for (const chunk of transcriptChunks) {
     builder.addTranscriptChunk(chunk);
@@ -215,6 +222,7 @@ export function buildFieldRegenerationPrompt(
   field: DecisionField,
   fieldId: string,
   guidance: GuidanceSegment[] = [],
+  currentDraftText?: string | null,
 ): BuiltPrompt {
   const builder = new PromptBuilder();
   builder.addSystem(DEFAULT_DRAFT_SYSTEM_PROMPT);
@@ -225,6 +233,18 @@ export function buildFieldRegenerationPrompt(
 
   for (const item of supplementaryItems) {
     builder.addSupplementaryContent(item);
+  }
+
+  if (currentDraftText && currentDraftText.trim().length > 0) {
+    builder.addSupplementaryContent({
+      id: "current-draft-context",
+      meetingId: transcriptChunks[0]?.meetingId ?? "unknown-meeting",
+      body: currentDraftText,
+      sourceType: "manual",
+      contexts: ["draft:current"],
+      createdAt: new Date(0).toISOString(),
+      label: "Current decision draft (reference only — other fields already locked or filled)",
+    });
   }
 
   for (const segment of guidance) {
@@ -248,11 +268,13 @@ export async function buildDraftPromptFromTemplate(
   meetingId?: string,
   decisionTitle?: string,
   contextSummary?: string,
+  currentDraftText?: string | null,
+  templatePrompt?: string | null,
 ): Promise<BuiltPrompt> {
   // Read the prompt template
   const fs = await import("fs/promises");
   const path = await import("path");
-  const templatePath = path.resolve(__dirname, "../../../prompts/draft-generation.md");
+  const templatePath = path.resolve(__dirname, "../../../../prompts/draft-generation.md");
   let promptTemplate = await fs.readFile(templatePath, "utf-8");
 
   // Build field list section
@@ -277,10 +299,25 @@ export async function buildDraftPromptFromTemplate(
     .replace("{FIELD_LIST}", fieldListItems);
 
   const builder = new PromptBuilder();
-  builder.addSystem(promptTemplate);
+  const systemContent = templatePrompt
+    ? `${promptTemplate}\n\nDecision type context: ${templatePrompt}`
+    : promptTemplate;
+  builder.addSystem(systemContent);
 
   for (const chunk of transcriptChunks) {
     builder.addTranscriptChunk(chunk);
+  }
+
+  if (currentDraftText && currentDraftText.trim().length > 0) {
+    builder.addSupplementaryContent({
+      id: "current-draft-context",
+      meetingId: meetingId ?? "unknown-meeting",
+      body: currentDraftText,
+      sourceType: "manual",
+      contexts: ["draft:current"],
+      createdAt: new Date(0).toISOString(),
+      label: "Current draft text",
+    });
   }
 
   return {

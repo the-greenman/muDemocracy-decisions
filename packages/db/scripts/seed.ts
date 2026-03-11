@@ -2,12 +2,16 @@
  * Database Seed Script
  *
  * Seeds the database with initial data:
- * - Default decision fields
- * - Standard decision templates
+ * - Default decision fields (from src/seed-data/decision-fields.ts)
+ * - Standard decision templates (from src/seed-data/decision-templates.ts)
  * - Sample expert templates
+ *
+ * Re-running this script will upsert fields and templates, applying any content
+ * changes made to the seed-data files. Field assignments are insert-only (no updates).
  */
 
 import { db, client } from "../src/client.js";
+import { CORE_FIELDS } from "../src/seed-data/decision-fields.js";
 import { prepareTemplatesForSeeding } from "../src/seed-data/decision-templates.js";
 import {
   decisionFields,
@@ -20,222 +24,64 @@ import { and, eq } from "drizzle-orm";
 async function seed() {
   console.log("🌱 Seeding database...\n");
 
-  // Seed Decision Fields
+  // Seed Decision Fields (upsert — updates content on re-run)
   console.log("Seeding decision fields...");
-  const CORE_FIELD_IDS = {
-    DECISION_STATEMENT: "550e8400-e29b-41d4-a716-446655440001",
-    CONTEXT: "550e8400-e29b-41d4-a716-446655440002",
-    OPTIONS: "550e8400-e29b-41d4-a716-446655440003",
-    CRITERIA: "550e8400-e29b-41d4-a716-446655440004",
-    ANALYSIS: "550e8400-e29b-41d4-a716-446655440005",
-    OUTCOME: "550e8400-e29b-41d4-a716-446655440006",
-    RISKS: "550e8400-e29b-41d4-a716-446655440007",
-    TIMELINE: "550e8400-e29b-41d4-a716-446655440008",
-    STAKEHOLDERS: "550e8400-e29b-41d4-a716-446655440009",
-    RESOURCES: "550e8400-e29b-41d4-a716-446655440010",
-    OUTSTANDING_ISSUES: "550e8400-e29b-41d4-a716-446655440011",
-  } as const;
-
-  const seedFields: Array<typeof decisionFields.$inferInsert> = [
-    {
-      id: CORE_FIELD_IDS.DECISION_STATEMENT,
-      namespace: "core",
-      name: "decision_statement",
-      description: "The core decision being made",
-      category: "outcome" as const,
-      extractionPrompt: "Extract the main decision statement from the discussion",
-      fieldType: "textarea" as const,
-      placeholder: "What decision are we making?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.CONTEXT,
-      namespace: "core",
-      name: "context",
-      description: "Background information and circumstances that led to this decision",
-      category: "context" as const,
-      extractionPrompt: "Extract the relevant context and background information for this decision",
-      fieldType: "textarea" as const,
-      placeholder: "What context is needed to understand this decision?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.OPTIONS,
-      namespace: "core",
-      name: "options",
-      description: "Other options that were discussed",
-      category: "evaluation" as const,
-      extractionPrompt: "Extract alternatives or options discussed",
-      fieldType: "textarea" as const,
-      placeholder: "What other options were considered?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.CRITERIA,
-      namespace: "core",
-      name: "criteria",
-      description: "Factors to consider when evaluating options",
-      category: "evaluation" as const,
-      extractionPrompt:
-        "Extract evaluation criteria or constraints mentioned when comparing options",
-      fieldType: "textarea" as const,
-      placeholder: "What criteria matter for this decision?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.ANALYSIS,
-      namespace: "core",
-      name: "analysis",
-      description: "Reasoning, trade-offs, and analysis of the options",
-      category: "evaluation" as const,
-      extractionPrompt:
-        "Extract analysis, trade-offs, and reasoning comparing the available options",
-      fieldType: "textarea" as const,
-      placeholder: "What analysis supports the decision?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.OUTCOME,
-      namespace: "core",
-      name: "outcome",
-      description: "Final decision and rationale",
-      category: "outcome" as const,
-      extractionPrompt: "Extract the final decision outcome and rationale",
-      fieldType: "textarea" as const,
-      placeholder: "What did we decide and why?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.RISKS,
-      namespace: "core",
-      name: "risks",
-      description: "Risks, concerns, and mitigations related to this decision",
-      category: "evaluation" as const,
-      extractionPrompt: "Extract risks, concerns, and mitigations discussed",
-      fieldType: "textarea" as const,
-      placeholder: "What risks were identified?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.TIMELINE,
-      namespace: "core",
-      name: "timeline",
-      description: "Timeline, milestones, and sequencing for implementing the decision",
-      category: "metadata" as const,
-      extractionPrompt: "Extract timeline, milestones, and sequencing details mentioned",
-      fieldType: "textarea" as const,
-      placeholder: "What is the timeline for implementation?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.STAKEHOLDERS,
-      namespace: "core",
-      name: "stakeholders",
-      description: "People, teams, or systems affected by this decision",
-      category: "metadata" as const,
-      extractionPrompt: "Extract who is affected by this decision and any stakeholders mentioned",
-      fieldType: "textarea" as const,
-      placeholder: "Who is impacted?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.RESOURCES,
-      namespace: "core",
-      name: "resources",
-      description: "Resources required to implement the decision (people, tools, budget)",
-      category: "metadata" as const,
-      extractionPrompt:
-        "Extract resources required to implement the decision (people, tools, budget)",
-      fieldType: "textarea" as const,
-      placeholder: "What resources are required?",
-      version: 1,
-      isCustom: false,
-    },
-    {
-      id: CORE_FIELD_IDS.OUTSTANDING_ISSUES,
-      namespace: "core",
-      name: "outstanding_issues",
-      description:
-        "Unresolved questions, dependencies, or concerns that prevented this decision from being finalised",
-      category: "evaluation" as const,
-      extractionPrompt:
-        "Summarise any open questions, unresolved dependencies, or concerns raised during discussion that the group could not answer in this session",
-      fieldType: "textarea" as const,
-      placeholder: "What remains unresolved before this decision can proceed?",
-      version: 1,
-      isCustom: false,
-    },
-  ];
-
   const fields = [] as Array<typeof decisionFields.$inferSelect>;
-  for (const fieldSeed of seedFields) {
-    const existing = await db
-      .select()
-      .from(decisionFields)
-      .where(
-        fieldSeed.id
-          ? eq(decisionFields.id, fieldSeed.id)
-          : and(
-              eq(decisionFields.namespace, fieldSeed.namespace ?? "core"),
-              eq(decisionFields.name, fieldSeed.name ?? ""),
-              eq(decisionFields.version, fieldSeed.version ?? 1),
-            ),
-      )
-      .limit(1);
-
-    if (existing[0]) {
-      fields.push(existing[0]);
-      continue;
-    }
-
-    const inserted = await db.insert(decisionFields).values(fieldSeed).returning();
+  for (const fieldSeed of CORE_FIELDS) {
+    const inserted = await db
+      .insert(decisionFields)
+      .values(fieldSeed)
+      .onConflictDoUpdate({
+        target: decisionFields.id,
+        set: {
+          description: fieldSeed.description,
+          extractionPrompt: fieldSeed.extractionPrompt,
+          instructions: fieldSeed.instructions,
+          placeholder: fieldSeed.placeholder,
+          version: fieldSeed.version,
+        },
+      })
+      .returning();
     if (inserted[0]) fields.push(inserted[0]);
   }
 
-  console.log(`  ✓ Ensured ${fields.length} decision fields`);
+  console.log(`  ✓ Upserted ${fields.length} decision fields`);
 
-  // Seed Decision Templates
+  // Seed Decision Templates (insert-only — skip if exists by namespace+name+version)
   console.log("\nSeeding decision templates...");
   const seedTemplates = prepareTemplatesForSeeding();
 
   const templates = [] as Array<typeof decisionTemplates.$inferSelect>;
-  for (const templateSeed of seedTemplates) {
+  for (let i = 0; i < seedTemplates.length; i++) {
+    const templateSeed = seedTemplates[i]!;
     const { fields: templateFields, ...templateRecord } = templateSeed;
     const templateVersion = 1;
-    const existing = await db
-      .select()
-      .from(decisionTemplates)
-      .where(
-        and(
-          eq(decisionTemplates.namespace, templateRecord.namespace),
-          eq(decisionTemplates.name, templateRecord.name),
-          eq(decisionTemplates.version, templateVersion),
-        ),
-      )
-      .limit(1);
+    const isDefault = i === 0;
 
-    if (existing[0]) {
-      templates.push(existing[0]);
-      continue;
-    }
+    const inserted = await db
+      .insert(decisionTemplates)
+      .values({ ...templateRecord, version: templateVersion, isDefault })
+      .onConflictDoUpdate({
+        target: [
+          decisionTemplates.namespace,
+          decisionTemplates.name,
+          decisionTemplates.version,
+        ],
+        set: {
+          description: templateRecord.description,
+          promptTemplate: templateRecord.promptTemplate,
+          isDefault,
+        },
+      })
+      .returning();
 
     void templateFields;
-    const inserted = await db.insert(decisionTemplates).values(templateRecord).returning();
     if (inserted[0]) templates.push(inserted[0]);
   }
 
-  console.log(`  ✓ Ensured ${templates.length} decision templates`);
+  console.log(`  ✓ Upserted ${templates.length} decision templates`);
 
-  // Seed Template Field Assignments
+  // Seed Template Field Assignments (insert-only — skip existing)
   console.log("\nSeeding template field assignments...");
   const templateIdByIdentity = new Map(
     templates.map((template) => [

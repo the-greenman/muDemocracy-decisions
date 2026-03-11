@@ -277,6 +277,7 @@ export const decisionFields = pgTable(
     description: text("description").notNull(),
     category: fieldCategoryEnum("category").notNull(),
     extractionPrompt: text("extraction_prompt").notNull(),
+    instructions: text("instructions"),
     fieldType: fieldTypeEnum("field_type").notNull(),
     placeholder: text("placeholder"),
     validationRules: jsonb("validation_rules"),
@@ -310,6 +311,7 @@ export const decisionTemplates = pgTable(
     namespace: text("namespace").notNull().default("core"),
     name: text("name").notNull(),
     description: text("description").notNull(),
+    promptTemplate: text("prompt_template"),
     category: templateCategoryEnum("category").notNull(),
     version: integer("version").notNull().default(1),
     isDefault: boolean("is_default").notNull().default(false),
@@ -413,6 +415,7 @@ export const decisionContexts = pgTable(
       .notNull()
       .default([])
       .$type<Array<{ version: number; draftData: Record<string, unknown>; savedAt: string }>>(),
+    suggestedTags: text("suggested_tags").array(),
     status: decisionContextStatusEnum("status").notNull().default("drafting"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

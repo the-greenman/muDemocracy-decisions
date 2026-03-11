@@ -50,6 +50,13 @@
       "when": 1773241276879,
       "tag": "0006_romantic_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1773258693235,
+      "tag": "0007_freezing_lord_tyger",
+      "breakpoints": true
     }
   ]
 }

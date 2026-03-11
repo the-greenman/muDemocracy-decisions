@@ -15,7 +15,10 @@ export type GenerateDraftParams = {
 
 export type RegenerateFieldParams = GenerateDraftParams & { fieldId: string };
 
-export type DraftResult = Record<string, string>; // fieldId → value
+export type DraftResult = {
+  fields: Record<string, string>; // fieldId → value
+  suggestedTags: string[];
+};
 
 export interface ILLMService {
   generateDraft(params: GenerateDraftParams): Promise<DraftResult>;

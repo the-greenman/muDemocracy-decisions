@@ -7,7 +7,7 @@ import {
   buildDraftPromptFromTemplate,
 } from "../llm/prompt-builder.js";
 import type { ITranscriptChunkRepository } from "../interfaces/transcript-repositories.js";
-import type { ITemplateFieldAssignmentRepository } from "../interfaces/i-decision-template-repository.js";
+import type { ITemplateFieldAssignmentRepository, IDecisionTemplateRepository } from "../interfaces/i-decision-template-repository.js";
 import type { IDecisionContextRepository } from "../interfaces/i-decision-context-repository.js";
 import type { IDecisionFieldRepository } from "../interfaces/i-decision-field-repository.js";
 import type { ILLMInteractionRepository } from "../interfaces/i-llm-interaction-repository.js";
@@ -38,6 +38,7 @@ export class DraftGenerationService {
     private llmInteractionRepo: ILLMInteractionRepository,
     private flaggedDecisionRepo: IFlaggedDecisionRepository,
     private supplementaryContentRepo: ISupplementaryContentRepository,
+    private templateRepo: IDecisionTemplateRepository,
   ) {}
 
   async generateDraft(
@@ -64,6 +65,9 @@ export class DraftGenerationService {
     );
     const currentDraftText = this.buildCurrentDraftText(context.draftData ?? {}, fields);
 
+    const template = await this.templateRepo.findById(context.templateId);
+    const templatePrompt = template?.promptTemplate ?? null;
+
     // Check if we should use the template-based prompt
     const useTemplatePrompt = process.env["USE_TEMPLATE_PROMPT"] === "true";
 
@@ -84,6 +88,8 @@ export class DraftGenerationService {
         context.meetingId,
         decisionTitle,
         contextSummary,
+        currentDraftText,
+        templatePrompt,
       );
     } else {
       prompt = buildDraftPrompt(
@@ -92,6 +98,7 @@ export class DraftGenerationService {
         unlockedFields,
         guidance ?? [],
         currentDraftText,
+        templatePrompt,
       );
     }
 
@@ -113,8 +120,8 @@ export class DraftGenerationService {
       operation: "generate_draft",
       promptSegments: prompt.segments as PromptSegmentData[],
       promptText: prompt.text,
-      responseText: JSON.stringify(draftResult),
-      parsedResult: draftResult,
+      responseText: JSON.stringify(draftResult.fields),
+      parsedResult: draftResult.fields,
       provider,
       model,
       latencyMs,
@@ -124,7 +131,7 @@ export class DraftGenerationService {
     // Merge: keep locked fields, apply LLM result for unlocked fields
     const currentDraft = context.draftData ?? {};
     const updatedDraft: Record<string, unknown> = { ...currentDraft };
-    for (const [fieldId, value] of Object.entries(draftResult)) {
+    for (const [fieldId, value] of Object.entries(draftResult.fields)) {
       if (!context.lockedFields.includes(fieldId) && fieldId !== FIELD_META_KEY) {
         updatedDraft[fieldId] = value;
       }
@@ -143,7 +150,10 @@ export class DraftGenerationService {
       });
     }
 
-    const updated = await this.contextRepo.update(decisionContextId, { draftData: updatedDraft });
+    const updated = await this.contextRepo.update(decisionContextId, {
+      draftData: updatedDraft,
+      suggestedTags: draftResult.suggestedTags,
+    });
     if (!updated) {
       throw new Error(`Failed to update draft for context: ${decisionContextId}`);
     }
@@ -179,12 +189,15 @@ export class DraftGenerationService {
       fieldId,
     );
 
+    const currentDraftText = this.buildCurrentDraftText(context.draftData ?? {}, fields);
+
     const prompt = buildFieldRegenerationPrompt(
       chunks,
       supplementaryItems,
       field,
       fieldId,
       guidance ?? [],
+      currentDraftText,
     );
 
     const provider = process.env["LLM_PROVIDER"] ?? "anthropic";

@@ -149,6 +149,7 @@ export function createDraftGenerationService(): DraftGenerationService {
     new DrizzleLLMInteractionRepository(),
     new DrizzleFlaggedDecisionRepository(),
     new DrizzleSupplementaryContentRepository(),
+    new DrizzleDecisionTemplateRepository(),
   );
 }
 

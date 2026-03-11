@@ -9,7 +9,7 @@ import type {
   SupplementaryContent,
 } from "@repo/schema";
 import type { ITranscriptChunkRepository } from "../interfaces/transcript-repositories";
-import type { ITemplateFieldAssignmentRepository } from "../interfaces/i-decision-template-repository";
+import type { ITemplateFieldAssignmentRepository, IDecisionTemplateRepository } from "../interfaces/i-decision-template-repository";
 import type { IDecisionContextRepository } from "../interfaces/i-decision-context-repository";
 import type { IDecisionFieldRepository } from "../interfaces/i-decision-field-repository";
 import type { ILLMInteractionRepository } from "../interfaces/i-llm-interaction-repository";
@@ -85,11 +85,40 @@ function makeContext(overrides: Partial<DecisionContext> = {}): DecisionContext 
 
 // ── Mock factories ────────────────────────────────────────────────────────────
 
+function makeTemplateRepo(promptTemplate?: string): IDecisionTemplateRepository {
+  return {
+    create: vi.fn(),
+    findById: vi.fn().mockResolvedValue({
+      id: "template-1",
+      namespace: "core",
+      name: "Standard Decision",
+      description: "Standard decision template",
+      promptTemplate: promptTemplate ?? null,
+      category: "general",
+      isDefault: true,
+      version: 1,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    }),
+    findByIdentity: vi.fn(),
+    findAll: vi.fn(),
+    findDefault: vi.fn(),
+    setDefault: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    findByCategory: vi.fn(),
+    findByName: vi.fn(),
+    search: vi.fn(),
+    createMany: vi.fn(),
+  };
+}
+
 function makeRepos(
   context: DecisionContext,
   chunks: TranscriptChunk[],
   fields: DecisionField[],
   supplementaryItems: SupplementaryContent[] = [],
+  templateRepo?: IDecisionTemplateRepository,
 ) {
   const assignments = fields.map((f, i) => makeAssignment(f.id, i));
 
@@ -185,6 +214,7 @@ function makeRepos(
     llmInteractionRepo,
     flaggedDecisionRepo,
     supplementaryContentRepo,
+    templateRepo: templateRepo ?? makeTemplateRepo(),
   };
 }
 
@@ -210,8 +240,11 @@ describe("DraftGenerationService", () => {
   beforeEach(() => {
     llm = new MockLLMService({
       draftResponse: {
-        "field-statement": "Approve cloud migration",
-        "field-options": "AWS, Azure, GCP",
+        fields: {
+          "field-statement": "Approve cloud migration",
+          "field-options": "AWS, Azure, GCP",
+        },
+        suggestedTags: [],
       },
     });
     repos = makeRepos(makeContext(), chunks, fields, supplementaryItems);
@@ -224,6 +257,7 @@ describe("DraftGenerationService", () => {
       repos.llmInteractionRepo,
       repos.flaggedDecisionRepo,
       repos.supplementaryContentRepo,
+      repos.templateRepo,
     );
   });
 
@@ -271,6 +305,7 @@ describe("DraftGenerationService", () => {
       repos.llmInteractionRepo,
       repos.flaggedDecisionRepo,
       repos.supplementaryContentRepo,
+      repos.templateRepo,
     );
 
     await service.generateDraft("ctx-1");
@@ -301,6 +336,7 @@ describe("DraftGenerationService", () => {
       repos.llmInteractionRepo,
       repos.flaggedDecisionRepo,
       repos.supplementaryContentRepo,
+      repos.templateRepo,
     );
 
     await service.generateDraft("ctx-1");
@@ -327,6 +363,7 @@ describe("DraftGenerationService", () => {
       repos.llmInteractionRepo,
       repos.flaggedDecisionRepo,
       repos.supplementaryContentRepo,
+      repos.templateRepo,
     );
 
     const result = await service.generateDraft("ctx-1");
@@ -374,6 +411,7 @@ describe("DraftGenerationService", () => {
       repos.llmInteractionRepo,
       repos.flaggedDecisionRepo,
       repos.supplementaryContentRepo,
+      repos.templateRepo,
     );
 
     const llmSpy = vi.spyOn(llm, "regenerateField");
@@ -409,6 +447,7 @@ describe("DraftGenerationService", () => {
       repos.llmInteractionRepo,
       repos.flaggedDecisionRepo,
       repos.supplementaryContentRepo,
+      repos.templateRepo,
     );
 
     await expect(service.regenerateField("ctx-1", "field-options")).rejects.toThrow(
@@ -471,5 +510,73 @@ describe("DraftGenerationService", () => {
     expect(record.promptText).toContain("General context");
     expect(record.promptText).toContain("Only for options");
     expect(record.promptText).not.toContain("Wrong field");
+  });
+
+  it("saves suggestedTags returned by LLM to context", async () => {
+    llm.setDraftResponse({
+      fields: { "field-statement": "Approve migration", "field-options": "AWS" },
+      suggestedTags: ["cloud", "infrastructure", "migration"],
+    });
+
+    await service.generateDraft("ctx-1");
+
+    const updateCalls = vi.mocked(repos.contextRepo.update).mock.calls;
+    const draftUpdateCall = updateCalls.find((call) =>
+      Object.prototype.hasOwnProperty.call(call[1], "draftData"),
+    );
+    expect(draftUpdateCall).toBeDefined();
+    expect(draftUpdateCall![1]).toMatchObject({
+      suggestedTags: ["cloud", "infrastructure", "migration"],
+    });
+  });
+
+  it("includes template promptTemplate in the generated prompt", async () => {
+    const templateRepo = makeTemplateRepo(
+      "You are extracting a technology selection decision. Emphasise trade-offs.",
+    );
+    repos = makeRepos(makeContext(), chunks, fields, supplementaryItems, templateRepo);
+    service = new DraftGenerationService(
+      llm,
+      repos.transcriptRepo,
+      repos.fieldAssignmentRepo,
+      repos.fieldRepo,
+      repos.contextRepo,
+      repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
+      repos.supplementaryContentRepo,
+      repos.templateRepo,
+    );
+
+    await service.generateDraft("ctx-1");
+
+    const createCall = vi.mocked(repos.llmInteractionRepo.create).mock.calls[0];
+    expect(createCall).toBeDefined();
+    expect(createCall![0].promptText).toContain(
+      "You are extracting a technology selection decision",
+    );
+  });
+
+  it("regenerateField includes current draft text in the prompt", async () => {
+    const contextWithDraft = makeContext({
+      draftData: { "field-statement": "Existing decision statement" },
+    });
+    repos = makeRepos(contextWithDraft, chunks, fields, supplementaryItems);
+    service = new DraftGenerationService(
+      llm,
+      repos.transcriptRepo,
+      repos.fieldAssignmentRepo,
+      repos.fieldRepo,
+      repos.contextRepo,
+      repos.llmInteractionRepo,
+      repos.flaggedDecisionRepo,
+      repos.supplementaryContentRepo,
+      repos.templateRepo,
+    );
+
+    await service.regenerateField("ctx-1", "field-options");
+
+    const createCall = vi.mocked(repos.llmInteractionRepo.create).mock.calls[0];
+    expect(createCall).toBeDefined();
+    expect(createCall![0].promptText).toContain("Existing decision statement");
   });
 });

@@ -19,16 +19,16 @@ export class MockLLMService implements ILLMService {
       fieldResponses?: Record<string, string>;
     } = {},
   ) {
-    this.draftResponse = options.draftResponse ?? {};
+    this.draftResponse = options.draftResponse ?? { fields: {}, suggestedTags: [] };
     this.fieldResponses = new Map(Object.entries(options.fieldResponses ?? {}));
   }
 
   async generateDraft(params: GenerateDraftParams): Promise<DraftResult> {
-    const result: DraftResult = {};
+    const fields: Record<string, string> = {};
     for (const field of params.templateFields) {
-      result[field.id] = this.draftResponse[field.id] ?? `Mock value for ${field.name}`;
+      fields[field.id] = this.draftResponse.fields[field.id] ?? `Mock value for ${field.name}`;
     }
-    return result;
+    return { fields, suggestedTags: this.draftResponse.suggestedTags ?? [] };
   }
 
   async regenerateField(params: RegenerateFieldParams): Promise<string> {

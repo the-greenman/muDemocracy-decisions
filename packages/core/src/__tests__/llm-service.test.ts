@@ -46,13 +46,13 @@ describe("MockLLMService", () => {
     });
 
     expect(result).toBeDefined();
-    expect(typeof Object.values(result)[0]).toBe("string");
-    expect(result["field-1"]).toBeDefined();
+    expect(typeof Object.values(result.fields)[0]).toBe("string");
+    expect(result.fields["field-1"]).toBeDefined();
   });
 
   it("generateDraft returns canned responses when configured", async () => {
     const mock = new MockLLMService({
-      draftResponse: { "field-1": "Approve cloud migration" },
+      draftResponse: { fields: { "field-1": "Approve cloud migration" }, suggestedTags: [] },
     });
 
     const result = await mock.generateDraft({
@@ -60,7 +60,7 @@ describe("MockLLMService", () => {
       templateFields: [makeField()],
     });
 
-    expect(result["field-1"]).toBe("Approve cloud migration");
+    expect(result.fields["field-1"]).toBe("Approve cloud migration");
   });
 
   it("regenerateField returns field-specific canned response", async () => {

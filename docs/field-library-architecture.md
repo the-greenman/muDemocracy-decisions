@@ -30,475 +30,272 @@ This document owns the semantics of the field library, not the full structural d
 
 #### Decision fields
 
-A decision field is an atomic reusable definition that should carry:
+A decision field is an atomic reusable definition that carries:
 
-- stable identity
-- semantic intent
-- extraction guidance
-- field-type and validation hints
-- versioned metadata
+- **stable identity** — UUID, permanent across versions
+- **semantic intent** — what this field is for
+- **`description`** — brief user-facing explanation of the field
+- **`instructions`** — fuller user-facing guidance explaining what belongs in the field, how to complete it, and why it matters. Distinct from `extractionPrompt` (LLM instruction) and `placeholder` (short UI hint).
+- **`extractionPrompt`** — the LLM extraction instruction. Owned by the field definition, never duplicated in templates. This is the prompt the LLM receives when extracting this field from a transcript.
+- **`placeholder`** — short UI hint shown in the form input
+- **field-type and validation hints** — `fieldType` enum, `validationRules` JSONB
+- **versioned metadata** — `version` integer, `namespace`, `isCustom`
 
 Important architectural rules:
 
 - field identity is definition-level and stable
 - field `name` is a programmatic key, not a user-facing label
-- field prompts belong to the field definition, not the template
+- field prompts (`extractionPrompt`) belong to the field definition, not the template
 - templates reuse fields rather than duplicating them
+- improving an `extractionPrompt` improves all templates that use that field
 
 #### Decision templates
 
-A template is a curated composition of reusable fields.
+A template is a curated composition of reusable fields for a specific decision category.
+
+A template carries:
+
+- **stable identity** — UUID, permanent across versions
+- **`name`** — human-readable template name
+- **`description`** — substantive explanation of when to use this template and what it is designed to document
+- **`promptTemplate`** — template-level **workflow framing** for the LLM. Sets the decision category context (e.g. "This is a Technology Selection decision — focus on comparative analysis of alternatives") without overriding individual field extraction semantics. This is appended to the system context when generating a draft for a decision using this template.
+- **`category`** — enum: `standard`, `technology`, `strategy`, `budget`, `policy`, `proposal`
+- **versioned metadata** — `version`, `namespace`, `isDefault`, `isCustom`
 
 Important architectural rules:
 
 - templates reference fields by `fieldId`
 - templates are versioned configuration artifacts
 - template assignments control order and requiredness
-- templates may provide broader workflow framing or grouping without changing field meaning
+- **`promptTemplate` provides wider framing only** — it must not restate, override, or duplicate individual field extraction prompts
 - templates do not own field history; they control active presentation
-- decision contexts should bind to a specific template version rather than editing template structure in place
+- decision contexts bind to a specific template version at creation time
 
 #### Template field assignments
 
-A template field assignment should be treated as the place where template composition is configured.
+A template field assignment configures template composition:
 
-Typical responsibilities include:
-
-- field reference
-- display order
-- required flag
+- field reference (`fieldId`)
+- display order (`order`)
+- required flag (`required`)
 - optional grouping or layout metadata that does not redefine field semantics
 
 #### Runtime boundary
 
-Field definitions and template definitions should be managed independently from decision drafting.
+When a `DecisionContext` is created, it resolves and binds one specific template version plus the field-definition set referenced by that template.
 
-When a `DecisionContext` is created, it should resolve and bind one specific template version plus the field-definition set referenced by that template version.
+From that point onward, the context manages working state (field values, locks, visibility) but does not edit field-library records or template-definition structure.
 
-From that point onward, the context manages working state such as field values, locks, and visibility, but it should not directly edit field-library records or template-definition structure.
+### 3. Seed-data files (authoritative editable sources)
 
-If an open context needs to adopt a newer version of the same template definition, that should be treated as an explicit template migration rather than an in-context template edit.
+Field and template definitions are stored in the database and seeded from versioned TypeScript files:
 
-### 3. Field Library
+- **Field definitions**: `packages/db/src/seed-data/decision-fields.ts` — authoritative source for all field content including `extractionPrompt`, `instructions`, `description`, and `placeholder`. Edit this file to iterate on prompts.
+- **Template definitions**: `packages/db/src/seed-data/decision-templates.ts` — authoritative source for all template content including `promptTemplate` and field assignments. Edit this file to adjust template framing.
+- **Seed script**: `packages/db/scripts/seed.ts` — thin orchestration that imports from the above files and upserts to the database.
 
-#### Core Fields (Universal)
+After editing these files, run `pnpm db:seed` to apply changes.
 
-**decision_statement**
-- **Category**: core
-- **Description**: A clear, concise statement of what is being decided
-- **Type**: short_text
-- **Prompt**: "Extract a single sentence stating what decision is being made. Use active voice."
+### 4. Field Library (Implemented)
+
+The following 11 fields are seeded in the current implementation. All are `fieldType: textarea` unless noted.
+
+---
+
+**`decision_statement`** — category: `outcome`
+- **Description**: A clear, concise statement of the decision being made
+- **Instructions**: One clear sentence in active voice stating what was decided. Focus on the decision itself, not the problem or process.
+- **Extraction prompt**: Extract a single sentence stating what decision is being made. Use active voice. Focus on the decision outcome, not the discussion process. If the decision is implicit (e.g. a decision to defer, reject, or not act), state that explicitly.
+- **Placeholder**: What decision are we making?
 - **Used in**: All templates
 
-**decision_context**
-- **Category**: core
-- **Description**: Background information and situation leading to this decision
-- **Type**: long_text
-- **Prompt**: "Summarize the context and background that led to this decision need."
+---
+
+**`context`** — category: `context`
+- **Description**: The background and circumstances that led to this decision
+- **Instructions**: Background a reader 6 months later would need to understand why this decision arose. Include constraints, history, or triggering events.
+- **Extraction prompt**: Summarise the background and situation that led to this decision. Include relevant constraints, prior events, and triggering circumstances.
+- **Placeholder**: What context is needed to understand this decision?
 - **Used in**: All templates
 
-**decision_rationale**
-- **Category**: core
-- **Description**: Why this decision was made
-- **Type**: long_text
-- **Prompt**: "Explain the reasoning behind the chosen option."
-- **Used in**: Most templates
+---
 
-#### Evaluation Fields
+**`options`** — category: `evaluation`
+- **Description**: The alternatives or options that were considered
+- **Instructions**: Each alternative the group seriously considered, including "do nothing." Brief characterisation of each, not just names.
+- **Extraction prompt**: List all alternatives discussed, including "do nothing" if mentioned. Provide a brief characterisation of each option, not just its name.
+- **Placeholder**: What other options were considered?
+- **Used in**: All templates
 
-**evaluation_criteria**
-- **Category**: evaluation
-- **Description**: Criteria used to evaluate options
-- **Type**: list
-- **Prompt**: "List the criteria used to evaluate options. Format as bullet points."
-- **Used in**: Standard Decision, Technology Selection, Strategy Decision
+---
 
-**options**
-- **Category**: evaluation
-- **Description**: Available options or alternatives considered
-- **Type**: list
-- **Prompt**: "List all options discussed. Include brief description of each."
-- **Used in**: Standard Decision, Technology Selection, Strategy Decision
+**`criteria`** — category: `evaluation`
+- **Description**: The criteria or standards used to evaluate the options
+- **Instructions**: The standards used to judge options — not the options themselves.
+- **Extraction prompt**: List the criteria or standards used to evaluate the options. These are the factors the group cared about, not the options themselves.
+- **Placeholder**: What criteria matter for this decision?
+- **Used in**: Technology Selection, Strategy, Budget, Policy, Proposal templates
 
-**evaluation_matrix**
-- **Category**: evaluation
-- **Description**: How each option scores against criteria
-- **Type**: structured
-- **Prompt**: "Create a comparison of options against criteria. Format as table or structured list."
-- **Used in**: Technology Selection
+---
 
-**selected_option**
-- **Category**: evaluation
-- **Description**: The chosen option
-- **Type**: short_text
-- **Prompt**: "State which option was selected."
-- **Used in**: Technology Selection, Strategy Decision
+**`analysis`** — category: `evaluation`
+- **Description**: How the options were compared and what trade-offs were identified
+- **Instructions**: How options fared against criteria. Include trade-offs, disagreements, and what was weighted most heavily.
+- **Extraction prompt**: Describe how the options were compared against the criteria. Include trade-offs discussed, disagreements, and which factors were weighted most heavily.
+- **Placeholder**: What analysis supports the decision?
+- **Used in**: Technology Selection, Strategy, Budget, Policy, Proposal templates
 
-**rejected_options_rationale**
-- **Category**: evaluation
-- **Description**: Why other options were not chosen
-- **Type**: long_text
-- **Prompt**: "Explain why each rejected option was not selected."
-- **Used in**: Technology Selection
+---
 
-#### Impact Fields
+**`outcome`** — category: `outcome`
+- **Description**: The final decision and the primary rationale for choosing it
+- **Instructions**: The chosen option and the primary reason it was selected over alternatives. If provisional, say so explicitly.
+- **Extraction prompt**: Extract the chosen option and the primary reason it was selected. If the decision is provisional or conditional, capture those conditions explicitly.
+- **Placeholder**: What did we decide and why?
+- **Used in**: All templates
 
-**consequences_positive**
-- **Category**: impact
-- **Description**: Positive outcomes and benefits
-- **Type**: list
-- **Prompt**: "List positive consequences and benefits. Focus only on upsides."
-- **Used in**: Standard Decision, Strategy Decision, Policy Change
+---
 
-**consequences_negative**
-- **Category**: impact
-- **Description**: Negative outcomes and risks
-- **Type**: list
-- **Prompt**: "List negative consequences and risks. Focus only on downsides."
-- **Used in**: Standard Decision, Strategy Decision, Policy Change
+**`risks`** — category: `evaluation`
+- **Description**: Risks identified and any agreed mitigations
+- **Instructions**: Known risks acknowledged at decision time, any agreed mitigations, and risks that remain open.
+- **Extraction prompt**: List the risks identified during discussion. For each risk, note any mitigation agreed upon and whether the risk remains open or unresolved.
+- **Placeholder**: What risks were identified?
+- **Used in**: Technology Selection, Strategy, Policy templates
 
-**stakeholder_impact**
-- **Category**: impact
-- **Description**: How different stakeholders are affected
-- **Type**: structured
-- **Prompt**: "Identify stakeholders and how each is impacted by this decision."
-- **Used in**: Strategy Decision, Policy Change, Proposal Acceptance
+---
 
-**opportunity_cost**
-- **Category**: impact
-- **Description**: What we're giving up by choosing this option
-- **Type**: long_text
-- **Prompt**: "Describe what opportunities or alternatives are foregone by this choice."
-- **Used in**: Strategy Decision, Budget Approval
+**`timeline`** — category: `metadata`
+- **Description**: Key milestones, deadlines, and sequencing
+- **Instructions**: Key milestones, deadlines, and sequencing agreed. Include dependencies where mentioned.
+- **Extraction prompt**: Extract key milestones, deadlines, and sequencing mentioned. Note any dependencies between steps where stated.
+- **Placeholder**: What is the timeline for implementation?
+- **Used in**: Proposal Acceptance template
 
-#### Risk Fields
+---
 
-**risk_assessment**
-- **Category**: risk
-- **Description**: Identified risks and their severity
-- **Type**: structured
-- **Prompt**: "List risks with severity (high/medium/low) and likelihood."
-- **Used in**: Technology Selection, Budget Approval, Strategy Decision
+**`stakeholders`** — category: `metadata`
+- **Description**: Who is affected by and involved in this decision
+- **Instructions**: Who is affected, who owns implementation, and who must be kept informed. Note if key stakeholders were absent.
+- **Extraction prompt**: Identify who is affected by this decision, who will own its implementation, and who must be kept informed. Note if key stakeholders were absent from the discussion.
+- **Placeholder**: Who is impacted?
+- **Used in**: Strategy, Policy templates
 
-**risks_and_mitigations**
-- **Category**: risk
-- **Description**: Risks and how they will be addressed
-- **Type**: structured
-- **Prompt**: "For each risk, describe the mitigation strategy."
-- **Used in**: Technology Selection, Strategy Decision
+---
 
-**assumptions**
-- **Category**: risk
-- **Description**: Underlying assumptions being made
-- **Type**: list
-- **Prompt**: "List assumptions underlying this decision. Focus on unstated premises."
-- **Used in**: Standard Decision, Strategy Decision, Technology Selection
+**`resources`** — category: `metadata`
+- **Description**: People, budget, tools, or dependencies required to execute
+- **Instructions**: People, budget, tools, or external dependencies required. Note confirmed vs still-to-be-secured.
+- **Extraction prompt**: Extract the people, budget, tools, or external dependencies required to execute this decision. Note which are confirmed versus still to be secured.
+- **Placeholder**: What resources are required?
+- **Used in**: Budget, Proposal Acceptance templates
 
-**reversibility**
-- **Category**: risk
-- **Description**: How easily this decision can be undone
-- **Type**: short_text
-- **Prompt**: "Describe how reversible this decision is and what it would take to undo it."
-- **Used in**: Standard Decision, Technology Selection
+---
 
-#### Financial Fields
+**`outstanding_issues`** — category: `evaluation`
+- **Description**: Unresolved questions or open dependencies from the discussion
+- **Instructions**: Unresolved questions or open dependencies the group could not answer in this session. Follow-up items, not objections.
+- **Extraction prompt**: Summarise unresolved questions, open dependencies, or concerns the group could not answer in this session. These are follow-up items, not objections to the decision.
+- **Placeholder**: What remains unresolved before this decision can proceed?
+- **Used in**: Standard, Strategy, Proposal Acceptance templates
 
-**budget_amount**
-- **Category**: financial
-- **Description**: Amount of money involved
-- **Type**: numeric
-- **Prompt**: "Extract the monetary amount (requested, approved, or spent)."
-- **Used in**: Budget Approval
+---
 
-**roi_analysis**
-- **Category**: financial
-- **Description**: Return on investment analysis
-- **Type**: structured
-- **Prompt**: "Describe expected ROI, including timeline and metrics."
-- **Used in**: Budget Approval, Technology Selection
+### 5. Template Definitions (Implemented)
 
-**cost_breakdown**
-- **Category**: financial
-- **Description**: Detailed breakdown of costs
-- **Type**: structured
-- **Prompt**: "Break down costs by category (e.g., labor, materials, licenses)."
-- **Used in**: Budget Approval
+Templates are defined in `packages/db/src/seed-data/decision-templates.ts`.
 
-**budget_source**
-- **Category**: financial
-- **Description**: Where funding comes from
-- **Type**: short_text
-- **Prompt**: "Identify the budget line or funding source."
-- **Used in**: Budget Approval
+#### Standard Decision (default)
+- **Description**: A general-purpose template for decisions that don't fit a more specific category. Captures the decision, the options considered, and the rationale.
+- **Prompt template**: You are extracting a general decision record. Focus on identifying the clear decision made (or not made — implicit decisions to defer or not act are valid), the alternatives that were considered, and the reasoning behind the chosen path.
+- **Fields**: decision_statement (req), context (req), options (req), criteria (opt), outcome (req), outstanding_issues (opt)
 
-#### Stakeholder Fields
+#### Technology Selection
+- **Description**: For choosing between technical tools, frameworks, platforms, or architectures. Emphasises comparative evaluation and trade-off analysis.
+- **Prompt template**: You are extracting a technology selection decision. Emphasise the comparative analysis of alternatives against stated criteria. Capture what trade-offs drove the final selection and whether the choice is confirmed or provisional.
+- **Fields**: decision_statement (req), context (req), options (req), criteria (req), analysis (req), risks (req), outcome (req)
 
-**proposer**
-- **Category**: stakeholder
-- **Description**: Who submitted the proposal
-- **Type**: short_text
-- **Prompt**: "Identify who proposed or submitted this."
-- **Used in**: Proposal Acceptance
+#### Strategy Decision
+- **Description**: For high-level strategic and business direction decisions. Captures current state, chosen direction, and what was explicitly deprioritised.
+- **Prompt template**: You are extracting a strategic direction decision. Focus on the current state being moved away from, the chosen direction, and what was explicitly deprioritised or ruled out. Alignment rationale is as important as the decision itself.
+- **Fields**: decision_statement (req), context (req), options (req), criteria (req), analysis (req), risks (req), stakeholders (req), outcome (req), outstanding_issues (opt)
 
-**approval_authority**
-- **Category**: stakeholder
-- **Description**: Who has authority to approve
-- **Type**: short_text
-- **Prompt**: "Identify who has the authority to approve this decision."
-- **Used in**: Budget Approval, Policy Change
+#### Budget Decision
+- **Description**: For financial and budget-related decisions. Emphasises stated amounts, ROI reasoning, and alternatives considered.
+- **Prompt template**: You are extracting a financial or budget decision. Emphasise any stated amounts, ROI reasoning, and alternatives that were ruled out. Flag whether this is a provisional or confirmed budget commitment.
+- **Fields**: decision_statement (req), context (req), options (req), criteria (req), analysis (req), resources (req), outcome (req)
 
-**affected_stakeholders**
-- **Category**: stakeholder
-- **Description**: List of stakeholders affected
-- **Type**: list
-- **Prompt**: "List all stakeholders or groups affected by this decision."
-- **Used in**: Policy Change, Strategy Decision
+#### Policy Decision
+- **Description**: For creating or modifying policies, procedures, and governance rules. Captures what is changing and who is affected.
+- **Prompt template**: You are extracting a policy or governance decision. Focus on what rule or practice is changing, why the change is being made, who is affected, and any compliance or regulatory reasoning mentioned.
+- **Fields**: decision_statement (req), context (req), options (req), criteria (req), analysis (req), stakeholders (req), risks (req), outcome (req)
 
-**stakeholder_concerns**
-- **Category**: stakeholder
-- **Description**: Concerns raised by stakeholders
-- **Type**: structured
-- **Prompt**: "List concerns raised by stakeholders during discussion."
-- **Used in**: Proposal Acceptance, Policy Change
+#### Proposal Acceptance
+- **Description**: For evaluating and deciding whether to accept proposals, recommendations, or suggestions. Captures who proposed, concerns addressed, and acceptance conditions.
+- **Prompt template**: You are extracting a proposal acceptance or rejection decision. Focus on who submitted the proposal, how stakeholder concerns were addressed (or not), and whether the acceptance is unconditional or has conditions attached.
+- **Fields**: decision_statement (req), context (req), options (req), criteria (req), analysis (req), resources (opt), timeline (opt), outcome (req), outstanding_issues (opt)
 
-**concerns_addressed**
-- **Category**: stakeholder
-- **Description**: How concerns were resolved
-- **Type**: structured
-- **Prompt**: "For each concern, describe how it was addressed or resolved."
-- **Used in**: Proposal Acceptance
+---
 
-#### Implementation Fields
+### 6. LLM output: `suggestedTags`
 
-**implementation_plan**
-- **Category**: implementation
-- **Description**: How the decision will be executed
-- **Type**: long_text
-- **Prompt**: "Describe the implementation plan and key steps."
-- **Used in**: Policy Change, Strategy Decision
+Draft generation also returns `suggestedTags: string[]` — a set of 3–7 short subject tags characterising the decision (e.g. `["security", "file-transfer", "architecture", "compliance"]`). These are:
 
-**implementation_owner**
-- **Category**: implementation
-- **Description**: Who is responsible for execution
-- **Type**: short_text
-- **Prompt**: "Identify who will be responsible for implementing this decision."
-- **Used in**: Proposal Acceptance, Policy Change
+- returned alongside field values from the LLM structured output
+- stored on `decision_contexts.suggestedTags` (TEXT[] column)
+- used for search and categorisation in the UI
 
-**timeline**
-- **Category**: implementation
-- **Description**: Key dates and milestones
-- **Type**: structured
-- **Prompt**: "List key dates, milestones, and deadlines."
-- **Used in**: Strategy Decision, Budget Approval, Policy Change
+The generation prompt asks the LLM: "Also return suggestedTags: 3–7 short lowercase subject tags that characterise this decision, suitable for search and categorisation."
 
-**success_metrics**
-- **Category**: implementation
-- **Description**: How success will be measured
-- **Type**: list
-- **Prompt**: "List metrics that will indicate if this decision was successful."
-- **Used in**: Technology Selection, Strategy Decision
+---
 
-**next_steps**
-- **Category**: implementation
-- **Description**: Immediate actions to take
-- **Type**: list
-- **Prompt**: "List the immediate next steps following this decision."
-- **Used in**: Proposal Acceptance, Standard Decision
-
-#### Governance Fields
-
-**compliance_requirements**
-- **Category**: governance
-- **Description**: Legal or regulatory requirements
-- **Type**: list
-- **Prompt**: "List any legal, regulatory, or compliance requirements."
-- **Used in**: Policy Change, Budget Approval
-
-**approval_conditions**
-- **Category**: governance
-- **Description**: Conditions attached to approval
-- **Type**: list
-- **Prompt**: "List any conditions or constraints on the approval."
-- **Used in**: Budget Approval, Proposal Acceptance
-
-**review_triggers**
-- **Category**: governance
-- **Description**: When to review this decision
-- **Type**: list
-- **Prompt**: "List events or conditions that should trigger a review of this decision."
-- **Used in**: Standard Decision, Strategy Decision, Policy Change
-
-**review_date**
-- **Category**: governance
-- **Description**: Scheduled review date
-- **Type**: date
-- **Prompt**: "Extract when this decision should be reviewed."
-- **Used in**: Technology Selection, Policy Change
-
-### 4. Template Definitions (Using Field Library)
-
-#### Standard Decision Template
-```typescript
-{
-  id: "standard-decision",
-  name: "Standard Decision",
-  category: "general",
-  fields: [
-    { fieldId: "decision_statement", order: 1, required: true },
-    { fieldId: "decision_context", order: 2, required: true },
-    { fieldId: "evaluation_criteria", order: 3, required: false },
-    { fieldId: "options", order: 4, required: false },
-    { fieldId: "decision_rationale", order: 5, required: true },
-    { fieldId: "consequences_positive", order: 6, required: false },
-    { fieldId: "consequences_negative", order: 7, required: false },
-    { fieldId: "assumptions", order: 8, required: false },
-    { fieldId: "reversibility", order: 9, required: false },
-    { fieldId: "review_triggers", order: 10, required: false }
-  ]
-}
-```
-
-#### Technology Selection Template
-```typescript
-{
-  id: "technology-selection",
-  name: "Technology Selection",
-  category: "technical",
-  fields: [
-    { fieldId: "decision_statement", order: 1, required: true },
-    { fieldId: "decision_context", order: 2, required: true },
-    { fieldId: "evaluation_criteria", order: 3, required: true },
-    { fieldId: "options", order: 4, required: true },
-    { fieldId: "evaluation_matrix", order: 5, required: true },
-    { fieldId: "selected_option", order: 6, required: true },
-    { fieldId: "decision_rationale", order: 7, required: true },
-    { fieldId: "rejected_options_rationale", order: 8, required: false },
-    { fieldId: "risks_and_mitigations", order: 9, required: false },
-    { fieldId: "success_metrics", order: 10, required: false },
-    { fieldId: "review_date", order: 11, required: false }
-  ]
-}
-```
-
-#### Budget Approval Template
-```typescript
-{
-  id: "budget-approval",
-  name: "Budget Approval",
-  category: "financial",
-  fields: [
-    { fieldId: "decision_statement", order: 1, required: true },
-    { fieldId: "budget_amount", order: 2, required: true },
-    { fieldId: "decision_context", order: 3, required: true },
-    { fieldId: "roi_analysis", order: 4, required: true },
-    { fieldId: "cost_breakdown", order: 5, required: false },
-    { fieldId: "budget_source", order: 6, required: true },
-    { fieldId: "timeline", order: 7, required: true },
-    { fieldId: "risk_assessment", order: 8, required: false },
-    { fieldId: "approval_conditions", order: 9, required: false },
-    { fieldId: "review_date", order: 10, required: false }
-  ]
-}
-```
-
-### 5. Persistence ownership
-
-The canonical structural definitions for field-library persistence belong in:
-
-- `packages/schema/src/index.ts`
-- `packages/db`
-
-This document should not restate the exact SQL or full structural shape.
-
-Instead, the field-library persistence model must support:
-
-- durable field definitions with stable identity and versioning
-- durable template definitions with stable identity and versioning
-- many-to-many template field assignments
-- template-local ordering and requiredness
-- template-local composition metadata that does not redefine field semantics
-- prompt/configuration data attached to fields rather than duplicated across templates
-
-### 6. Prompt Organization
+### 7. Prompt Organization
 
 ```
-prompts/
-├── decision-detection.md           # Includes template classification
-└── templates/
-    ├── standard-decision.json      # Template field references and ordering
-    ├── technology-selection.json
-    ├── budget-approval.json
-    └── ...
+packages/db/src/seed-data/
+├── decision-fields.ts      # Authoritative field definitions + extraction prompts
+└── decision-templates.ts   # Authoritative template definitions + promptTemplates
 ```
 
 Field extraction prompts should not be maintained as separate per-field prompt files.
 
 Instead:
 
-- the canonical prompt guidance lives on the field definition itself
+- the canonical prompt guidance lives on the field definition itself (`extractionPrompt` column)
 - templates select fields, but do not duplicate their extraction prompts
-- prompt refinement should update the field-library record rather than a parallel prompt-file tree
+- prompt refinement should update `decision-fields.ts` and re-seed rather than a parallel prompt-file tree
+- template framing lives in `promptTemplate` on the template definition
 
-### 7. Benefits
+### 8. Benefits
 
-✅ **Field Reuse**: "decision_statement" defined once, used in all templates  
-✅ **Consistent Extraction**: Same field always uses same prompt  
-✅ **Easy Refinement**: Improve "options" prompt → improves all templates using it  
-✅ **Template Flexibility**: Mix and match fields for new decision types  
-✅ **Custom Templates**: Users can create templates from field library  
-✅ **Prompt Versioning**: Each field has its own version history  
+✅ **Field Reuse**: `decision_statement` defined once, used in all templates
+✅ **Consistent Extraction**: Same field always uses same `extractionPrompt`
+✅ **Easy Refinement**: Improve `options` prompt in `decision-fields.ts` → improves all templates using it
+✅ **Template Flexibility**: Mix and match fields for new decision types
+✅ **Template Framing**: `promptTemplate` gives the LLM decision-category context without overriding field semantics
+✅ **User Guidance**: `instructions` per field tells users what to put there
+✅ **Subject Tags**: `suggestedTags` from LLM enables search and categorisation
+✅ **Prompt Versioning**: Each field has its own `version` history; seed files are version-controlled
 
-### 8. Implementation
+### 9. Implementation
 
-> **Implementation Note**: The `DraftGenerationService` and its methods, including `regenerateField`, are defined in Milestone 1 and Milestone 4 of `docs/plans/iterative-implementation-plan.md`. That document is the authoritative source for the implementation, which uses a layered architecture with a dedicated `ILLMService` and `PromptBuilder`.
+> **Implementation Note**: The `DraftGenerationService` and its methods, including `regenerateField`, are defined in `docs/plans/iterative-implementation-plan.md`. That document is the authoritative source for the implementation, which uses a layered architecture with a dedicated `ILLMService` and `PromptBuilder`.
 
-### 9. CLI Workflow
+> **Prompt enrichment changes**: See `docs/plans/prompt-enrichment-plan.md` for the schema, seed data, prompt builder, and service changes that introduced `instructions`, `promptTemplate`, `suggestedTags`, and the wiring of current-draft context into field regeneration.
 
-```bash
-# List all fields in library
-decision-logger field list
-# Core Fields:
-#   - decision_statement: A clear statement of what is being decided
-#   - decision_context: Background and situation
-# Evaluation Fields:
-#   - evaluation_criteria: Criteria used to evaluate options
-#   - options: Available options considered
-# ...
+### 10. Persistence ownership
 
-# View field details
-decision-logger field show options
-# Field: Options
-# Category: Evaluation
-# Type: list
-# Description: Available options or alternatives considered
-# Used in: 5 templates (Standard Decision, Technology Selection, ...)
+The canonical structural definitions for field-library persistence belong in:
 
-# List templates
-decision-logger template list
-# 1. Standard Decision (10 fields)
-# 2. Technology Selection (11 fields)
-# 3. Budget Approval (10 fields)
-# ...
+- `packages/schema/src/index.ts`
+- `packages/db`
 
-# View template composition
-decision-logger template show technology-selection
-# Template: Technology Selection
-# Fields:
-#   1. decision_statement (required)
-#   2. problem_statement (required) [custom label for: decision_context]
-#   3. requirements (required) [custom label for: evaluation_criteria]
-#   4. options_evaluated (required) [custom label for: options]
-#   ...
+The field-library persistence model supports:
 
-# Create custom template from fields
-decision-logger template create "Vendor Selection" \
-  --fields decision_statement,decision_context,evaluation_criteria,options,roi_analysis,risk_assessment \
-  --category technical
-```
-
-### 10. Implementation Sequence
-
-1. **Phase 1**: Define field-library schemas and normalized database tables
-2. **Phase 2**: Seed the field library and core templates
-3. **Phase 3**: Update LLM services to resolve fields through the library
-4. **Post-MVP**: Enable custom template creation once the core workflow is stable
+- durable field definitions with stable identity and versioning
+- durable template definitions with stable identity and versioning
+- many-to-many template field assignments
+- template-local ordering and requiredness
+- template-level `promptTemplate` (workflow framing, not field semantic overrides)
+- field-level `instructions` (user-facing guidance)
+- prompt/configuration data attached to fields rather than duplicated across templates

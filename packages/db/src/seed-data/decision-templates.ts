@@ -1,24 +1,17 @@
 /**
- * Seed data for Decision Templates
- * Contains the 6 core templates as specified in the implementation plan
+ * Authoritative template definitions for the core decision template library.
+ *
+ * Edit this file to iterate on template descriptions, promptTemplate framing, or field composition.
+ * Run `pnpm db:seed` after editing to apply changes to the database.
+ *
+ * Architecture rules (from docs/field-library-architecture.md):
+ * - promptTemplate provides workflow framing for the LLM; it must NOT duplicate field extractionPrompts
+ * - Templates reference fields by ID; field semantics live in decision-fields.ts
+ * - Templates do not override field meaning — if different meaning is needed, use a different field
  */
 
 import type { CreateDecisionTemplate } from "@repo/schema";
-
-// Core decision field IDs (these should match the IDs from the decision fields seed)
-const CORE_FIELD_IDS = {
-  DECISION_STATEMENT: "550e8400-e29b-41d4-a716-446655440001",
-  CONTEXT: "550e8400-e29b-41d4-a716-446655440002",
-  OPTIONS: "550e8400-e29b-41d4-a716-446655440003",
-  CRITERIA: "550e8400-e29b-41d4-a716-446655440004",
-  ANALYSIS: "550e8400-e29b-41d4-a716-446655440005",
-  OUTCOME: "550e8400-e29b-41d4-a716-446655440006",
-  RISKS: "550e8400-e29b-41d4-a716-446655440007",
-  TIMELINE: "550e8400-e29b-41d4-a716-446655440008",
-  STAKEHOLDERS: "550e8400-e29b-41d4-a716-446655440009",
-  RESOURCES: "550e8400-e29b-41d4-a716-446655440010",
-  OUTSTANDING_ISSUES: "550e8400-e29b-41d4-a716-446655440011",
-} as const;
+import { CORE_FIELD_IDS } from "./decision-fields.js";
 
 const assignment = (fieldId: string, order: number, required = true) => ({
   fieldId,
@@ -30,7 +23,15 @@ const assignment = (fieldId: string, order: number, required = true) => ({
 export const STANDARD_TEMPLATE: CreateDecisionTemplate = {
   namespace: "core",
   name: "Standard Decision",
-  description: "A general-purpose template for most decisions",
+  description:
+    "A general-purpose template for decisions that do not fit a more specific category. " +
+    "Captures the decision, the options considered, and the rationale. " +
+    "Use this when the decision type is unclear or when no specialist template applies.",
+  promptTemplate:
+    "You are extracting a general decision record from a meeting discussion. " +
+    "Focus on identifying the clear decision made — or not made. " +
+    "Implicit decisions (a decision to defer, reject, or explicitly not act) are as valid as explicit choices and must be captured. " +
+    "Extract the options that were considered and the reasoning behind the chosen path.",
   category: "standard",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
@@ -46,7 +47,14 @@ export const STANDARD_TEMPLATE: CreateDecisionTemplate = {
 export const TECHNOLOGY_TEMPLATE: CreateDecisionTemplate = {
   namespace: "core",
   name: "Technology Selection",
-  description: "Template for choosing between technical options or architectures",
+  description:
+    "For choosing between technical tools, frameworks, platforms, or architectures. " +
+    "Emphasises comparative evaluation of alternatives against explicit criteria and trade-off analysis.",
+  promptTemplate:
+    "You are extracting a technology selection decision from a meeting discussion. " +
+    "Emphasise the comparative analysis of alternatives against stated criteria. " +
+    "Capture what trade-offs drove the final selection, not just which option was chosen. " +
+    "Note whether the choice is confirmed or provisional, and flag any remaining technical risks.",
   category: "technology",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
@@ -63,7 +71,14 @@ export const TECHNOLOGY_TEMPLATE: CreateDecisionTemplate = {
 export const STRATEGY_TEMPLATE: CreateDecisionTemplate = {
   namespace: "core",
   name: "Strategy Decision",
-  description: "Template for high-level strategic and business decisions",
+  description:
+    "For high-level strategic and business direction decisions. " +
+    "Captures the current state being moved away from, the chosen direction, and what was explicitly deprioritised.",
+  promptTemplate:
+    "You are extracting a strategic direction decision from a meeting discussion. " +
+    "Focus on the current state being moved away from, the chosen direction, and — importantly — what was explicitly deprioritised or ruled out. " +
+    "Alignment rationale and stakeholder considerations are as important as the decision itself. " +
+    "Capture any assumptions or conditions the strategy relies on.",
   category: "strategy",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
@@ -82,7 +97,14 @@ export const STRATEGY_TEMPLATE: CreateDecisionTemplate = {
 export const BUDGET_TEMPLATE: CreateDecisionTemplate = {
   namespace: "core",
   name: "Budget Decision",
-  description: "Template for financial and budget-related decisions",
+  description:
+    "For financial and budget-related decisions. " +
+    "Emphasises stated amounts, ROI reasoning, alternatives considered, and source of funding.",
+  promptTemplate:
+    "You are extracting a financial or budget decision from a meeting discussion. " +
+    "Emphasise any stated amounts, ROI reasoning, and alternatives that were ruled out. " +
+    "Capture the source of funding and any conditions attached to the approval. " +
+    "Flag whether this is a provisional budget commitment or a confirmed one.",
   category: "budget",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
@@ -99,7 +121,14 @@ export const BUDGET_TEMPLATE: CreateDecisionTemplate = {
 export const POLICY_TEMPLATE: CreateDecisionTemplate = {
   namespace: "core",
   name: "Policy Decision",
-  description: "Template for creating or modifying policies and procedures",
+  description:
+    "For creating or modifying policies, procedures, and governance rules. " +
+    "Captures what is changing and why, who is affected, and any compliance or regulatory considerations.",
+  promptTemplate:
+    "You are extracting a policy or governance decision from a meeting discussion. " +
+    "Focus on what rule or practice is changing and why the change is being made. " +
+    "Capture who is affected and who has authority to approve. " +
+    "Note any compliance, regulatory, or legal reasoning mentioned.",
   category: "policy",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
@@ -118,7 +147,13 @@ export const PROPOSAL_TEMPLATE: CreateDecisionTemplate = {
   namespace: "core",
   name: "Proposal Acceptance",
   description:
-    "Template for evaluating and deciding whether to accept proposals, recommendations, or suggestions",
+    "For evaluating and deciding whether to accept proposals, recommendations, or suggestions. " +
+    "Captures who proposed, how stakeholder concerns were addressed, and whether acceptance is conditional.",
+  promptTemplate:
+    "You are extracting a proposal acceptance or rejection decision from a meeting discussion. " +
+    "Focus on who submitted the proposal and the grounds on which it was evaluated. " +
+    "Capture how stakeholder concerns were addressed — or not. " +
+    "Note whether the acceptance is unconditional or has conditions attached, and flag any outstanding dependencies.",
   category: "proposal",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),

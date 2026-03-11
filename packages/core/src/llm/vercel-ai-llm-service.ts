@@ -25,16 +25,28 @@ function getModel() {
  */
 export class VercelAILLMService implements ILLMService {
   async generateDraft(params: GenerateDraftParams): Promise<DraftResult> {
-    const fieldSchema = this.buildFieldSchema(params.templateFields.map((f) => f.id));
+    const fieldShape = this.buildFieldShape(params.templateFields.map((f) => f.id));
+    const schema = z.object({
+      ...fieldShape,
+      suggestedTags: z
+        .array(z.string())
+        .describe(
+          "3-7 short lowercase subject tags that characterise this decision, suitable for search and categorisation. Examples: 'security', 'architecture', 'compliance', 'budget', 'infrastructure'.",
+        ),
+    });
     const prompt = params.promptText ?? "";
 
     const { object } = await generateObject({
       model: getModel(),
-      schema: fieldSchema,
+      schema,
       prompt,
     });
 
-    return object as DraftResult;
+    const { suggestedTags, ...fieldValues } = object;
+    return {
+      fields: fieldValues as Record<string, string>,
+      suggestedTags: suggestedTags ?? [],
+    };
   }
 
   async regenerateField(params: RegenerateFieldParams): Promise<string> {
@@ -56,11 +68,11 @@ export class VercelAILLMService implements ILLMService {
     return (object as Record<string, string>)[params.fieldId] ?? "";
   }
 
-  private buildFieldSchema(fieldIds: string[]): z.ZodObject<Record<string, z.ZodString>> {
+  private buildFieldShape(fieldIds: string[]): Record<string, z.ZodString> {
     const shape: Record<string, z.ZodString> = {};
     for (const id of fieldIds) {
       shape[id] = z.string();
     }
-    return z.object(shape);
+    return shape;
   }
 }
