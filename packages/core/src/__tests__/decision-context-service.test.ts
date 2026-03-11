@@ -562,4 +562,61 @@ describe('DecisionContextService', () => {
       expect(result[1]!.title).toBe('Context 2');
     });
   });
+
+  describe('getById', () => {
+    it('should return a context by id', async () => {
+      const created = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Fetch me',
+        templateId: testTemplateId,
+      });
+
+      const result = await service.getById(created.id);
+
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe(created.id);
+      expect(result!.title).toBe('Fetch me');
+    });
+
+    it('should return null for a missing id', async () => {
+      const result = await service.getById(crypto.randomUUID());
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateMeta', () => {
+    it('should update the title of a context', async () => {
+      const created = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Original title',
+        templateId: testTemplateId,
+      });
+
+      const result = await service.updateMeta(created.id, { title: 'Revised title' });
+
+      expect(result).not.toBeNull();
+      expect(result!.title).toBe('Revised title');
+    });
+
+    it('should return null for a missing context', async () => {
+      const result = await service.updateMeta(crypto.randomUUID(), { title: 'No-op' });
+      expect(result).toBeNull();
+    });
+
+    it('should leave title unchanged when not provided', async () => {
+      const created = await repository.create({
+        meetingId: testMeetingId,
+        flaggedDecisionId: testFlaggedDecisionId,
+        title: 'Unchanged',
+        templateId: testTemplateId,
+      });
+
+      const result = await service.updateMeta(created.id, {});
+
+      expect(result).not.toBeNull();
+      expect(result!.title).toBe('Unchanged');
+    });
+  });
 });

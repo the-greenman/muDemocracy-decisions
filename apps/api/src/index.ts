@@ -56,6 +56,7 @@ import {
   exportMarkdownRoute,
   flushStreamingRoute,
   getApiStatusRoute,
+  getDecisionContextRoute,
   getFlaggedDecisionContextRoute,
   getDecisionLogRoute,
   getFieldTranscriptRoute,
@@ -81,6 +82,7 @@ import {
   searchChunksRoute,
   streamTranscriptRoute,
   unlockFieldRoute,
+  updateDecisionContextRoute,
   updateFlaggedDecisionRoute,
   updateFieldValueRoute,
   uploadTranscriptRoute,
@@ -889,6 +891,37 @@ app.openapi(deleteFlaggedDecisionRoute, async (c) => {
   }
 
   return c.body(null, 204);
+});
+
+app.openapi(getDecisionContextRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const context = await services.decisionContextService.getById(id);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
+  return c.json(context);
+});
+
+app.openapi(updateDecisionContextRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: 'This endpoint requires DATABASE_URL to be configured' }, 503);
+  }
+
+  const { id } = c.req.valid('param');
+  const data = c.req.valid('json');
+  const context = await services.decisionContextService.updateMeta(id, data);
+  if (!context) {
+    return c.json({ error: 'Decision context not found' }, 404);
+  }
+
+  return c.json(context);
 });
 
 app.openapi(getFlaggedDecisionContextRoute, async (c) => {

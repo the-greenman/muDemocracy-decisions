@@ -3,7 +3,7 @@
  * Manages draft state, field locking, and field-specific transcript retrieval
  */
 
-import type { DecisionContext, CreateDecisionContext } from '@repo/schema';
+import type { DecisionContext, CreateDecisionContext, UpdateDecisionContext } from '@repo/schema';
 
 export interface DraftVersionSummary {
   version: number;
@@ -32,6 +32,10 @@ export interface IDecisionContextService {
   reopenForEditing(id: string): Promise<DecisionContext | null>;
   
   // Queries
+  getById(id: string): Promise<DecisionContext | null>;
   getContextByFlaggedDecision(flaggedDecisionId: string): Promise<DecisionContext | null>;
   getAllContextsForMeeting(meetingId: string): Promise<DecisionContext[]>;
+
+  // Meta updates
+  updateMeta(id: string, data: UpdateDecisionContext): Promise<DecisionContext | null>;
 }

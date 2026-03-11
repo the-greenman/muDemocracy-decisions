@@ -19,6 +19,7 @@ import {
   CreateSupplementaryContentSchema,
   TranscriptChunkSchema,
   ApiStatusSchema,
+  UpdateDecisionContextSchema,
 } from '@repo/schema';
 
 const ErrorResponseSchema = z.object({
@@ -274,7 +275,7 @@ export const uploadTranscriptRoute = createRoute({
           schema: ErrorResponseSchema,
         },
       },
-      description: 'Invalid regenerate request',
+      description: 'Invalid transcript upload request',
     },
     503: {
       content: {
@@ -316,7 +317,7 @@ export const streamTranscriptRoute = createRoute({
           schema: ErrorResponseSchema,
         },
       },
-      description: 'Invalid regenerate request',
+      description: 'Invalid stream event',
     },
     503: {
       content: {
@@ -927,6 +928,83 @@ export const createDecisionContextRoute = createRoute({
         },
       },
       description: 'Invalid request data',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const getDecisionContextRoute = createRoute({
+  method: 'get',
+  path: '/api/decision-contexts/:id',
+  tags: ['decision-contexts'],
+  request: {
+    params: UuidParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionContextSchema,
+        },
+      },
+      description: 'Decision context retrieved successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
+    },
+    503: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Database-backed endpoint unavailable',
+    },
+  },
+});
+
+export const updateDecisionContextRoute = createRoute({
+  method: 'patch',
+  path: '/api/decision-contexts/:id',
+  tags: ['decision-contexts'],
+  request: {
+    params: UuidParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateDecisionContextSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DecisionContextSchema,
+        },
+      },
+      description: 'Decision context updated successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: 'Decision context not found',
     },
     503: {
       content: {

@@ -1,0 +1,2 @@
+ALTER TABLE "supplementary_content" ALTER COLUMN "contexts" SET DEFAULT '{}'::text[];--> statement-breakpoint
+ALTER TABLE "flagged_decisions" ADD COLUMN "updated_at" timestamp with time zone DEFAULT now() NOT NULL;

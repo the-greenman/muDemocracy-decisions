@@ -478,9 +478,18 @@ export const DecisionContextSchema = z.object({
 export type DecisionContext = z.infer<typeof DecisionContextSchema>;
 
 // For creation, omit auto-generated fields and defaults
-export type CreateDecisionContext = Omit<DecisionContext, 
+export type CreateDecisionContext = Omit<DecisionContext,
   'id' | 'status' | 'lockedFields' | 'draftVersions' | 'createdAt' | 'updatedAt'
 >;
+
+export const UpdateDecisionContextSchema = z.object({
+  title: z.string().min(1).optional(),
+}).openapi('UpdateDecisionContextRequest', {
+  description: 'Fields that can be updated on an existing decision context',
+  example: { title: 'Updated decision title' },
+});
+
+export type UpdateDecisionContext = z.infer<typeof UpdateDecisionContextSchema>;
 
 // ============================================================================
 // DECISION LOG SCHEMAS

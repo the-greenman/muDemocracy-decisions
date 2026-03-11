@@ -3,10 +3,11 @@
  * Manages draft state, field locking, and field-specific transcript retrieval
  */
 
-import type { 
+import type {
   DecisionContext,
   DraftVersion,
-  CreateDecisionContext 
+  CreateDecisionContext,
+  UpdateDecisionContext,
 } from '@repo/schema';
 import type { IDecisionContextService } from '../interfaces/i-decision-context-service.js';
 import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
@@ -271,12 +272,24 @@ export class DecisionContextService implements IDecisionContextService {
     return await this.repository.updateStatus(id, 'drafting');
   }
 
+  async getById(id: string): Promise<DecisionContext | null> {
+    return await this.repository.findById(id);
+  }
+
   async getContextByFlaggedDecision(flaggedDecisionId: string): Promise<DecisionContext | null> {
     return await this.repository.findByFlaggedDecisionId(flaggedDecisionId);
   }
 
   async getAllContextsForMeeting(meetingId: string): Promise<DecisionContext[]> {
     return await this.repository.findByMeetingId(meetingId);
+  }
+
+  async updateMeta(id: string, data: UpdateDecisionContext): Promise<DecisionContext | null> {
+    const context = await this.repository.findById(id);
+    if (!context) return null;
+    const patch: Partial<DecisionContext> = {};
+    if (data.title !== undefined) patch.title = data.title;
+    return await this.repository.update(id, patch);
   }
 
   private async assertFieldAssignedToTemplate(templateId: string, fieldId: string): Promise<void> {

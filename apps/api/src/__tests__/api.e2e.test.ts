@@ -177,24 +177,6 @@ describe('API E2E Tests', () => {
     expect(data.error).toBeDefined();
   });
 
-  it('POST /api/decision-contexts/:id/generate-draft - should return 400 for invalid guidance payloads', async () => {
-    const response = await app.request(`/api/decision-contexts/${createdContextId}/generate-draft`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        guidance: [
-          {
-            content: 'Missing source should fail validation',
-          },
-        ],
-      }),
-    });
-
-    expect(response.status).toBe(400);
-    const data = await response.json();
-    expect(data.error).toBeDefined();
-  });
-
   it('POST /api/decision-contexts/:id/generate-draft - should return 404 for a missing context', async () => {
     const response = await app.request('/api/decision-contexts/11111111-1111-4111-8111-111111111111/generate-draft', {
       method: 'POST',
@@ -573,6 +555,25 @@ describe('API E2E Tests', () => {
 
     createdContextId = data.id;
   });
+
+  it('POST /api/decision-contexts/:id/generate-draft - should return 400 for invalid guidance payloads', async () => {
+    const response = await app.request(`/api/decision-contexts/${createdContextId}/generate-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        guidance: [
+          {
+            content: 'Missing source should fail validation',
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
 
   it('POST /api/decision-contexts/:id/template-change - should update the template while preserving draft data', async () => {
     const updateDraftResponse = await app.request(`/api/decision-contexts/${createdContextId}/fields/${createdFieldId}`, {

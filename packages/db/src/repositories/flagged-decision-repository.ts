@@ -65,21 +65,17 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
     id: string,
     data: Partial<Omit<CreateFlaggedDecision, 'meetingId'>>
   ): Promise<FlaggedDecision | null> {
-    const updateData: any = {
-      ...data,
-    };
-    
+    const setData: Record<string, unknown> = { ...data, updatedAt: new Date() };
     if (data.suggestedTemplateId !== undefined) {
-      updateData.suggestedTemplateId = data.suggestedTemplateId || null;
+      setData['suggestedTemplateId'] = data.suggestedTemplateId || null;
     }
-    
     if (data.templateConfidence !== undefined) {
-      updateData.templateConfidence = data.templateConfidence || null;
+      setData['templateConfidence'] = data.templateConfidence || null;
     }
 
     const [row] = await db
       .update(flaggedDecisions)
-      .set(updateData)
+      .set(setData)
       .where(eq(flaggedDecisions.id, id))
       .returning();
 
@@ -93,9 +89,7 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
   async updatePriority(id: string, priority: number): Promise<FlaggedDecision | null> {
     const [row] = await db
       .update(flaggedDecisions)
-      .set({
-        priority,
-      })
+      .set({ priority, updatedAt: new Date() })
       .where(eq(flaggedDecisions.id, id))
       .returning();
 
@@ -109,9 +103,7 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
   async updateStatus(id: string, status: FlaggedDecision['status']): Promise<FlaggedDecision | null> {
     const [row] = await db
       .update(flaggedDecisions)
-      .set({
-        status,
-      })
+      .set({ status, updatedAt: new Date() })
       .where(eq(flaggedDecisions.id, id))
       .returning();
 
@@ -143,8 +135,8 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       templateConfidence: row.templateConfidence || undefined,
       status: row.status,
       priority: row.priority,
-      createdAt: row.createdAt!.toISOString(),
-      updatedAt: (row as any).updatedAt?.toISOString() || new Date().toISOString(),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
     };
   }
 }
