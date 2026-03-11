@@ -1,4 +1,5 @@
 import type { TranscriptEvent } from './providers/interface.js';
+import { ApiRequestError } from './stream-delivery.js';
 import { formatSecondsAsTimestamp } from './time.js';
 
 type FetchLike = typeof fetch;
@@ -104,7 +105,11 @@ export class DecisionLoggerApiClient {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`Core API request failed (${response.status}) for ${path}: ${body}`);
+      throw new ApiRequestError(
+        `Core API request failed (${response.status}) for ${path}: ${body}`,
+        response.status,
+        path,
+      );
     }
 
     const contentType = response.headers.get('content-type') ?? '';

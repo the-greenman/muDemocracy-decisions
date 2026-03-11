@@ -50,4 +50,10 @@ describe('createProviderFromEnv', () => {
 
     expect(() => createProviderFromEnv()).toThrow('OPENAI_API_KEY is required');
   });
+
+  it('throws when TRANSCRIPTION_PROVIDER is an unknown value', () => {
+    process.env.TRANSCRIPTION_PROVIDER = 'whisper-cloud';
+
+    expect(() => createProviderFromEnv()).toThrow('Unknown TRANSCRIPTION_PROVIDER: "whisper-cloud"');
+  });
 });

@@ -8,6 +8,11 @@ import { DecisionLoggerApiClient } from './api-client.js';
 import { formatEventPreviewLine, formatEventsAsSrt, formatEventsAsText } from './output-format.js';
 import { createProviderFromEnv } from './providers/index.js';
 import type { ITranscriptionProvider, TranscriptEvent } from './providers/interface.js';
+import {
+  deliverStreamEvents,
+  normalizeSequenceNumbers,
+  type StreamDeliveryConfig,
+} from './stream-delivery.js';
 
 export interface BatchTranscriptionOptions {
   audioFilePath: string;
@@ -63,12 +68,6 @@ interface LiveTranscriptionDependencies {
   deliveryConfig: StreamDeliveryConfig;
 }
 
-interface StreamDeliveryConfig {
-  maxAttempts: number;
-  baseBackoffMs: number;
-  maxQueueSize: number;
-}
-
 export interface LocalTranscriptionOptions {
   audioFilePath: string;
   language?: string;
@@ -86,7 +85,7 @@ export interface UploadSmokeOptions {
 }
 
 function buildBatchDependencies(deps?: Partial<BatchTranscriptionDependencies>): BatchTranscriptionDependencies {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3000';
+  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
   return {
     provider: deps?.provider ?? createProviderFromEnv(),
@@ -106,7 +105,7 @@ function wait(ms: number): Promise<void> {
 function createDefaultLiveDependencies(
   deps?: Partial<LiveTranscriptionDependencies>,
 ): LiveTranscriptionDependencies {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3000';
+  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
   const defaultRegisterSignalHandlers = (onShutdown: CleanupFn): CleanupFn => {
     let shutdownPromise: Promise<void> | null = null;
@@ -159,50 +158,6 @@ function resolveDeliveryConfig(
   };
 }
 
-async function postEventWithRetry(
-  meetingId: string,
-  event: TranscriptEvent,
-  send: (meetingId: string, event: TranscriptEvent) => Promise<void>,
-  sleep: (ms: number) => Promise<void>,
-  config: StreamDeliveryConfig,
-): Promise<void> {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= config.maxAttempts; attempt += 1) {
-    try {
-      await send(meetingId, event);
-      return;
-    } catch (error) {
-      lastError = error;
-      if (attempt === config.maxAttempts) {
-        break;
-      }
-
-      const delay = config.baseBackoffMs * (2 ** (attempt - 1));
-      await sleep(delay);
-    }
-  }
-
-  const message = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(`Failed to deliver transcript event after ${config.maxAttempts} attempts: ${message}`);
-}
-
-async function deliverStreamEvents(
-  meetingId: string,
-  events: TranscriptEvent[],
-  send: (meetingId: string, event: TranscriptEvent) => Promise<void>,
-  sleep: (ms: number) => Promise<void>,
-  config: StreamDeliveryConfig,
-): Promise<void> {
-  const queue: TranscriptEvent[] = [...events];
-
-  while (queue.length > 0) {
-    const pendingBatch = queue.splice(0, config.maxQueueSize);
-    for (const next of pendingBatch) {
-      await postEventWithRetry(meetingId, next, send, sleep, config);
-    }
-  }
-}
 
 async function createFfmpegChunkSource(chunkMs: number): Promise<LiveChunkSource> {
   const chunkSeconds = Math.max(1, Math.round(chunkMs / 1000));
@@ -346,6 +301,7 @@ export async function runLiveTranscription(
   let flushCompleted = false;
   let chunkCount = 0;
   let sentEvents = 0;
+  let nextSequenceNumber = 1;
 
   const flushAndStop = async (): Promise<void> => {
     if (flushCompleted) {
@@ -374,7 +330,8 @@ export async function runLiveTranscription(
       }
 
       const transcription = await provider.transcribe(chunk.audio, transcribeOptions);
-      const adjusted = offsetEvents(transcription.events, (chunkMs / 1000) * chunkCount);
+      const timeAdjusted = offsetEvents(transcription.events, (chunkMs / 1000) * chunkCount);
+      const adjusted = normalizeSequenceNumbers(timeAdjusted, nextSequenceNumber);
       await deliverStreamEvents(
         options.meetingId,
         adjusted,
@@ -384,6 +341,7 @@ export async function runLiveTranscription(
       );
       chunkCount += 1;
       sentEvents += adjusted.length;
+      nextSequenceNumber += adjusted.length;
       console.log(`Live chunk ${chunkCount}: sent ${adjusted.length} events.`);
     }
   } finally {
@@ -472,7 +430,7 @@ export async function runLocalTranscription(options: LocalTranscriptionOptions):
 }
 
 export async function runUploadSmoke(options: UploadSmokeOptions): Promise<void> {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3000';
+  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
   const apiClient = new DecisionLoggerApiClient(apiUrl, apiKey);
 

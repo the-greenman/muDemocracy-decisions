@@ -3,6 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { DecisionLoggerApiClient } from './api-client.js';
 import { createProviderFromEnv } from './providers/index.js';
 import type { ITranscriptionProvider, TranscriptEvent } from './providers/interface.js';
+import {
+  deliverStreamEvents,
+  normalizeSequenceNumbers,
+  type StreamDeliveryConfig,
+} from './stream-delivery.js';
 
 export interface StartWebServerOptions {
   port?: number;
@@ -60,57 +65,13 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 }
 
 function resolveDeliveryConfig(
-  override?: Partial<{ maxAttempts: number; baseBackoffMs: number; maxQueueSize: number }>,
-): { maxAttempts: number; baseBackoffMs: number; maxQueueSize: number } {
+  override?: Partial<StreamDeliveryConfig>,
+): StreamDeliveryConfig {
   return {
     maxAttempts: override?.maxAttempts ?? parsePositiveInt(process.env.STREAM_MAX_RETRY_ATTEMPTS, 5),
     baseBackoffMs: override?.baseBackoffMs ?? parsePositiveInt(process.env.STREAM_RETRY_BASE_MS, 250),
     maxQueueSize: override?.maxQueueSize ?? parsePositiveInt(process.env.STREAM_MAX_OUTBOUND_QUEUE, 200),
   };
-}
-
-async function postEventWithRetry(
-  meetingId: string,
-  event: TranscriptEvent,
-  send: (meetingId: string, event: TranscriptEvent) => Promise<void>,
-  sleep: (ms: number) => Promise<void>,
-  config: { maxAttempts: number; baseBackoffMs: number },
-): Promise<void> {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= config.maxAttempts; attempt += 1) {
-    try {
-      await send(meetingId, event);
-      return;
-    } catch (error) {
-      lastError = error;
-      if (attempt === config.maxAttempts) {
-        break;
-      }
-      const delay = config.baseBackoffMs * (2 ** (attempt - 1));
-      await sleep(delay);
-    }
-  }
-
-  const message = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(`Failed to deliver transcript event after ${config.maxAttempts} attempts: ${message}`);
-}
-
-async function deliverStreamEvents(
-  meetingId: string,
-  events: TranscriptEvent[],
-  send: (meetingId: string, event: TranscriptEvent) => Promise<void>,
-  sleep: (ms: number) => Promise<void>,
-  config: { maxAttempts: number; baseBackoffMs: number; maxQueueSize: number },
-): Promise<void> {
-  const queue: TranscriptEvent[] = [...events];
-
-  while (queue.length > 0) {
-    const pendingBatch = queue.splice(0, config.maxQueueSize);
-    for (const next of pendingBatch) {
-      await postEventWithRetry(meetingId, next, send, sleep, config);
-    }
-  }
 }
 
 function setCorsHeaders(res: ServerResponse, origin: string): void {
@@ -170,13 +131,6 @@ async function parseJsonBody<T>(req: IncomingMessage, maxBytes: number): Promise
   return decoded;
 }
 
-function normalizeSequenceNumbers(events: TranscriptEvent[], startAt: number): TranscriptEvent[] {
-  return events.map((event, index) => ({
-    ...event,
-    sequenceNumber: startAt + index,
-  }));
-}
-
 function resolveChunkFilename(req: IncomingMessage, fallback: string): string {
   const requestUrl = new URL(req.url ?? '/', 'http://localhost');
   const fromQuery = requestUrl.searchParams.get('filename') ?? undefined;
@@ -191,7 +145,7 @@ function resolveChunkFilename(req: IncomingMessage, fallback: string): string {
 }
 
 export async function startWebServer(options?: StartWebServerOptions): Promise<RunningWebServer> {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3000';
+  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
 
   const provider = options?.provider ?? createProviderFromEnv();

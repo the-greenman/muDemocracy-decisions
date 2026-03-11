@@ -10,6 +10,10 @@ export function createProviderFromEnv(): ITranscriptionProvider {
     return new LocalWhisperProvider(whisperLocalUrl);
   }
 
+  if (provider !== 'openai') {
+    throw new Error(`Unknown TRANSCRIPTION_PROVIDER: "${provider}". Expected "openai" or "local".`);
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is required when TRANSCRIPTION_PROVIDER is openai');
