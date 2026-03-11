@@ -2,14 +2,14 @@
  * Repository interfaces for transcript management
  */
 
-import { 
-  RawTranscript, 
-  TranscriptChunk, 
-  ChunkRelevance, 
+import {
+  RawTranscript,
+  TranscriptChunk,
+  ChunkRelevance,
   DecisionContextWindow,
   CreateRawTranscript,
-  CreateTranscriptChunk 
-} from '@repo/schema';
+  CreateTranscriptChunk,
+} from "@repo/schema";
 
 export interface IRawTranscriptRepository {
   create(data: CreateRawTranscript): Promise<RawTranscript>;
@@ -36,16 +36,22 @@ export interface IStreamingBufferRepository {
 }
 
 export interface IChunkRelevanceRepository {
-  upsert(data: Omit<ChunkRelevance, 'id' | 'taggedAt'>): Promise<ChunkRelevance>;
+  upsert(data: Omit<ChunkRelevance, "id" | "taggedAt">): Promise<ChunkRelevance>;
   findByDecisionField(decisionContextId: string, fieldId: string): Promise<ChunkRelevance[]>;
   deleteByChunk(chunkId: string): Promise<void>;
   findByChunk(chunkId: string): Promise<ChunkRelevance[]>;
 }
 
 export interface IDecisionContextWindowRepository {
-  createOrUpdate(data: Omit<DecisionContextWindow, 'id' | 'createdAt' | 'updatedAt'>): Promise<DecisionContextWindow>;
+  createOrUpdate(
+    data: Omit<DecisionContextWindow, "id" | "createdAt" | "updatedAt">,
+  ): Promise<DecisionContextWindow>;
   findByDecisionContextId(decisionContextId: string): Promise<DecisionContextWindow[]>;
-  preview(decisionContextId: string, strategy: string, limit?: number): Promise<{
+  preview(
+    decisionContextId: string,
+    strategy: string,
+    limit?: number,
+  ): Promise<{
     chunks: TranscriptChunk[];
     totalTokens: number;
     estimatedRelevance: Record<string, number>;

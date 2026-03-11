@@ -1,23 +1,23 @@
 /**
  * Drizzle implementation of IStreamingBufferRepository
- * 
+ *
  * Note: This is a simplified implementation that stores events in memory
  * and creates chunks when flushed. In a production environment, this might
  * use Redis or another streaming solution.
  */
 
-import { db } from '../client.js';
-import { rawTranscripts, transcriptChunks, TranscriptChunkInsert } from '../schema.js';
-import { TranscriptChunk, CreateTranscriptChunk } from '@repo/schema';
+import { db } from "../client.js";
+import { rawTranscripts, transcriptChunks, TranscriptChunkInsert } from "../schema.js";
+import { TranscriptChunk, CreateTranscriptChunk } from "@repo/schema";
 
 interface StreamingEvent {
-  type: 'text' | 'metadata';
+  type: "text" | "metadata";
   data: any;
   timestamp: Date;
 }
 
 interface BufferState {
-  status: 'active' | 'idle' | 'flushing';
+  status: "active" | "idle" | "flushing";
   events: StreamingEvent[];
   lastActivity: Date;
 }
@@ -28,34 +28,34 @@ const bufferStore = new Map<string, BufferState>();
 export class DrizzleStreamingBufferRepository {
   async appendEvent(meetingId: string, event: any): Promise<void> {
     const buffer = bufferStore.get(meetingId) || {
-      status: 'active' as const,
+      status: "active" as const,
       events: [],
       lastActivity: new Date(),
     };
 
     buffer.events.push({
-      type: event.type || 'text',
+      type: event.type || "text",
       data: event.data || event,
       timestamp: new Date(),
     });
 
     buffer.lastActivity = new Date();
-    buffer.status = 'active';
+    buffer.status = "active";
 
     bufferStore.set(meetingId, buffer);
   }
 
   async getStatus(meetingId: string): Promise<{ status: string; eventCount: number }> {
     const buffer = bufferStore.get(meetingId);
-    
+
     if (!buffer) {
-      return { status: 'idle', eventCount: 0 };
+      return { status: "idle", eventCount: 0 };
     }
 
     // Mark as idle if no activity for 5 minutes
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    if (buffer.lastActivity < fiveMinutesAgo && buffer.status === 'active') {
-      buffer.status = 'idle';
+    if (buffer.lastActivity < fiveMinutesAgo && buffer.status === "active") {
+      buffer.status = "idle";
       bufferStore.set(meetingId, buffer);
     }
 
@@ -67,15 +67,18 @@ export class DrizzleStreamingBufferRepository {
 
   async flush(meetingId: string): Promise<TranscriptChunk[]> {
     const buffer = bufferStore.get(meetingId);
-    
+
     if (!buffer || buffer.events.length === 0) {
       return [];
     }
 
-    buffer.status = 'flushing';
+    buffer.status = "flushing";
 
     try {
-      const fallbackRawTranscriptId = await this.createFallbackRawTranscript(meetingId, buffer.events);
+      const fallbackRawTranscriptId = await this.createFallbackRawTranscript(
+        meetingId,
+        buffer.events,
+      );
 
       // Group events by type and create chunks
       const chunks: TranscriptChunk[] = [];
@@ -84,7 +87,7 @@ export class DrizzleStreamingBufferRepository {
       // For now, we'll create one chunk per text event
       // In production, this would use more sophisticated chunking
       for (const event of buffer.events) {
-        if (event.type === 'text' && event.data.text) {
+        if (event.type === "text" && event.data.text) {
           const chunkData: CreateTranscriptChunk = {
             meetingId,
             rawTranscriptId: event.data.rawTranscriptId || fallbackRawTranscriptId,
@@ -93,7 +96,7 @@ export class DrizzleStreamingBufferRepository {
             speaker: event.data.speaker,
             startTime: event.data.startTime,
             endTime: event.data.endTime,
-            chunkStrategy: 'streaming',
+            chunkStrategy: "streaming",
             tokenCount: this.estimateTokenCount(event.data.text),
             wordCount: this.countWords(event.data.text),
             contexts: event.data.contexts || [`meeting:${meetingId}`],
@@ -115,9 +118,7 @@ export class DrizzleStreamingBufferRepository {
             topics: chunkData.topics || null,
           };
 
-          const [result] = await db.insert(transcriptChunks)
-            .values(insertData)
-            .returning();
+          const [result] = await db.insert(transcriptChunks).values(insertData).returning();
 
           chunks.push(this.mapToSchema(result));
         }
@@ -125,12 +126,12 @@ export class DrizzleStreamingBufferRepository {
 
       // Clear the buffer after successful flush
       buffer.events = [];
-      buffer.status = 'idle';
+      buffer.status = "idle";
       bufferStore.set(meetingId, buffer);
 
       return chunks;
     } catch (error) {
-      buffer.status = 'active';
+      buffer.status = "active";
       bufferStore.set(meetingId, buffer);
       throw error;
     }
@@ -146,31 +147,35 @@ export class DrizzleStreamingBufferRepository {
   }
 
   private countWords(text: string): number {
-    return text.split(/\s+/).filter(word => word.length > 0).length;
+    return text.split(/\s+/).filter((word) => word.length > 0).length;
   }
 
-  private async createFallbackRawTranscript(meetingId: string, events: StreamingEvent[]): Promise<string> {
+  private async createFallbackRawTranscript(
+    meetingId: string,
+    events: StreamingEvent[],
+  ): Promise<string> {
     const combinedText = events
-      .filter((event) => event.type === 'text' && typeof event.data?.text === 'string')
+      .filter((event) => event.type === "text" && typeof event.data?.text === "string")
       .map((event) => String(event.data.text).trim())
       .filter(Boolean)
-      .join('\n');
+      .join("\n");
 
-    const [rawTranscript] = await db.insert(rawTranscripts)
+    const [rawTranscript] = await db
+      .insert(rawTranscripts)
       .values({
         meetingId,
-        source: 'stream',
-        format: 'txt',
-        content: combinedText.length > 0 ? combinedText : '[stream flush without text payload]',
+        source: "stream",
+        format: "txt",
+        content: combinedText.length > 0 ? combinedText : "[stream flush without text payload]",
         metadata: {
-          generatedBy: 'streaming-buffer-flush',
+          generatedBy: "streaming-buffer-flush",
           eventCount: events.length,
         },
       })
       .returning({ id: rawTranscripts.id });
 
     if (!rawTranscript) {
-      throw new Error('Failed to create raw transcript for stream flush');
+      throw new Error("Failed to create raw transcript for stream flush");
     }
 
     return rawTranscript.id;

@@ -3,21 +3,21 @@
  * Contains the 6 core templates as specified in the implementation plan
  */
 
-import type { CreateDecisionTemplate } from '@repo/schema';
+import type { CreateDecisionTemplate } from "@repo/schema";
 
 // Core decision field IDs (these should match the IDs from the decision fields seed)
 const CORE_FIELD_IDS = {
-  DECISION_STATEMENT: '550e8400-e29b-41d4-a716-446655440001',
-  CONTEXT: '550e8400-e29b-41d4-a716-446655440002',
-  OPTIONS: '550e8400-e29b-41d4-a716-446655440003',
-  CRITERIA: '550e8400-e29b-41d4-a716-446655440004',
-  ANALYSIS: '550e8400-e29b-41d4-a716-446655440005',
-  OUTCOME: '550e8400-e29b-41d4-a716-446655440006',
-  RISKS: '550e8400-e29b-41d4-a716-446655440007',
-  TIMELINE: '550e8400-e29b-41d4-a716-446655440008',
-  STAKEHOLDERS: '550e8400-e29b-41d4-a716-446655440009',
-  RESOURCES: '550e8400-e29b-41d4-a716-446655440010',
-  OUTSTANDING_ISSUES: '550e8400-e29b-41d4-a716-446655440011',
+  DECISION_STATEMENT: "550e8400-e29b-41d4-a716-446655440001",
+  CONTEXT: "550e8400-e29b-41d4-a716-446655440002",
+  OPTIONS: "550e8400-e29b-41d4-a716-446655440003",
+  CRITERIA: "550e8400-e29b-41d4-a716-446655440004",
+  ANALYSIS: "550e8400-e29b-41d4-a716-446655440005",
+  OUTCOME: "550e8400-e29b-41d4-a716-446655440006",
+  RISKS: "550e8400-e29b-41d4-a716-446655440007",
+  TIMELINE: "550e8400-e29b-41d4-a716-446655440008",
+  STAKEHOLDERS: "550e8400-e29b-41d4-a716-446655440009",
+  RESOURCES: "550e8400-e29b-41d4-a716-446655440010",
+  OUTSTANDING_ISSUES: "550e8400-e29b-41d4-a716-446655440011",
 } as const;
 
 const assignment = (fieldId: string, order: number, required = true) => ({
@@ -28,10 +28,10 @@ const assignment = (fieldId: string, order: number, required = true) => ({
 
 // Standard Template - For general decisions
 export const STANDARD_TEMPLATE: CreateDecisionTemplate = {
-  namespace: 'core',
-  name: 'Standard Decision',
-  description: 'A general-purpose template for most decisions',
-  category: 'standard',
+  namespace: "core",
+  name: "Standard Decision",
+  description: "A general-purpose template for most decisions",
+  category: "standard",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
     assignment(CORE_FIELD_IDS.CONTEXT, 1),
@@ -44,10 +44,10 @@ export const STANDARD_TEMPLATE: CreateDecisionTemplate = {
 
 // Technology Template - For technical decisions
 export const TECHNOLOGY_TEMPLATE: CreateDecisionTemplate = {
-  namespace: 'core',
-  name: 'Technology Selection',
-  description: 'Template for choosing between technical options or architectures',
-  category: 'technology',
+  namespace: "core",
+  name: "Technology Selection",
+  description: "Template for choosing between technical options or architectures",
+  category: "technology",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
     assignment(CORE_FIELD_IDS.CONTEXT, 1),
@@ -61,10 +61,10 @@ export const TECHNOLOGY_TEMPLATE: CreateDecisionTemplate = {
 
 // Strategy Template - For strategic decisions
 export const STRATEGY_TEMPLATE: CreateDecisionTemplate = {
-  namespace: 'core',
-  name: 'Strategy Decision',
-  description: 'Template for high-level strategic and business decisions',
-  category: 'strategy',
+  namespace: "core",
+  name: "Strategy Decision",
+  description: "Template for high-level strategic and business decisions",
+  category: "strategy",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
     assignment(CORE_FIELD_IDS.CONTEXT, 1),
@@ -80,10 +80,10 @@ export const STRATEGY_TEMPLATE: CreateDecisionTemplate = {
 
 // Budget Template - For financial decisions
 export const BUDGET_TEMPLATE: CreateDecisionTemplate = {
-  namespace: 'core',
-  name: 'Budget Decision',
-  description: 'Template for financial and budget-related decisions',
-  category: 'budget',
+  namespace: "core",
+  name: "Budget Decision",
+  description: "Template for financial and budget-related decisions",
+  category: "budget",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
     assignment(CORE_FIELD_IDS.CONTEXT, 1),
@@ -97,10 +97,10 @@ export const BUDGET_TEMPLATE: CreateDecisionTemplate = {
 
 // Policy Template - For policy and procedural decisions
 export const POLICY_TEMPLATE: CreateDecisionTemplate = {
-  namespace: 'core',
-  name: 'Policy Decision',
-  description: 'Template for creating or modifying policies and procedures',
-  category: 'policy',
+  namespace: "core",
+  name: "Policy Decision",
+  description: "Template for creating or modifying policies and procedures",
+  category: "policy",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
     assignment(CORE_FIELD_IDS.CONTEXT, 1),
@@ -115,10 +115,11 @@ export const POLICY_TEMPLATE: CreateDecisionTemplate = {
 
 // Proposal Template - For evaluating proposals and recommendations
 export const PROPOSAL_TEMPLATE: CreateDecisionTemplate = {
-  namespace: 'core',
-  name: 'Proposal Acceptance',
-  description: 'Template for evaluating and deciding whether to accept proposals, recommendations, or suggestions',
-  category: 'proposal',
+  namespace: "core",
+  name: "Proposal Acceptance",
+  description:
+    "Template for evaluating and deciding whether to accept proposals, recommendations, or suggestions",
+  category: "proposal",
   fields: [
     assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 0),
     assignment(CORE_FIELD_IDS.CONTEXT, 1),

@@ -1,9 +1,9 @@
-import type { TranscriptChunk, DecisionField } from '@repo/schema';
+import type { TranscriptChunk, DecisionField } from "@repo/schema";
 
 export type GuidanceSegment = {
-  fieldId?: string;           // undefined = applies to whole draft
+  fieldId?: string; // undefined = applies to whole draft
   content: string;
-  source: 'user_text' | 'tagged_transcript';
+  source: "user_text" | "tagged_transcript";
 };
 
 export type GenerateDraftParams = {
@@ -15,7 +15,7 @@ export type GenerateDraftParams = {
 
 export type RegenerateFieldParams = GenerateDraftParams & { fieldId: string };
 
-export type DraftResult = Record<string, string>;  // fieldId → value
+export type DraftResult = Record<string, string>; // fieldId → value
 
 export interface ILLMService {
   generateDraft(params: GenerateDraftParams): Promise<DraftResult>;

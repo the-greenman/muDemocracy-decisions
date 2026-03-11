@@ -1,4 +1,4 @@
-import type { ITranscriptionProvider, TranscriptionResult } from './interface.js';
+import type { ITranscriptionProvider, TranscriptionResult } from "./interface.js";
 
 type FetchLike = typeof fetch;
 
@@ -20,7 +20,7 @@ export class LocalWhisperProvider implements ITranscriptionProvider {
     private readonly fetchImpl: FetchLike = fetch,
   ) {
     if (!baseUrl.trim()) {
-      throw new Error('WHISPER_LOCAL_URL is required for the local provider');
+      throw new Error("WHISPER_LOCAL_URL is required for the local provider");
     }
   }
 
@@ -29,14 +29,14 @@ export class LocalWhisperProvider implements ITranscriptionProvider {
     options: { filename: string; language?: string },
   ): Promise<TranscriptionResult> {
     const formData = new FormData();
-    formData.append('audio_file', new Blob([new Uint8Array(audio)]), options.filename);
+    formData.append("audio_file", new Blob([new Uint8Array(audio)]), options.filename);
 
     if (options.language !== undefined) {
-      formData.append('language', options.language);
+      formData.append("language", options.language);
     }
 
-    const response = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, '')}/asr?output=json`, {
-      method: 'POST',
+    const response = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, "")}/asr?output=json`, {
+      method: "POST",
       body: formData,
     });
 
@@ -48,7 +48,7 @@ export class LocalWhisperProvider implements ITranscriptionProvider {
     const payload = (await response.json()) as LocalWhisperResponse;
     const events = (payload.segments ?? [])
       .map((segment, index) => ({
-        text: segment.text?.trim() ?? '',
+        text: segment.text?.trim() ?? "",
         sequenceNumber: index + 1,
         ...(segment.start === undefined ? {} : { startTimeSeconds: segment.start }),
         ...(segment.end === undefined ? {} : { endTimeSeconds: segment.end }),

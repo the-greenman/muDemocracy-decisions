@@ -3,11 +3,11 @@
  * Manages decision templates with field assignments
  */
 
-import type { 
+import type {
   DecisionTemplate,
   CreateDecisionTemplate,
-  TemplateFieldAssignment
-} from '@repo/schema';
+  TemplateFieldAssignment,
+} from "@repo/schema";
 
 export type TemplateFieldAssignmentInsert = {
   templateId: string;
@@ -32,12 +32,12 @@ export interface IDecisionTemplateRepository {
   setDefault(id: string): Promise<DecisionTemplate>;
   update(id: string, data: Partial<CreateDecisionTemplate>): Promise<DecisionTemplate | null>;
   delete(id: string): Promise<boolean>;
-  
+
   // Query operations
   findByCategory(category: string): Promise<DecisionTemplate[]>;
   findByName(name: string): Promise<DecisionTemplate | null>;
   search(query: string): Promise<DecisionTemplate[]>;
-  
+
   // Bulk operations
   createMany(templates: CreateDecisionTemplate[]): Promise<DecisionTemplate[]>;
 }
@@ -47,10 +47,14 @@ export interface ITemplateFieldAssignmentRepository {
   create(data: TemplateFieldAssignmentInsert): Promise<TemplateFieldAssignment>;
   findByTemplateId(templateId: string): Promise<TemplateFieldAssignment[]>;
   findByFieldId(fieldId: string): Promise<TemplateFieldAssignment[]>;
-  update(templateId: string, fieldId: string, data: Partial<TemplateFieldAssignmentInsert>): Promise<TemplateFieldAssignment | null>;
+  update(
+    templateId: string,
+    fieldId: string,
+    data: Partial<TemplateFieldAssignmentInsert>,
+  ): Promise<TemplateFieldAssignment | null>;
   delete(templateId: string, fieldId: string): Promise<boolean>;
   deleteByTemplateId(templateId: string): Promise<boolean>;
-  
+
   // Bulk operations
   createMany(assignments: TemplateFieldAssignmentInsert[]): Promise<TemplateFieldAssignment[]>;
   updateOrder(templateId: string, assignments: { fieldId: string; order: number }[]): Promise<void>;

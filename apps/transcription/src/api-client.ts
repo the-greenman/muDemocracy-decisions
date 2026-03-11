@@ -1,6 +1,6 @@
-import type { TranscriptEvent } from './providers/interface.js';
-import { ApiRequestError } from './stream-delivery.js';
-import { formatSecondsAsTimestamp } from './time.js';
+import type { TranscriptEvent } from "./providers/interface.js";
+import { ApiRequestError } from "./stream-delivery.js";
+import { formatSecondsAsTimestamp } from "./time.js";
 
 type FetchLike = typeof fetch;
 
@@ -26,7 +26,7 @@ export class DecisionLoggerApiClient {
 
   async postStreamEvent(meetingId: string, event: TranscriptEvent): Promise<void> {
     await this.request(`/api/meetings/${meetingId}/transcripts/stream`, {
-      method: 'POST',
+      method: "POST",
       body: {
         text: event.text,
         speaker: event.speaker,
@@ -41,7 +41,7 @@ export class DecisionLoggerApiClient {
 
   async flushStream(meetingId: string): Promise<void> {
     await this.request(`/api/meetings/${meetingId}/streaming/flush`, {
-      method: 'POST',
+      method: "POST",
       body: {},
     });
   }
@@ -51,8 +51,8 @@ export class DecisionLoggerApiClient {
     date: string;
     participants: string[];
   }): Promise<CreateMeetingResponse> {
-    return this.request<CreateMeetingResponse>('/api/meetings', {
-      method: 'POST',
+    return this.request<CreateMeetingResponse>("/api/meetings", {
+      method: "POST",
       body: payload,
     });
   }
@@ -60,37 +60,40 @@ export class DecisionLoggerApiClient {
   async uploadWhisperJson(
     meetingId: string,
     rawResponse: unknown,
-    chunkStrategy: 'fixed' | 'semantic' | 'speaker' | 'streaming' = 'speaker',
+    chunkStrategy: "fixed" | "semantic" | "speaker" | "streaming" = "speaker",
   ): Promise<UploadTranscriptResponse> {
     return this.request<UploadTranscriptResponse>(`/api/meetings/${meetingId}/transcripts/upload`, {
-      method: 'POST',
+      method: "POST",
       body: {
         content: JSON.stringify(rawResponse),
-        format: 'json',
+        format: "json",
         chunkStrategy,
       },
     });
   }
 
   async getTranscriptReading(meetingId: string): Promise<TranscriptReadingResponse> {
-    return this.request<TranscriptReadingResponse>(`/api/meetings/${meetingId}/transcript-reading`, {
-      method: 'GET',
-    });
+    return this.request<TranscriptReadingResponse>(
+      `/api/meetings/${meetingId}/transcript-reading`,
+      {
+        method: "GET",
+      },
+    );
   }
 
   private async request<T>(
     path: string,
     options: {
-      method: 'GET' | 'POST';
+      method: "GET" | "POST";
       body?: Record<string, unknown>;
     },
   ): Promise<T> {
     const headers: Record<string, string> = {
-      'content-type': 'application/json',
+      "content-type": "application/json",
     };
 
     if (this.apiKey !== undefined) {
-      headers['x-api-key'] = this.apiKey;
+      headers["x-api-key"] = this.apiKey;
     }
 
     const requestInit: RequestInit = {
@@ -101,7 +104,7 @@ export class DecisionLoggerApiClient {
       requestInit.body = JSON.stringify(options.body);
     }
 
-    const response = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, '')}${path}`, requestInit);
+    const response = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, "")}${path}`, requestInit);
 
     if (!response.ok) {
       const body = await response.text();
@@ -112,8 +115,8 @@ export class DecisionLoggerApiClient {
       );
     }
 
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
       return undefined as T;
     }
 

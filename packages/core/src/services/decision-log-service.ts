@@ -3,30 +3,33 @@
  * Handles immutable decision recording with business logic
  */
 
-import type { DecisionLog, CreateDecisionLog } from '@repo/schema';
-import type { IDecisionLogRepository } from '../interfaces/i-decision-log-repository.js';
-import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
-import type { IDecisionLogService } from '../interfaces/i-decision-log-service.js';
-import type { IChunkRelevanceRepository } from '../interfaces/transcript-repositories.js';
-import type { IDecisionTemplateRepository, ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository.js';
-import { logger, withContext } from '../logger/index.js';
+import type { DecisionLog, CreateDecisionLog } from "@repo/schema";
+import type { IDecisionLogRepository } from "../interfaces/i-decision-log-repository.js";
+import type { IDecisionContextRepository } from "../interfaces/i-decision-context-repository.js";
+import type { IDecisionLogService } from "../interfaces/i-decision-log-service.js";
+import type { IChunkRelevanceRepository } from "../interfaces/transcript-repositories.js";
+import type {
+  IDecisionTemplateRepository,
+  ITemplateFieldAssignmentRepository,
+} from "../interfaces/i-decision-template-repository.js";
+import { logger, withContext } from "../logger/index.js";
 
-const FIELD_META_KEY = '__fieldMeta';
+const FIELD_META_KEY = "__fieldMeta";
 
 export interface LogDecisionOptions {
   /**
    * The ID of the user logging the decision
    */
   loggedBy: string;
-  
+
   /**
    * The method used to make the decision
    */
   decisionMethod: {
-    type: 'consensus' | 'vote' | 'authority' | 'defer' | 'reject' | 'manual' | 'ai_assisted';
+    type: "consensus" | "vote" | "authority" | "defer" | "reject" | "manual" | "ai_assisted";
     details?: string;
   };
-  
+
   /**
    * Optional additional context for the log entry
    */
@@ -52,46 +55,48 @@ export class DecisionLogService implements IDecisionLogService {
    */
   async logDecision(
     decisionContextId: string,
-    options: LogDecisionOptions
+    options: LogDecisionOptions,
   ): Promise<DecisionLog | null> {
     return withContext(
-      { 
-        operation: 'logDecision',
+      {
+        operation: "logDecision",
         decisionContextId,
-        loggedBy: options.loggedBy 
+        loggedBy: options.loggedBy,
       },
       async () => {
-        logger.info('Logging decision', { 
-          decisionContextId, 
+        logger.info("Logging decision", {
+          decisionContextId,
           loggedBy: options.loggedBy,
-          decisionMethod: options.decisionMethod 
+          decisionMethod: options.decisionMethod,
         });
 
         // Verify the decision context exists and is in a loggable state
         const context = await this.decisionContextRepository.findById(decisionContextId);
         if (!context) {
-          logger.warn('Decision context not found', { decisionContextId });
+          logger.warn("Decision context not found", { decisionContextId });
           return null;
         }
 
-        if (context.status === 'logged') {
-          throw new Error('Decision has already been logged');
+        if (context.status === "logged") {
+          throw new Error("Decision has already been logged");
         }
 
         // Require decision context to be locked before logging
-        if (context.status !== 'locked') {
-          throw new Error('Decision context must be locked before logging');
+        if (context.status !== "locked") {
+          throw new Error("Decision context must be locked before logging");
         }
 
         const template = await this.decisionTemplateRepository.findById(context.templateId);
         if (!template) {
-          throw new Error('Decision template not found');
+          throw new Error("Decision template not found");
         }
 
         const draftFields = Object.fromEntries(
-          Object.entries(context.draftData || {}).filter(([fieldId]) => fieldId !== FIELD_META_KEY)
+          Object.entries(context.draftData || {}).filter(([fieldId]) => fieldId !== FIELD_META_KEY),
         );
-        const templateFields = await this.templateFieldAssignmentRepository.findByTemplateId(context.templateId);
+        const templateFields = await this.templateFieldAssignmentRepository.findByTemplateId(
+          context.templateId,
+        );
         const missingRequiredFields = templateFields
           .filter((field) => field.required)
           .map((field) => field.fieldId)
@@ -100,7 +105,7 @@ export class DecisionLogService implements IDecisionLogService {
             if (value === null || value === undefined) {
               return true;
             }
-            if (typeof value === 'string') {
+            if (typeof value === "string") {
               return value.trim().length === 0;
             }
             if (Array.isArray(value)) {
@@ -110,15 +115,24 @@ export class DecisionLogService implements IDecisionLogService {
           });
 
         if (missingRequiredFields.length > 0) {
-          throw new Error(`Required fields missing: ${missingRequiredFields.join(', ')}`);
+          throw new Error(`Required fields missing: ${missingRequiredFields.join(", ")}`);
         }
 
-        const sourceChunkIds = Array.from(new Set((await Promise.all(
-          Object.keys(draftFields).map(async (fieldId) => {
-            const relevance = await this.chunkRelevanceRepository.findByDecisionField(decisionContextId, fieldId);
-            return relevance.map((entry) => entry.chunkId);
-          })
-        )).flat()));
+        const sourceChunkIds = Array.from(
+          new Set(
+            (
+              await Promise.all(
+                Object.keys(draftFields).map(async (fieldId) => {
+                  const relevance = await this.chunkRelevanceRepository.findByDecisionField(
+                    decisionContextId,
+                    fieldId,
+                  );
+                  return relevance.map((entry) => entry.chunkId);
+                }),
+              )
+            ).flat(),
+          ),
+        );
 
         // Create the decision log entry
         const createData: CreateDecisionLog = {
@@ -133,15 +147,15 @@ export class DecisionLogService implements IDecisionLogService {
         };
 
         const decisionLog = await this.decisionLogRepository.create(createData);
-        await this.decisionContextRepository.updateStatus(decisionContextId, 'logged');
+        await this.decisionContextRepository.updateStatus(decisionContextId, "logged");
 
-        logger.info('Decision logged successfully', { 
+        logger.info("Decision logged successfully", {
           decisionLogId: decisionLog.id,
-          decisionContextId 
+          decisionContextId,
         });
 
         return decisionLog;
-      }
+      },
     );
   }
 
@@ -149,14 +163,14 @@ export class DecisionLogService implements IDecisionLogService {
    * Retrieves a decision log by ID
    */
   async getDecisionLog(id: string): Promise<DecisionLog | null> {
-    logger.debug('Retrieving decision log', { id });
-    
+    logger.debug("Retrieving decision log", { id });
+
     const decisionLog = await this.decisionLogRepository.findById(id);
-    
+
     if (!decisionLog) {
-      logger.debug('Decision log not found', { id });
+      logger.debug("Decision log not found", { id });
     }
-    
+
     return decisionLog;
   }
 
@@ -164,15 +178,15 @@ export class DecisionLogService implements IDecisionLogService {
    * Gets all decision logs for a meeting
    */
   async getMeetingDecisionLogs(meetingId: string): Promise<DecisionLog[]> {
-    logger.debug('Retrieving decision logs for meeting', { meetingId });
-    
+    logger.debug("Retrieving decision logs for meeting", { meetingId });
+
     const logs = await this.decisionLogRepository.findByMeetingId(meetingId);
-    
-    logger.debug('Retrieved meeting decision logs', { 
-      meetingId, 
-      count: logs.length 
+
+    logger.debug("Retrieved meeting decision logs", {
+      meetingId,
+      count: logs.length,
     });
-    
+
     return logs;
   }
 
@@ -180,15 +194,15 @@ export class DecisionLogService implements IDecisionLogService {
    * Gets all decision logs for a specific decision context
    */
   async getDecisionContextLogs(decisionContextId: string): Promise<DecisionLog[]> {
-    logger.debug('Retrieving decision logs for context', { decisionContextId });
-    
+    logger.debug("Retrieving decision logs for context", { decisionContextId });
+
     const logs = await this.decisionLogRepository.findByDecisionContextId(decisionContextId);
-    
-    logger.debug('Retrieved context decision logs', { 
-      decisionContextId, 
-      count: logs.length 
+
+    logger.debug("Retrieved context decision logs", {
+      decisionContextId,
+      count: logs.length,
     });
-    
+
     return logs;
   }
 
@@ -196,38 +210,35 @@ export class DecisionLogService implements IDecisionLogService {
    * Gets all decision logs logged by a specific user
    */
   async getUserDecisionLogs(loggedBy: string): Promise<DecisionLog[]> {
-    logger.debug('Retrieving decision logs for user', { loggedBy });
-    
+    logger.debug("Retrieving decision logs for user", { loggedBy });
+
     const logs = await this.decisionLogRepository.findByLoggedBy(loggedBy);
-    
-    logger.debug('Retrieved user decision logs', { 
-      loggedBy, 
-      count: logs.length 
+
+    logger.debug("Retrieved user decision logs", {
+      loggedBy,
+      count: logs.length,
     });
-    
+
     return logs;
   }
 
   /**
    * Gets decision logs within a date range
    */
-  async getDecisionLogsByDateRange(
-    startDate: Date, 
-    endDate: Date
-  ): Promise<DecisionLog[]> {
-    logger.debug('Retrieving decision logs by date range', { 
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-    
-    const logs = await this.decisionLogRepository.findByDateRange(startDate, endDate);
-    
-    logger.debug('Retrieved decision logs by date range', { 
+  async getDecisionLogsByDateRange(startDate: Date, endDate: Date): Promise<DecisionLog[]> {
+    logger.debug("Retrieving decision logs by date range", {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      count: logs.length
     });
-    
+
+    const logs = await this.decisionLogRepository.findByDateRange(startDate, endDate);
+
+    logger.debug("Retrieved decision logs by date range", {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      count: logs.length,
+    });
+
     return logs;
   }
 
@@ -239,34 +250,33 @@ export class DecisionLogService implements IDecisionLogService {
     decisionsByMethod: Record<string, number>;
     decisionsByUser: Record<string, number>;
   }> {
-    logger.debug('Getting decision statistics for meeting', { meetingId });
-    
+    logger.debug("Getting decision statistics for meeting", { meetingId });
+
     const logs = await this.decisionLogRepository.findByMeetingId(meetingId);
-    
+
     const decisionsByMethod: Record<string, number> = {};
     const decisionsByUser: Record<string, number> = {};
-    
-    logs.forEach(log => {
+
+    logs.forEach((log) => {
       // Count by decision method
-      decisionsByMethod[log.decisionMethod.type] = 
+      decisionsByMethod[log.decisionMethod.type] =
         (decisionsByMethod[log.decisionMethod.type] || 0) + 1;
-      
+
       // Count by user
-      decisionsByUser[log.loggedBy] = 
-        (decisionsByUser[log.loggedBy] || 0) + 1;
+      decisionsByUser[log.loggedBy] = (decisionsByUser[log.loggedBy] || 0) + 1;
     });
-    
+
     const stats = {
       totalDecisions: logs.length,
       decisionsByMethod,
       decisionsByUser,
     };
-    
-    logger.debug('Generated decision statistics', { 
-      meetingId, 
-      totalDecisions: stats.totalDecisions 
+
+    logger.debug("Generated decision statistics", {
+      meetingId,
+      totalDecisions: stats.totalDecisions,
     });
-    
+
     return stats;
   }
 }

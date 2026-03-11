@@ -1,4 +1,4 @@
-import type { SupplementaryContent, CreateSupplementaryContent } from '@repo/schema';
+import type { SupplementaryContent, CreateSupplementaryContent } from "@repo/schema";
 
 export interface ISupplementaryContentRepository {
   create(data: CreateSupplementaryContent): Promise<SupplementaryContent>;

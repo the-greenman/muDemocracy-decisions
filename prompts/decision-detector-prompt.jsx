@@ -9,10 +9,10 @@ const CATEGORIES = [
     border: "rgba(74, 222, 128, 0.25)",
     description: "Explicit agreement reached. Both parties have converged.",
     signals: [
-      "Affirmative closure after exchange: \"Good, good.\" / \"Yeah, yeah.\" / \"That's it.\"",
+      'Affirmative closure after exchange: "Good, good." / "Yeah, yeah." / "That\'s it."',
       "One speaker restates the point as settled fact and moves on",
-      "Explicit named commitment: \"So we're saying…\" / \"That's baked in\"",
-      "Conditional resolution: \"As long as X, then Y\"",
+      'Explicit named commitment: "So we\'re saying…" / "That\'s baked in"',
+      'Conditional resolution: "As long as X, then Y"',
     ],
     flag: "The decision statement · Who affirmed it · Any stated conditions or exceptions",
   },
@@ -38,12 +38,11 @@ const CATEGORIES = [
     color: "#818cf8",
     bg: "rgba(129, 140, 248, 0.08)",
     border: "rgba(129, 140, 248, 0.25)",
-    description:
-      "Topic raised but unresolved. No convergence reached. Not yet a decision.",
+    description: "Topic raised but unresolved. No convergence reached. Not yet a decision.",
     signals: [
-      "Trailing language: \"Something about…\" / \"I don't know if…\" / \"I'm just thinking…\"",
+      'Trailing language: "Something about…" / "I don\'t know if…" / "I\'m just thinking…"',
       "Questions that remain questions at the end of a thread",
-      "Explicit deferral: \"That's tomorrow work\" / \"We'll come back to that\"",
+      'Explicit deferral: "That\'s tomorrow work" / "We\'ll come back to that"',
       "Topic returns multiple times without landing",
       "Both sides named without a resolution direction",
     ],
@@ -133,7 +132,7 @@ export default function DecisionDetector() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      console.error("Failed to copy:", err);
       // Could show an error message to the user here
     }
   };
@@ -191,8 +190,8 @@ export default function DecisionDetector() {
               fontFamily: "monospace",
             }}
           >
-            Identifies decisions, implicit decisions, and not-yet-ready
-            explorations in unstructured conversation.
+            Identifies decisions, implicit decisions, and not-yet-ready explorations in unstructured
+            conversation.
           </p>
 
           {/* Tabs */}
@@ -204,13 +203,8 @@ export default function DecisionDetector() {
                 style={{
                   background: "none",
                   border: "none",
-                  borderBottom: `2px solid ${
-                    activeTab === tab.id
-                      ? "#4ade80"
-                      : "transparent"
-                  }`,
-                  color:
-                    activeTab === tab.id ? "#f1f5f9" : "#64748b",
+                  borderBottom: `2px solid ${activeTab === tab.id ? "#4ade80" : "transparent"}`,
+                  color: activeTab === tab.id ? "#f1f5f9" : "#64748b",
                   padding: "0.6rem 1.2rem",
                   fontSize: "0.8rem",
                   fontFamily: "monospace",
@@ -229,7 +223,6 @@ export default function DecisionDetector() {
 
       {/* Content */}
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "2.5rem" }}>
-
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div>
@@ -242,20 +235,16 @@ export default function DecisionDetector() {
                 fontFamily: "monospace",
               }}
             >
-              This prompt gives an AI model the pattern-recognition framework to
-              classify conversation fragments in real-time or post-hoc. Three
-              categories. One disambiguation rule. A consistent output structure.
+              This prompt gives an AI model the pattern-recognition framework to classify
+              conversation fragments in real-time or post-hoc. Three categories. One disambiguation
+              rule. A consistent output structure.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               {CATEGORIES.map((cat) => (
                 <div
                   key={cat.id}
-                  onClick={() =>
-                    setExpandedCategory(
-                      expandedCategory === cat.id ? null : cat.id
-                    )
-                  }
+                  onClick={() => setExpandedCategory(expandedCategory === cat.id ? null : cat.id)}
                   style={{
                     background: expandedCategory === cat.id ? cat.bg : "rgba(255,255,255,0.02)",
                     border: `1px solid ${
@@ -302,10 +291,7 @@ export default function DecisionDetector() {
                         color: "#475569",
                         fontSize: "1.2rem",
                         transition: "transform 0.2s",
-                        transform:
-                          expandedCategory === cat.id
-                            ? "rotate(45deg)"
-                            : "none",
+                        transform: expandedCategory === cat.id ? "rotate(45deg)" : "none",
                       }}
                     >
                       +
@@ -409,10 +395,8 @@ export default function DecisionDetector() {
                 }}
               >
                 The hardest distinction is{" "}
-                <span style={{ color: "#e2e8f0" }}>
-                  EXPLORATION vs IMPLICIT DECISION
-                </span>
-                . Both can look like statements. Apply this test:
+                <span style={{ color: "#e2e8f0" }}>EXPLORATION vs IMPLICIT DECISION</span>. Both can
+                look like statements. Apply this test:
               </p>
               <div
                 style={{
@@ -427,13 +411,10 @@ export default function DecisionDetector() {
               >
                 Does this statement foreclose a future option?
                 <br />
-                <span style={{ color: "#fb923c" }}>→ YES</span> — flag as
-                IMPLICIT DECISION
+                <span style={{ color: "#fb923c" }}>→ YES</span> — flag as IMPLICIT DECISION
                 <br />
-                <span style={{ color: "#818cf8" }}>
-                  → NO (opens or circles)
-                </span>{" "}
-                — flag as EXPLORATION
+                <span style={{ color: "#818cf8" }}>→ NO (opens or circles)</span> — flag as
+                EXPLORATION
               </div>
             </div>
           </div>
@@ -463,13 +444,9 @@ export default function DecisionDetector() {
               <button
                 onClick={handleCopy}
                 style={{
-                  background: copied
-                    ? "rgba(74, 222, 128, 0.15)"
-                    : "rgba(255,255,255,0.05)",
+                  background: copied ? "rgba(74, 222, 128, 0.15)" : "rgba(255,255,255,0.05)",
                   border: `1px solid ${
-                    copied
-                      ? "rgba(74, 222, 128, 0.4)"
-                      : "rgba(255,255,255,0.1)"
+                    copied ? "rgba(74, 222, 128, 0.4)" : "rgba(255,255,255,0.1)"
                   }`,
                   color: copied ? "#4ade80" : "#94a3b8",
                   padding: "0.5rem 1rem",
@@ -523,10 +500,10 @@ export default function DecisionDetector() {
                       color: isHeading
                         ? "#f1f5f9"
                         : isSeparator
-                        ? "#334155"
-                        : isSubheading
-                        ? "#818cf8"
-                        : undefined,
+                          ? "#334155"
+                          : isSubheading
+                            ? "#818cf8"
+                            : undefined,
                       display: "block",
                     }}
                   >
@@ -550,7 +527,8 @@ export default function DecisionDetector() {
                 marginBottom: "2rem",
               }}
             >
-              Linguistic and structural patterns that indicate each category. These are the core recognitions the model needs to internalise.
+              Linguistic and structural patterns that indicate each category. These are the core
+              recognitions the model needs to internalise.
             </p>
 
             {CATEGORIES.map((cat) => (

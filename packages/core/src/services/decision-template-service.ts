@@ -3,31 +3,31 @@
  * Manages decision templates and their field assignments
  */
 
-import type { 
+import type {
   DecisionTemplate,
   CreateDecisionTemplate,
   TemplateFieldAssignment,
-  CreateTemplateFieldAssignment
-} from '@repo/schema';
-import type { IDecisionTemplateService } from '../interfaces/i-decision-template-service';
+  CreateTemplateFieldAssignment,
+} from "@repo/schema";
+import type { IDecisionTemplateService } from "../interfaces/i-decision-template-service";
 import type {
   IDecisionTemplateRepository,
   ITemplateFieldAssignmentRepository,
   TemplateFieldAssignmentInsert,
   DecisionTemplateIdentityLookup,
-} from '../interfaces/i-decision-template-repository';
+} from "../interfaces/i-decision-template-repository";
 
 export class DecisionTemplateService implements IDecisionTemplateService {
   constructor(
     private templateRepository: IDecisionTemplateRepository,
-    private fieldAssignmentRepository: ITemplateFieldAssignmentRepository
+    private fieldAssignmentRepository: ITemplateFieldAssignmentRepository,
   ) {}
 
   async createTemplate(data: CreateDecisionTemplate): Promise<DecisionTemplate> {
     // Validate template definition
     const isValid = await this.validateTemplateDefinition(data);
     if (!isValid) {
-      throw new Error('Invalid template definition');
+      throw new Error("Invalid template definition");
     }
 
     // Create template without fields first
@@ -39,16 +39,16 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
     // If fields are provided, create them
     if (fields && fields.length > 0) {
-      const fieldAssignments: TemplateFieldAssignmentInsert[] = fields.map(field => ({
+      const fieldAssignments: TemplateFieldAssignmentInsert[] = fields.map((field) => ({
         fieldId: field.fieldId,
         order: field.order,
         required: field.required,
         templateId: template.id,
       }));
       await this.fieldAssignmentRepository.createMany(fieldAssignments);
-      
+
       // Return template with fields
-      return await this.templateRepository.findById(template.id) as DecisionTemplate;
+      return (await this.templateRepository.findById(template.id)) as DecisionTemplate;
     }
 
     return template;
@@ -59,7 +59,9 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     return template;
   }
 
-  async getTemplateByIdentity(identity: DecisionTemplateIdentityLookup): Promise<DecisionTemplate | null> {
+  async getTemplateByIdentity(
+    identity: DecisionTemplateIdentityLookup,
+  ): Promise<DecisionTemplate | null> {
     const template = await this.templateRepository.findByIdentity(identity);
     return template;
   }
@@ -75,13 +77,16 @@ export class DecisionTemplateService implements IDecisionTemplateService {
   async setDefaultTemplate(id: string): Promise<DecisionTemplate> {
     const template = await this.templateRepository.findById(id);
     if (!template) {
-      throw new Error('Template not found');
+      throw new Error("Template not found");
     }
 
     return await this.templateRepository.setDefault(id);
   }
 
-  async updateTemplate(id: string, data: Partial<CreateDecisionTemplate>): Promise<DecisionTemplate | null> {
+  async updateTemplate(
+    id: string,
+    data: Partial<CreateDecisionTemplate>,
+  ): Promise<DecisionTemplate | null> {
     // Get existing template
     const existing = await this.templateRepository.findById(id);
     if (!existing) {
@@ -92,7 +97,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     const updatedData = { ...existing, ...data };
     const isValid = await this.validateTemplateDefinition(updatedData as CreateDecisionTemplate);
     if (!isValid) {
-      throw new Error('Invalid template definition');
+      throw new Error("Invalid template definition");
     }
 
     // Update template
@@ -103,10 +108,10 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     if (fields) {
       // Delete existing field assignments
       await this.fieldAssignmentRepository.deleteByTemplateId(id);
-      
+
       // Create new field assignments
       if (fields.length > 0) {
-        const fieldAssignments: TemplateFieldAssignmentInsert[] = fields.map(field => ({
+        const fieldAssignments: TemplateFieldAssignmentInsert[] = fields.map((field) => ({
           fieldId: field.fieldId,
           order: field.order,
           required: field.required,
@@ -114,9 +119,9 @@ export class DecisionTemplateService implements IDecisionTemplateService {
         }));
         await this.fieldAssignmentRepository.createMany(fieldAssignments);
       }
-      
+
       // Return updated template with fields
-      return await this.templateRepository.findById(id) as DecisionTemplate;
+      return (await this.templateRepository.findById(id)) as DecisionTemplate;
     }
 
     return template;
@@ -131,7 +136,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
     // Check if it's the default template
     if (template.isDefault) {
-      throw new Error('Cannot delete the default template');
+      throw new Error("Cannot delete the default template");
     }
 
     // Delete field assignments first
@@ -152,24 +157,24 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
   async getTemplateCategories(): Promise<string[]> {
     const templates = await this.templateRepository.findAll();
-    const categories = [...new Set(templates.map(t => t.category))].sort();
+    const categories = [...new Set(templates.map((t) => t.category))].sort();
     return categories;
   }
 
   async addFieldToTemplate(
     templateId: string,
-    assignment: CreateTemplateFieldAssignment
+    assignment: CreateTemplateFieldAssignment,
   ): Promise<TemplateFieldAssignment> {
     // Check if template exists
     const template = await this.templateRepository.findById(templateId);
     if (!template) {
-      throw new Error('Template not found');
+      throw new Error("Template not found");
     }
 
     // Check if field already exists in template
     const existing = await this.fieldAssignmentRepository.findByTemplateId(templateId);
-    if (existing.some(a => a.fieldId === assignment.fieldId)) {
-      throw new Error('Field already exists in template');
+    if (existing.some((a) => a.fieldId === assignment.fieldId)) {
+      throw new Error("Field already exists in template");
     }
 
     // Add field assignment
@@ -194,7 +199,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
   async updateFieldAssignment(
     templateId: string,
     fieldId: string,
-    data: Partial<CreateTemplateFieldAssignment>
+    data: Partial<CreateTemplateFieldAssignment>,
   ): Promise<TemplateFieldAssignment | null> {
     const updateData: Partial<TemplateFieldAssignmentInsert> = {};
 
@@ -217,12 +222,12 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
   async reorderTemplateFields(
     templateId: string,
-    fieldOrders: { fieldId: string; order: number }[]
+    fieldOrders: { fieldId: string; order: number }[],
   ): Promise<void> {
     // Validate all field IDs exist in template
     const existingFields = await this.fieldAssignmentRepository.findByTemplateId(templateId);
-    const existingFieldIds = new Set(existingFields.map(f => f.fieldId));
-    
+    const existingFieldIds = new Set(existingFields.map((f) => f.fieldId));
+
     for (const { fieldId } of fieldOrders) {
       if (!existingFieldIds.has(fieldId)) {
         throw new Error(`Field ${fieldId} not found in template`);
@@ -234,18 +239,18 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
   async createTemplateWithFields(
     templateData: CreateDecisionTemplate,
-    fieldAssignments: CreateTemplateFieldAssignment[]
+    fieldAssignments: CreateTemplateFieldAssignment[],
   ): Promise<DecisionTemplate> {
     // Validate template
     const isValid = await this.validateTemplateDefinition(templateData);
     if (!isValid) {
-      throw new Error('Invalid template definition');
+      throw new Error("Invalid template definition");
     }
 
     // Validate field assignments
     const areFieldsValid = await this.validateFieldAssignments(fieldAssignments);
     if (!areFieldsValid) {
-      throw new Error('Invalid field assignments');
+      throw new Error("Invalid field assignments");
     }
 
     // Create template
@@ -253,7 +258,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
     // Create field assignments
     if (fieldAssignments.length > 0) {
-      const assignments: TemplateFieldAssignmentInsert[] = fieldAssignments.map(field => ({
+      const assignments: TemplateFieldAssignmentInsert[] = fieldAssignments.map((field) => ({
         fieldId: field.fieldId,
         order: field.order,
         required: field.required,
@@ -263,7 +268,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     }
 
     // Return template with fields
-    return await this.templateRepository.findById(template.id) as DecisionTemplate;
+    return (await this.templateRepository.findById(template.id)) as DecisionTemplate;
   }
 
   async validateTemplateDefinition(template: CreateDecisionTemplate): Promise<boolean> {
@@ -281,7 +286,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     }
 
     // Validate category is one of the allowed values
-    const validCategories = ['standard', 'technology', 'strategy', 'budget', 'policy', 'proposal'];
+    const validCategories = ["standard", "technology", "strategy", "budget", "policy", "proposal"];
     if (!validCategories.includes(template.category)) {
       return false;
     }
@@ -289,7 +294,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
     // Validate fields if provided
     if (template.fields) {
       // Check for duplicate field IDs
-      const fieldIds = template.fields.map(f => f.fieldId);
+      const fieldIds = template.fields.map((f) => f.fieldId);
       const uniqueFieldIds = new Set(fieldIds);
       if (fieldIds.length !== uniqueFieldIds.size) {
         return false;
@@ -309,7 +314,7 @@ export class DecisionTemplateService implements IDecisionTemplateService {
 
   async validateFieldAssignments(assignments: CreateTemplateFieldAssignment[]): Promise<boolean> {
     // Check for duplicate field IDs
-    const fieldIds = assignments.map(a => a.fieldId);
+    const fieldIds = assignments.map((a) => a.fieldId);
     const uniqueFieldIds = new Set(fieldIds);
     if (fieldIds.length !== uniqueFieldIds.size) {
       return false;

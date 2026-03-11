@@ -1,4 +1,9 @@
-import type { ILLMService, GenerateDraftParams, RegenerateFieldParams, DraftResult } from './i-llm-service';
+import type {
+  ILLMService,
+  GenerateDraftParams,
+  RegenerateFieldParams,
+  DraftResult,
+} from "./i-llm-service";
 
 /**
  * Deterministic mock LLM service for unit tests.
@@ -8,10 +13,12 @@ export class MockLLMService implements ILLMService {
   private draftResponse: DraftResult;
   private fieldResponses: Map<string, string>;
 
-  constructor(options: {
-    draftResponse?: DraftResult;
-    fieldResponses?: Record<string, string>;
-  } = {}) {
+  constructor(
+    options: {
+      draftResponse?: DraftResult;
+      fieldResponses?: Record<string, string>;
+    } = {},
+  ) {
     this.draftResponse = options.draftResponse ?? {};
     this.fieldResponses = new Map(Object.entries(options.fieldResponses ?? {}));
   }
@@ -25,7 +32,9 @@ export class MockLLMService implements ILLMService {
   }
 
   async regenerateField(params: RegenerateFieldParams): Promise<string> {
-    return this.fieldResponses.get(params.fieldId) ?? `Mock regenerated value for ${params.fieldId}`;
+    return (
+      this.fieldResponses.get(params.fieldId) ?? `Mock regenerated value for ${params.fieldId}`
+    );
   }
 
   /**

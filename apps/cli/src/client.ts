@@ -1,33 +1,36 @@
-import { logHttpRequest, logHttpResponse } from './runtime.js';
+import { logHttpRequest, logHttpResponse } from "./runtime.js";
 
-const BASE_URL = process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? 'http://localhost:3001';
+const BASE_URL =
+  process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? "http://localhost:3001";
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const init: RequestInit = { method };
   if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' };
+    init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(body);
   }
   logHttpRequest(method, url, body);
   const res = await fetch(url, init);
   if (!res.ok) {
-    const payload = await res.json().catch(() => ({ error: res.statusText })) as { error?: string };
+    const payload = (await res.json().catch(() => ({ error: res.statusText }))) as {
+      error?: string;
+    };
     await logHttpResponse(res.status, url, payload);
     throw new Error(payload.error ?? `HTTP ${res.status} ${res.statusText}`);
   }
   if (res.status === 204) return undefined as T;
-  const payload = await res.json() as T;
+  const payload = (await res.json()) as T;
   await logHttpResponse(res.status, url, payload);
   return payload;
 }
 
 export const api = {
-  get:    <T>(path: string)                    => request<T>('GET',    path),
-  post:   <T>(path: string, body?: unknown)    => request<T>('POST',   path, body),
-  put:    <T>(path: string, body?: unknown)    => request<T>('PUT',    path, body),
-  patch:  <T>(path: string, body: unknown)     => request<T>('PATCH',  path, body),
-  delete: <T>(path: string, body?: unknown)    => request<T>('DELETE', path, body),
+  get: <T>(path: string) => request<T>("GET", path),
+  post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
+  put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
+  patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
+  delete: <T>(path: string, body?: unknown) => request<T>("DELETE", path, body),
 };
 
 export interface GlobalContext {
@@ -117,41 +120,44 @@ export interface DecisionLog {
 }
 
 export interface DecisionExportResponse {
-  format: 'json' | 'markdown';
+  format: "json" | "markdown";
   content: DecisionLog | string;
 }
 
 export interface ApiStatusResponse {
-  status: 'ok';
+  status: "ok";
   timestamp: string;
   nodeEnv: string;
   databaseConfigured: boolean;
   llm: {
-    mode: 'mock' | 'real';
+    mode: "mock" | "real";
     provider: string;
     model: string;
   };
 }
 
 export async function getContext(): Promise<GlobalContext> {
-  return api.get<GlobalContext>('/api/context');
+  return api.get<GlobalContext>("/api/context");
 }
 
 export async function requireActiveMeeting(): Promise<string> {
   const ctx = await getContext();
   if (!ctx.activeMeetingId) {
-    throw new Error('No active meeting. Run: context set-meeting <id>');
+    throw new Error("No active meeting. Run: context set-meeting <id>");
   }
   return ctx.activeMeetingId;
 }
 
-export async function requireActiveDecisionContext(): Promise<{ contextId: string; meetingId: string }> {
+export async function requireActiveDecisionContext(): Promise<{
+  contextId: string;
+  meetingId: string;
+}> {
   const ctx = await getContext();
   if (!ctx.activeDecisionContextId) {
-    throw new Error('No active decision context. Run: context set-decision <flagged-decision-id>');
+    throw new Error("No active decision context. Run: context set-decision <flagged-decision-id>");
   }
   if (!ctx.activeMeetingId) {
-    throw new Error('No active meeting. Run: context set-meeting <id>');
+    throw new Error("No active meeting. Run: context set-meeting <id>");
   }
   return { contextId: ctx.activeDecisionContextId, meetingId: ctx.activeMeetingId };
 }

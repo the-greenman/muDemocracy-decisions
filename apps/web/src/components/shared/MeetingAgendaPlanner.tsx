@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react';
-import { ClipboardList, Link2, Trash2, Plus, ArrowUp, ArrowDown } from 'lucide-react';
-import { OpenContextPicker } from '@/components/shared/OpenContextPicker';
-import { AgendaList } from '@/components/shared/AgendaList';
-import { Panel } from '@/components/ui/Panel';
-import { TabButton } from '@/components/ui/Tabs';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { IconButton } from '@/components/ui/IconButton';
-import type { OpenContextSummary } from '@/lib/mock-data';
+import { useMemo, useState } from "react";
+import { ClipboardList, Link2, Trash2, Plus, ArrowUp, ArrowDown } from "lucide-react";
+import { OpenContextPicker } from "@/components/shared/OpenContextPicker";
+import { AgendaList } from "@/components/shared/AgendaList";
+import { Panel } from "@/components/ui/Panel";
+import { TabButton } from "@/components/ui/Tabs";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
+import type { OpenContextSummary } from "@/lib/mock-data";
 
 interface MeetingAgendaPlannerProps {
   manualAgendaItems: string[];
@@ -15,7 +15,7 @@ interface MeetingAgendaPlannerProps {
   onDraftManualAgendaItemChange: (value: string) => void;
   onAddManualAgendaItem: () => void;
   onRemoveManualAgendaItem: (value: string) => void;
-  onMoveManualAgendaItem: (value: string, direction: 'up' | 'down') => void;
+  onMoveManualAgendaItem: (value: string, direction: "up" | "down") => void;
   selectedContextIds: string[];
   onSelectedContextIdsChange: (ids: string[]) => void;
   contexts: OpenContextSummary[];
@@ -34,7 +34,7 @@ export function MeetingAgendaPlanner({
   contexts,
   currentMeeting,
 }: MeetingAgendaPlannerProps) {
-  const [agendaTab, setAgendaTab] = useState<'manual' | 'open-contexts'>('manual');
+  const [agendaTab, setAgendaTab] = useState<"manual" | "open-contexts">("manual");
 
   const selectedOpenContexts = useMemo(
     () => contexts.filter((ctx) => selectedContextIds.includes(ctx.id)),
@@ -45,15 +45,19 @@ export function MeetingAgendaPlanner({
     <>
       <Panel title="Decision agenda" className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <TabButton active={agendaTab === 'manual'} onClick={() => setAgendaTab('manual')} compact>
+          <TabButton active={agendaTab === "manual"} onClick={() => setAgendaTab("manual")} compact>
             Agenda items
           </TabButton>
-          <TabButton active={agendaTab === 'open-contexts'} onClick={() => setAgendaTab('open-contexts')} compact>
+          <TabButton
+            active={agendaTab === "open-contexts"}
+            onClick={() => setAgendaTab("open-contexts")}
+            compact
+          >
             Browse open contexts
           </TabButton>
         </div>
 
-        {agendaTab === 'manual' ? (
+        {agendaTab === "manual" ? (
           <div className="flex flex-col gap-2">
             <div className="flex gap-2">
               <Input
@@ -61,7 +65,7 @@ export function MeetingAgendaPlanner({
                 placeholder="Agenda item title..."
                 value={draftManualAgendaItem}
                 onChange={(e) => onDraftManualAgendaItemChange(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onAddManualAgendaItem()}
+                onKeyDown={(e) => e.key === "Enter" && onAddManualAgendaItem()}
                 inputSize="sm"
                 className="flex-1"
               />
@@ -77,10 +81,17 @@ export function MeetingAgendaPlanner({
             </div>
             <div className="flex flex-col gap-2">
               {manualAgendaItems.map((item) => (
-                <div key={item} className="flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-overlay/60">
+                <div
+                  key={item}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-overlay/60"
+                >
                   <ClipboardList size={13} className="text-text-muted" />
                   <span className="text-fac-meta text-text-primary flex-1">{item}</span>
-                  <IconButton onClick={() => onRemoveManualAgendaItem(item)} tone="danger" className="w-7 h-7 border-0">
+                  <IconButton
+                    onClick={() => onRemoveManualAgendaItem(item)}
+                    tone="danger"
+                    className="w-7 h-7 border-0"
+                  >
                     <Trash2 size={13} />
                   </IconButton>
                 </div>
@@ -104,7 +115,8 @@ export function MeetingAgendaPlanner({
       <Panel title="Agenda overview" className="lg:col-span-2">
         {manualAgendaItems.length === 0 && selectedOpenContexts.length === 0 ? (
           <p className="text-fac-meta text-text-muted mt-1">
-            Add agenda items or existing contexts to shape meeting flow before opening a decision workspace.
+            Add agenda items or existing contexts to shape meeting flow before opening a decision
+            workspace.
           </p>
         ) : (
           <AgendaList
@@ -112,26 +124,26 @@ export function MeetingAgendaPlanner({
               ...manualAgendaItems.map((item) => ({
                 id: `manual-${item}`,
                 title: `${item} (candidate — promotion required)`,
-                status: 'pending' as const,
+                status: "pending" as const,
               })),
               ...selectedOpenContexts.map((ctx) => ({
                 id: `ctx-${ctx.id}`,
                 title: `${ctx.title} (open context)`,
-                status: ctx.status === 'deferred' ? 'deferred' as const : 'drafted' as const,
+                status: ctx.status === "deferred" ? ("deferred" as const) : ("drafted" as const),
               })),
             ]}
             renderItemActions={(item, index) => {
-              if (!item.id.startsWith('manual-')) return null;
+              if (!item.id.startsWith("manual-")) return null;
 
               const canMoveUp = index > 0;
               const manualLastIndex = manualAgendaItems.length - 1;
               const canMoveDown = index < manualLastIndex;
-              const manualValue = item.id.replace('manual-', '');
+              const manualValue = item.id.replace("manual-", "");
 
               return (
                 <>
                   <IconButton
-                    onClick={() => onMoveManualAgendaItem(manualValue, 'up')}
+                    onClick={() => onMoveManualAgendaItem(manualValue, "up")}
                     disabled={!canMoveUp}
                     className="w-7 h-7"
                     aria-label={`Move ${item.title} up`}
@@ -139,7 +151,7 @@ export function MeetingAgendaPlanner({
                     <ArrowUp size={12} />
                   </IconButton>
                   <IconButton
-                    onClick={() => onMoveManualAgendaItem(manualValue, 'down')}
+                    onClick={() => onMoveManualAgendaItem(manualValue, "down")}
                     disabled={!canMoveDown}
                     className="w-7 h-7"
                     aria-label={`Move ${item.title} down`}
@@ -153,12 +165,14 @@ export function MeetingAgendaPlanner({
         )}
         {manualAgendaItems.length > 0 && (
           <p className="mt-2 text-fac-meta text-text-muted">
-            Items labelled “candidate” are sent to Suggested queue and require promotion before entering the decision agenda.
+            Items labelled “candidate” are sent to Suggested queue and require promotion before
+            entering the decision agenda.
           </p>
         )}
         <div className="mt-3 flex items-center gap-2 text-fac-meta text-text-muted">
           <Link2 size={13} />
-          Cross-meeting context linking is applied when open contexts are attached in facilitator workspace.
+          Cross-meeting context linking is applied when open contexts are attached in facilitator
+          workspace.
         </div>
       </Panel>
     </>

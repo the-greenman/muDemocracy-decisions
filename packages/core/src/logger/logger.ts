@@ -2,10 +2,10 @@
  * Structured logger with correlation context and redaction
  */
 
-import pino, { type Logger as PinoLogger } from 'pino';
-import type { LogContext, LoggerConfig, LogLevel } from './types.js';
-import { DEFAULT_REDACT_FIELDS } from './types.js';
-import { getContext, getCorrelationId } from './context.js';
+import pino, { type Logger as PinoLogger } from "pino";
+import type { LogContext, LoggerConfig, LogLevel } from "./types.js";
+import { DEFAULT_REDACT_FIELDS } from "./types.js";
+import { getContext, getCorrelationId } from "./context.js";
 
 export class Logger {
   private pino: PinoLogger;
@@ -13,10 +13,10 @@ export class Logger {
 
   constructor(config: Partial<LoggerConfig> = {}) {
     const {
-      level = 'info',
-      prettyPrint = process.env.NODE_ENV !== 'production',
+      level = "info",
+      prettyPrint = process.env.NODE_ENV !== "production",
       redactFields = DEFAULT_REDACT_FIELDS,
-      service = 'decision-logger',
+      service = "decision-logger",
     } = config;
 
     this.serviceName = service;
@@ -31,31 +31,31 @@ export class Logger {
           if (correlationId) {
             object.correlationId = correlationId;
           }
-          
+
           // Add service name
           object.service = this.serviceName;
-          
+
           // Add timestamp if not present
           if (!object.timestamp) {
             object.timestamp = new Date().toISOString();
           }
-          
+
           return object;
         },
       },
       redact: {
-        paths: redactFields.map(field => `*.${field}`),
-        censor: '[REDACTED]',
+        paths: redactFields.map((field) => `*.${field}`),
+        censor: "[REDACTED]",
       },
     };
 
     if (prettyPrint) {
       pinoConfig.transport = {
-        target: 'pino-pretty',
+        target: "pino-pretty",
         options: {
           colorize: true,
-          translateTime: 'HH:MM:ss Z',
-          ignore: 'pid,hostname',
+          translateTime: "HH:MM:ss Z",
+          ignore: "pid,hostname",
         },
       };
     }
@@ -78,7 +78,7 @@ export class Logger {
    * Logs at fatal level
    */
   fatal(message: string, context?: LogContext): void {
-    this.log('fatal', message, context);
+    this.log("fatal", message, context);
   }
 
   /**
@@ -88,7 +88,7 @@ export class Logger {
     if (error instanceof Error) {
       this.pino.error(error, message, context);
     } else {
-      this.log('error', message, error as LogContext);
+      this.log("error", message, error as LogContext);
     }
   }
 
@@ -96,28 +96,28 @@ export class Logger {
    * Logs at warn level
    */
   warn(message: string, context?: LogContext): void {
-    this.log('warn', message, context);
+    this.log("warn", message, context);
   }
 
   /**
    * Logs at info level
    */
   info(message: string, context?: LogContext): void {
-    this.log('info', message, context);
+    this.log("info", message, context);
   }
 
   /**
    * Logs at debug level
    */
   debug(message: string, context?: LogContext): void {
-    this.log('debug', message, context);
+    this.log("debug", message, context);
   }
 
   /**
    * Logs at trace level
    */
   trace(message: string, context?: LogContext): void {
-    this.log('trace', message, context);
+    this.log("trace", message, context);
   }
 
   /**
@@ -126,7 +126,7 @@ export class Logger {
   private log(level: LogLevel, message: string, context?: LogContext): void {
     const currentContext = getContext() || {};
     const mergedContext = { ...currentContext, ...context };
-    
+
     this.pino[level](mergedContext, message);
   }
 
@@ -140,7 +140,7 @@ export class Logger {
 
 // Default logger instance
 export const logger = new Logger({
-  service: 'decision-logger',
-  level: (process.env.LOG_LEVEL as LogLevel) || 'info',
-  prettyPrint: process.env.NODE_ENV !== 'production',
+  service: "decision-logger",
+  level: (process.env.LOG_LEVEL as LogLevel) || "info",
+  prettyPrint: process.env.NODE_ENV !== "production",
 });

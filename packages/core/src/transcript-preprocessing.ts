@@ -1,4 +1,4 @@
-import type { RawTranscript } from '@repo/schema';
+import type { RawTranscript } from "@repo/schema";
 
 export interface CanonicalTranscriptSegment {
   sequenceNumber: number;
@@ -41,11 +41,11 @@ type WhisperLikeSegment = {
 };
 
 class WhisperTranscriptPreprocessor implements TranscriptPreprocessor {
-  id = 'whisper_canonical';
-  version = '1';
+  id = "whisper_canonical";
+  version = "1";
 
   canProcess(input: RawTranscript): boolean {
-    if (input.format !== 'json') {
+    if (input.format !== "json") {
       return false;
     }
 
@@ -55,19 +55,24 @@ class WhisperTranscriptPreprocessor implements TranscriptPreprocessor {
     }
 
     const segments = this.extractSegments(parsed);
-    return segments.length > 0 && segments.every((segment) => typeof segment.text === 'string' && segment.text.trim().length > 0);
+    return (
+      segments.length > 0 &&
+      segments.every(
+        (segment) => typeof segment.text === "string" && segment.text.trim().length > 0,
+      )
+    );
   }
 
   async process(input: RawTranscript): Promise<TranscriptPreprocessResult> {
     const startedAt = Date.now();
     const parsed = this.tryParse(input.content);
     if (!parsed) {
-      throw new Error('Invalid JSON transcript payload');
+      throw new Error("Invalid JSON transcript payload");
     }
 
     const rawSegments = this.extractSegments(parsed);
     if (rawSegments.length === 0) {
-      throw new Error('JSON transcript payload does not contain any transcript segments');
+      throw new Error("JSON transcript payload does not contain any transcript segments");
     }
 
     const segments = rawSegments
@@ -75,7 +80,7 @@ class WhisperTranscriptPreprocessor implements TranscriptPreprocessor {
       .filter((segment): segment is CanonicalTranscriptSegment => segment !== null);
 
     if (segments.length === 0) {
-      throw new Error('JSON transcript payload does not contain any non-empty transcript segments');
+      throw new Error("JSON transcript payload does not contain any non-empty transcript segments");
     }
 
     return {
@@ -104,20 +109,29 @@ class WhisperTranscriptPreprocessor implements TranscriptPreprocessor {
       return parsed as WhisperLikeSegment[];
     }
 
-    if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { segments?: unknown }).segments)) {
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray((parsed as { segments?: unknown }).segments)
+    ) {
       return (parsed as { segments: WhisperLikeSegment[] }).segments;
     }
 
     return [];
   }
 
-  private toCanonicalSegment(segment: WhisperLikeSegment, index: number): CanonicalTranscriptSegment | null {
-    const text = typeof segment.text === 'string' ? segment.text.trim() : '';
+  private toCanonicalSegment(
+    segment: WhisperLikeSegment,
+    index: number,
+  ): CanonicalTranscriptSegment | null {
+    const text = typeof segment.text === "string" ? segment.text.trim() : "";
     if (!text) {
       return null;
     }
 
-    const startTimeMs = this.normalizeTime(segment.startTimeMs ?? segment.start_ms ?? segment.start);
+    const startTimeMs = this.normalizeTime(
+      segment.startTimeMs ?? segment.start_ms ?? segment.start,
+    );
     const endTimeMs = this.normalizeTime(segment.endTimeMs ?? segment.end_ms ?? segment.end);
 
     const canonicalSegment: CanonicalTranscriptSegment = {
@@ -128,7 +142,7 @@ class WhisperTranscriptPreprocessor implements TranscriptPreprocessor {
       },
     };
 
-    if (typeof segment.speaker === 'string' && segment.speaker.trim().length > 0) {
+    if (typeof segment.speaker === "string" && segment.speaker.trim().length > 0) {
       canonicalSegment.speaker = segment.speaker.trim();
     }
     if (startTimeMs !== undefined) {
@@ -142,7 +156,7 @@ class WhisperTranscriptPreprocessor implements TranscriptPreprocessor {
   }
 
   private normalizeTime(value: unknown): number | undefined {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
       return undefined;
     }
 
@@ -151,13 +165,13 @@ class WhisperTranscriptPreprocessor implements TranscriptPreprocessor {
 }
 
 class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
-  id = 'plain_text_blocks';
-  version = '1';
+  id = "plain_text_blocks";
+  version = "1";
   private readonly maxCharactersPerSegment = 420;
   private readonly minCharactersPerSegment = 80;
 
   canProcess(input: RawTranscript): boolean {
-    return ['txt', 'srt', 'vtt'].includes(input.format);
+    return ["txt", "srt", "vtt"].includes(input.format);
   }
 
   async process(input: RawTranscript): Promise<TranscriptPreprocessResult> {
@@ -168,15 +182,16 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
       .map((block) => this.normalizeWhitespace(block))
       .filter((block) => block.length > 0);
 
-    const sourceBlocks = blocks.length > 0 ? blocks : [this.normalizeWhitespace(input.content)].filter(Boolean);
+    const sourceBlocks =
+      blocks.length > 0 ? blocks : [this.normalizeWhitespace(input.content)].filter(Boolean);
     const segments = sourceBlocks.flatMap((block, index) => this.splitBlock(block, index));
 
     if (segments.length === 0) {
-      throw new Error('Transcript content is empty after normalization');
+      throw new Error("Transcript content is empty after normalization");
     }
 
     if (segments.length > sourceBlocks.length) {
-      warnings.push('Oversized transcript blocks were split into multiple normalized segments');
+      warnings.push("Oversized transcript blocks were split into multiple normalized segments");
     }
 
     return {
@@ -194,13 +209,15 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
 
   private splitBlock(block: string, blockIndex: number): CanonicalTranscriptSegment[] {
     if (block.length <= this.maxCharactersPerSegment) {
-      return [{
-        sequenceNumber: blockIndex + 1,
-        text: block,
-        sourceMetadata: {
-          sourceBlockIndex: blockIndex,
+      return [
+        {
+          sequenceNumber: blockIndex + 1,
+          text: block,
+          sourceMetadata: {
+            sourceBlockIndex: blockIndex,
+          },
         },
-      }];
+      ];
     }
 
     const sentences = block
@@ -213,12 +230,15 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
     }
 
     const segments: CanonicalTranscriptSegment[] = [];
-    let current = '';
+    let current = "";
     let chunkIndex = 0;
 
     for (const sentence of sentences) {
       const candidate = current ? `${current} ${sentence}` : sentence;
-      if (candidate.length <= this.maxCharactersPerSegment || current.length < this.minCharactersPerSegment) {
+      if (
+        candidate.length <= this.maxCharactersPerSegment ||
+        current.length < this.minCharactersPerSegment
+      ) {
         current = candidate;
         continue;
       }
@@ -228,7 +248,7 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
         text: current,
         sourceMetadata: {
           sourceBlockIndex: blockIndex,
-          splitStrategy: 'sentence',
+          splitStrategy: "sentence",
           chunkIndex,
         },
       });
@@ -242,7 +262,7 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
         text: current,
         sourceMetadata: {
           sourceBlockIndex: blockIndex,
-          splitStrategy: 'sentence',
+          splitStrategy: "sentence",
           chunkIndex,
         },
       });
@@ -258,7 +278,7 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
     let chunkIndex = 0;
 
     for (const word of words) {
-      const candidate = [...currentWords, word].join(' ');
+      const candidate = [...currentWords, word].join(" ");
       if (candidate.length <= this.maxCharactersPerSegment || currentWords.length === 0) {
         currentWords.push(word);
         continue;
@@ -266,10 +286,10 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
 
       segments.push({
         sequenceNumber: segments.length + 1,
-        text: currentWords.join(' '),
+        text: currentWords.join(" "),
         sourceMetadata: {
           sourceBlockIndex: blockIndex,
-          splitStrategy: 'length',
+          splitStrategy: "length",
           chunkIndex,
         },
       });
@@ -280,10 +300,10 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
     if (currentWords.length > 0) {
       segments.push({
         sequenceNumber: segments.length + 1,
-        text: currentWords.join(' '),
+        text: currentWords.join(" "),
         sourceMetadata: {
           sourceBlockIndex: blockIndex,
-          splitStrategy: 'length',
+          splitStrategy: "length",
           chunkIndex,
         },
       });
@@ -293,7 +313,7 @@ class PlainTextTranscriptPreprocessor implements TranscriptPreprocessor {
   }
 
   private normalizeWhitespace(value: string): string {
-    return value.replace(/\s+/g, ' ').trim();
+    return value.replace(/\s+/g, " ").trim();
   }
 }
 

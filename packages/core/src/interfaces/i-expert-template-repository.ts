@@ -3,11 +3,7 @@
  * Manages expert templates with MCP access configuration
  */
 
-import type { 
-  ExpertTemplate,
-  CreateExpertTemplate,
-  UpdateExpertTemplate
-} from '@repo/schema';
+import type { ExpertTemplate, CreateExpertTemplate, UpdateExpertTemplate } from "@repo/schema";
 
 export interface IExpertTemplateRepository {
   // Basic CRUD operations
@@ -18,10 +14,10 @@ export interface IExpertTemplateRepository {
   findActive(): Promise<ExpertTemplate[]>;
   update(id: string, data: UpdateExpertTemplate): Promise<ExpertTemplate | null>;
   delete(id: string): Promise<boolean>;
-  
+
   // Search operations
   search(query: string): Promise<ExpertTemplate[]>;
-  
+
   // Bulk operations
   createMany(templates: CreateExpertTemplate[]): Promise<ExpertTemplate[]>;
 }

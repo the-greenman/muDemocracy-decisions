@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { ArrowUpCircle, X } from 'lucide-react';
-import { TEMPLATES } from '@/lib/mock-data';
-import type { Candidate, Template } from '@/lib/mock-data';
+import { useMemo, useState } from "react";
+import { ArrowUpCircle, X } from "lucide-react";
+import { TEMPLATES } from "@/lib/mock-data";
+import type { Candidate, Template } from "@/lib/mock-data";
 
 interface PromoteCandidateDialogProps {
   candidate: Candidate;
@@ -10,7 +10,7 @@ interface PromoteCandidateDialogProps {
     title: string;
     summary: string;
     template: Template;
-    insertMode: 'append' | 'before';
+    insertMode: "append" | "before";
     beforeIndex: number;
   }) => void;
   onCancel: () => void;
@@ -24,8 +24,8 @@ export function PromoteCandidateDialog({
 }: PromoteCandidateDialogProps) {
   const [title, setTitle] = useState(candidate.title);
   const [summary, setSummary] = useState(candidate.summary);
-  const [templateId, setTemplateId] = useState(TEMPLATES[0]?.id ?? '');
-  const [insertMode, setInsertMode] = useState<'append' | 'before'>('append');
+  const [templateId, setTemplateId] = useState(TEMPLATES[0]?.id ?? "");
+  const [insertMode, setInsertMode] = useState<"append" | "before">("append");
   const [beforeIndex, setBeforeIndex] = useState(1);
 
   const selectedTemplate = useMemo(
@@ -41,7 +41,10 @@ export function PromoteCandidateDialog({
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <ArrowUpCircle size={16} className="text-accent" />
           <h2 className="text-fac-field text-text-primary font-medium flex-1">Promote candidate</h2>
-          <button onClick={onCancel} className="text-text-muted hover:text-text-primary transition-colors">
+          <button
+            onClick={onCancel}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
             <X size={16} />
           </button>
         </div>
@@ -60,7 +63,9 @@ export function PromoteCandidateDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-fac-label text-text-secondary uppercase tracking-wider">Summary</label>
+            <label className="text-fac-label text-text-secondary uppercase tracking-wider">
+              Summary
+            </label>
             <textarea
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
@@ -87,27 +92,29 @@ export function PromoteCandidateDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-fac-label text-text-secondary uppercase tracking-wider">Agenda position</label>
+            <label className="text-fac-label text-text-secondary uppercase tracking-wider">
+              Agenda position
+            </label>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-fac-meta text-text-secondary">
                 <input
                   type="radio"
-                  checked={insertMode === 'append'}
-                  onChange={() => setInsertMode('append')}
+                  checked={insertMode === "append"}
+                  onChange={() => setInsertMode("append")}
                 />
                 Append at end
               </label>
               <label className="flex items-center gap-2 text-fac-meta text-text-secondary">
                 <input
                   type="radio"
-                  checked={insertMode === 'before'}
-                  onChange={() => setInsertMode('before')}
+                  checked={insertMode === "before"}
+                  onChange={() => setInsertMode("before")}
                 />
                 Insert before
               </label>
             </div>
 
-            {insertMode === 'before' && (
+            {insertMode === "before" && (
               <select
                 value={beforeIndex}
                 onChange={(e) => setBeforeIndex(Number(e.target.value))}
@@ -134,7 +141,13 @@ export function PromoteCandidateDialog({
             onClick={() =>
               canConfirm &&
               selectedTemplate &&
-              onConfirm({ title: title.trim(), summary: summary.trim(), template: selectedTemplate, insertMode, beforeIndex })
+              onConfirm({
+                title: title.trim(),
+                summary: summary.trim(),
+                template: selectedTemplate,
+                insertMode,
+                beforeIndex,
+              })
             }
             disabled={!canConfirm}
             className="flex items-center gap-1.5 px-4 py-2 text-fac-meta bg-accent text-white rounded hover:bg-accent/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

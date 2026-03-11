@@ -1,16 +1,18 @@
 /**
  * Database Client
- * 
+ *
  * Provides a singleton drizzle client for database connections.
  * Uses environment variable DATABASE_URL for connection string.
  */
 
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from './schema.js';
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "./schema.js";
 
 // Connection string from environment
-const connectionString = process.env.DATABASE_URL || 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev';
+const connectionString =
+  process.env.DATABASE_URL ||
+  "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev";
 
 // Create postgres client
 // For serverless/edge environments, use { prepare: false }

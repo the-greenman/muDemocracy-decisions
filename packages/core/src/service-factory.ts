@@ -1,31 +1,31 @@
 /**
  * Service Factory - Provides properly configured service instances
- * 
+ *
  * This factory encapsulates the dependency injection wiring and prevents
  * leaking repository implementations into application layers.
  */
 
-import { MeetingService } from './services/meeting-service.js';
-import { DecisionLogService } from './services/decision-log-service.js';
-import { DecisionContextService } from './services/decision-context-service.js';
-import { TranscriptService } from './services/transcript-service.js';
-import { DecisionFieldService } from './services/decision-field-service.js';
-import { DraftGenerationService } from './services/draft-generation-service.js';
-import { FlaggedDecisionService } from './services/flagged-decision-service.js';
-import { DecisionTemplateService } from './services/decision-template-service.js';
-import { ExpertTemplateService } from './services/expert-template-service.js';
-import { GlobalContextService, FileGlobalContextStore } from './services/global-context-service.js';
-import { LLMInteractionService } from './services/llm-interaction-service.js';
-import { MarkdownExportService } from './services/markdown-export-service.js';
-import { MCPServerService } from './services/mcp-server-service.js';
-import { SupplementaryContentService } from './services/supplementary-content-service.js';
-import { MockLLMService } from './llm/mock-llm-service.js';
-import { VercelAILLMService } from './llm/vercel-ai-llm-service.js';
-import type { ITranscriptManager } from './transcript-manager/index.js';
-import type { IDecisionLogGenerator } from './decision-log-generator/i-decision-log-generator.js';
-import type { IContentCreator } from './decision-log-generator/i-content-creator.js';
-import { InProcessEventBus } from './events/in-process-event-bus.js';
-import type { IEventBus } from './events/i-event-bus.js';
+import { MeetingService } from "./services/meeting-service.js";
+import { DecisionLogService } from "./services/decision-log-service.js";
+import { DecisionContextService } from "./services/decision-context-service.js";
+import { TranscriptService } from "./services/transcript-service.js";
+import { DecisionFieldService } from "./services/decision-field-service.js";
+import { DraftGenerationService } from "./services/draft-generation-service.js";
+import { FlaggedDecisionService } from "./services/flagged-decision-service.js";
+import { DecisionTemplateService } from "./services/decision-template-service.js";
+import { ExpertTemplateService } from "./services/expert-template-service.js";
+import { GlobalContextService, FileGlobalContextStore } from "./services/global-context-service.js";
+import { LLMInteractionService } from "./services/llm-interaction-service.js";
+import { MarkdownExportService } from "./services/markdown-export-service.js";
+import { MCPServerService } from "./services/mcp-server-service.js";
+import { SupplementaryContentService } from "./services/supplementary-content-service.js";
+import { MockLLMService } from "./llm/mock-llm-service.js";
+import { VercelAILLMService } from "./llm/vercel-ai-llm-service.js";
+import type { ITranscriptManager } from "./transcript-manager/index.js";
+import type { IDecisionLogGenerator } from "./decision-log-generator/i-decision-log-generator.js";
+import type { IContentCreator } from "./decision-log-generator/i-content-creator.js";
+import { InProcessEventBus } from "./events/in-process-event-bus.js";
+import type { IEventBus } from "./events/i-event-bus.js";
 
 // Import repository implementations from db package
 import {
@@ -45,10 +45,10 @@ import {
   DrizzleExpertTemplateRepository,
   DrizzleMCPServerRepository,
   DrizzleSupplementaryContentRepository,
-} from '@repo/db';
+} from "@repo/db";
 
 function shouldUseMockLlm(): boolean {
-  return process.env.NODE_ENV === 'test' || process.env.USE_MOCK_LLM === 'true';
+  return process.env.NODE_ENV === "test" || process.env.USE_MOCK_LLM === "true";
 }
 
 function createLlmService(): MockLLMService | VercelAILLMService {
@@ -59,9 +59,7 @@ function createLlmService(): MockLLMService | VercelAILLMService {
  * Creates a MeetingService with real repositories
  */
 export function createMeetingService(): MeetingService {
-  return new MeetingService(
-    new DrizzleMeetingRepository()
-  );
+  return new MeetingService(new DrizzleMeetingRepository());
 }
 
 export function createTranscriptManager(): ITranscriptManager {
@@ -114,7 +112,7 @@ export function createDecisionLogGenerator(): IDecisionLogGenerator {
 export function createDecisionContextService(): DecisionContextService {
   return new DecisionContextService(
     new DrizzleDecisionContextRepository(),
-    new DrizzleTemplateFieldAssignmentRepository()
+    new DrizzleTemplateFieldAssignmentRepository(),
   );
 }
 
@@ -127,7 +125,7 @@ export function createTranscriptService(): TranscriptService {
     new DrizzleTranscriptChunkRepository(),
     new DrizzleStreamingBufferRepository(),
     new DrizzleChunkRelevanceRepository(),
-    new DrizzleDecisionContextWindowRepository()
+    new DrizzleDecisionContextWindowRepository(),
   );
 }
 
@@ -135,9 +133,7 @@ export function createTranscriptService(): TranscriptService {
  * Creates a DecisionFieldService with real repositories
  */
 export function createDecisionFieldService(): DecisionFieldService {
-  return new DecisionFieldService(
-    new DrizzleDecisionFieldRepository()
-  );
+  return new DecisionFieldService(new DrizzleDecisionFieldRepository());
 }
 
 /**
@@ -152,14 +148,12 @@ export function createDraftGenerationService(): DraftGenerationService {
     new DrizzleDecisionContextRepository(),
     new DrizzleLLMInteractionRepository(),
     new DrizzleFlaggedDecisionRepository(),
-    new DrizzleSupplementaryContentRepository()
+    new DrizzleSupplementaryContentRepository(),
   );
 }
 
 export function createSupplementaryContentService(): SupplementaryContentService {
-  return new SupplementaryContentService(
-    new DrizzleSupplementaryContentRepository()
-  );
+  return new SupplementaryContentService(new DrizzleSupplementaryContentRepository());
 }
 
 export function createContentCreator(): IContentCreator {
@@ -179,7 +173,7 @@ export function createContentCreator(): IContentCreator {
 export function createFlaggedDecisionService(): FlaggedDecisionService {
   return new FlaggedDecisionService(
     new DrizzleFlaggedDecisionRepository(),
-    new DrizzleTranscriptChunkRepository()
+    new DrizzleTranscriptChunkRepository(),
   );
 }
 
@@ -189,20 +183,16 @@ export function createFlaggedDecisionService(): FlaggedDecisionService {
 export function createDecisionTemplateService(): DecisionTemplateService {
   return new DecisionTemplateService(
     new DrizzleDecisionTemplateRepository(),
-    new DrizzleTemplateFieldAssignmentRepository()
+    new DrizzleTemplateFieldAssignmentRepository(),
   );
 }
 
 export function createExpertTemplateService(): ExpertTemplateService {
-  return new ExpertTemplateService(
-    new DrizzleExpertTemplateRepository()
-  );
+  return new ExpertTemplateService(new DrizzleExpertTemplateRepository());
 }
 
 export function createMCPServerService(): MCPServerService {
-  return new MCPServerService(
-    new DrizzleMCPServerRepository()
-  );
+  return new MCPServerService(new DrizzleMCPServerRepository());
 }
 
 /**
@@ -214,16 +204,16 @@ export function createGlobalContextService(): GlobalContextService {
     new DrizzleMeetingRepository(),
     new FlaggedDecisionService(
       new DrizzleFlaggedDecisionRepository(),
-      new DrizzleTranscriptChunkRepository()
+      new DrizzleTranscriptChunkRepository(),
     ),
     new DecisionContextService(
       new DrizzleDecisionContextRepository(),
-      new DrizzleTemplateFieldAssignmentRepository()
+      new DrizzleTemplateFieldAssignmentRepository(),
     ),
     new DecisionTemplateService(
       new DrizzleDecisionTemplateRepository(),
-      new DrizzleTemplateFieldAssignmentRepository()
-    )
+      new DrizzleTemplateFieldAssignmentRepository(),
+    ),
   );
 }
 
@@ -231,9 +221,7 @@ export function createGlobalContextService(): GlobalContextService {
  * Creates an LLMInteractionService with real repository
  */
 export function createLLMInteractionService(): LLMInteractionService {
-  return new LLMInteractionService(
-    new DrizzleLLMInteractionRepository()
-  );
+  return new LLMInteractionService(new DrizzleLLMInteractionRepository());
 }
 
 export function createEventBus(): IEventBus {
@@ -277,7 +265,7 @@ export function createMarkdownExportService(): MarkdownExportService {
     new DrizzleDecisionTemplateRepository(),
     new DrizzleTemplateFieldAssignmentRepository(),
     new DrizzleDecisionFieldRepository(),
-    new DrizzleMeetingRepository()
+    new DrizzleMeetingRepository(),
   );
 }
 

@@ -2,14 +2,14 @@
  * TranscriptService - Business logic for transcript management
  */
 
-import { logger } from '../logger/index.js';
+import { logger } from "../logger/index.js";
 import {
   IRawTranscriptRepository,
   ITranscriptChunkRepository,
   IStreamingBufferRepository,
   IChunkRelevanceRepository,
   IDecisionContextWindowRepository,
-} from '../interfaces/transcript-repositories.js';
+} from "../interfaces/transcript-repositories.js";
 import {
   RawTranscript,
   ReadableTranscriptRow,
@@ -18,24 +18,24 @@ import {
   CreateTranscriptChunk,
   ChunkRelevance,
   DecisionContextWindow,
-} from '@repo/schema';
+} from "@repo/schema";
 import {
   createDefaultTranscriptPreprocessorRegistry,
   type CanonicalTranscriptSegment,
   type TranscriptPreprocessorRegistry,
-} from '../transcript-preprocessing.js';
+} from "../transcript-preprocessing.js";
 
 export interface TranscriptUploadData {
   meetingId: string;
-  source: 'upload' | 'stream' | 'import';
-  format: 'json' | 'txt' | 'vtt' | 'srt';
+  source: "upload" | "stream" | "import";
+  format: "json" | "txt" | "vtt" | "srt";
   content: string;
   metadata?: Record<string, any>;
   uploadedBy?: string;
 }
 
 export interface StreamEventData {
-  type: 'text' | 'metadata';
+  type: "text" | "metadata";
   data: {
     text?: string;
     speaker?: string;
@@ -49,7 +49,7 @@ export interface StreamEventData {
 }
 
 export interface ChunkCreationOptions {
-  strategy: 'fixed' | 'semantic' | 'speaker' | 'streaming';
+  strategy: "fixed" | "semantic" | "speaker" | "streaming";
   maxTokens?: number;
   overlap?: number;
   minChunkSize?: number;
@@ -105,8 +105,8 @@ export class TranscriptService {
   async addTranscriptText(data: AddTranscriptTextData): Promise<TranscriptChunk> {
     const transcript = await this.rawTranscriptRepo.create({
       meetingId: data.meetingId,
-      source: 'stream',
-      format: 'txt',
+      source: "stream",
+      format: "txt",
       content: data.text,
       uploadedBy: data.uploadedBy,
       metadata: {
@@ -115,14 +115,12 @@ export class TranscriptService {
     });
 
     const existingChunks = await this.chunkRepo.findByMeetingId(data.meetingId);
-    const nextSequenceNumber = existingChunks.length === 0
-      ? 1
-      : Math.max(...existingChunks.map((chunk) => chunk.sequenceNumber)) + 1;
+    const nextSequenceNumber =
+      existingChunks.length === 0
+        ? 1
+        : Math.max(...existingChunks.map((chunk) => chunk.sequenceNumber)) + 1;
 
-    const contexts = Array.from(new Set([
-      `meeting:${data.meetingId}`,
-      ...(data.contexts ?? []),
-    ]));
+    const contexts = Array.from(new Set([`meeting:${data.meetingId}`, ...(data.contexts ?? [])]));
 
     return this.addChunk({
       meetingId: data.meetingId,
@@ -132,7 +130,7 @@ export class TranscriptService {
       speaker: data.speaker,
       startTime: data.startTime,
       endTime: data.endTime,
-      chunkStrategy: 'streaming',
+      chunkStrategy: "streaming",
       tokenCount: this.estimateTokens(data.text),
       wordCount: data.text.split(/\s+/).filter(Boolean).length,
       contexts,
@@ -163,16 +161,16 @@ export class TranscriptService {
   async assignContextsToChunks(data: AssignChunkContextsData): Promise<TranscriptChunk[]> {
     const chunkIds = Array.from(new Set(data.chunkIds));
     if (chunkIds.length === 0) {
-      throw new Error('At least one chunk ID is required');
+      throw new Error("At least one chunk ID is required");
     }
 
-    const contexts = Array.from(new Set(
-      data.contexts
-        .map((context) => context.trim())
-        .filter((context) => context.length > 0),
-    ));
+    const contexts = Array.from(
+      new Set(
+        data.contexts.map((context) => context.trim()).filter((context) => context.length > 0),
+      ),
+    );
     if (contexts.length === 0) {
-      throw new Error('At least one context tag is required');
+      throw new Error("At least one context tag is required");
     }
 
     const meetingChunkIds = new Set(
@@ -192,24 +190,24 @@ export class TranscriptService {
 
   async processTranscript(
     rawTranscriptId: string,
-    options: ChunkCreationOptions = { strategy: 'fixed' }
+    options: ChunkCreationOptions = { strategy: "fixed" },
   ): Promise<TranscriptChunk[]> {
     return this.chunkTranscript(rawTranscriptId, options);
   }
 
   private async chunkTranscript(
     rawTranscriptId: string,
-    options: ChunkCreationOptions
+    options: ChunkCreationOptions,
   ): Promise<TranscriptChunk[]> {
     const rawTranscript = await this.rawTranscriptRepo.findById(rawTranscriptId);
     if (!rawTranscript) {
-      throw new Error('Raw transcript not found');
+      throw new Error("Raw transcript not found");
     }
 
     const chunks: TranscriptChunk[] = [];
     const { strategy, maxTokens = 500, overlap = 50 } = options;
     const preprocessResult = await this.preprocessorRegistry.preprocess(rawTranscript);
-    const normalizedContent = preprocessResult.segments.map((segment) => segment.text).join('\n\n');
+    const normalizedContent = preprocessResult.segments.map((segment) => segment.text).join("\n\n");
 
     const existingMetadata = rawTranscript.metadata ?? {};
     await this.rawTranscriptRepo.updateMetadata(rawTranscript.id, {
@@ -222,7 +220,7 @@ export class TranscriptService {
       },
     });
 
-    logger.info('Transcript preprocessing completed', {
+    logger.info("Transcript preprocessing completed", {
       rawTranscriptId,
       processorId: preprocessResult.processorId,
       warnings: preprocessResult.warnings,
@@ -234,7 +232,7 @@ export class TranscriptService {
     // Two strategies:
     // - fixed: token/word-count based chunks
     // - semantic: sentence-boundary aware chunks (still bounded by maxTokens)
-    if (strategy === 'semantic') {
+    if (strategy === "semantic") {
       const sentences = normalizedContent
         .split(/(?<=[.!?])\s+/)
         .map((s) => s.trim())
@@ -249,7 +247,7 @@ export class TranscriptService {
 
         // If adding this sentence would exceed the chunk budget, flush first.
         if (currentParts.length > 0 && currentTokens + sentenceTokens > maxTokens) {
-          const chunkText = currentParts.join(' ');
+          const chunkText = currentParts.join(" ");
           const chunk = await this.addChunk({
             meetingId: rawTranscript.meetingId,
             rawTranscriptId,
@@ -265,7 +263,7 @@ export class TranscriptService {
           // Sentence overlap is applied as an approximation using last N sentences.
           const overlapSentences = Math.max(0, Math.floor(overlap / 25));
           currentParts = overlapSentences > 0 ? currentParts.slice(-overlapSentences) : [];
-          currentTokens = this.estimateTokens(currentParts.join(' '));
+          currentTokens = this.estimateTokens(currentParts.join(" "));
         }
 
         currentParts.push(sentence);
@@ -273,7 +271,7 @@ export class TranscriptService {
       }
 
       if (currentParts.length > 0) {
-        const chunkText = currentParts.join(' ');
+        const chunkText = currentParts.join(" ");
         const chunk = await this.addChunk({
           meetingId: rawTranscript.meetingId,
           rawTranscriptId,
@@ -297,7 +295,7 @@ export class TranscriptService {
         currentTokens++;
 
         if (currentTokens >= maxTokens) {
-          const chunkText = currentChunk.join(' ');
+          const chunkText = currentChunk.join(" ");
           const chunk = await this.addChunk({
             meetingId: rawTranscript.meetingId,
             rawTranscriptId,
@@ -316,7 +314,7 @@ export class TranscriptService {
       }
 
       if (currentChunk.length > 0) {
-        const chunkText = currentChunk.join(' ');
+        const chunkText = currentChunk.join(" ");
         const chunk = await this.addChunk({
           meetingId: rawTranscript.meetingId,
           rawTranscriptId,
@@ -337,7 +335,7 @@ export class TranscriptService {
   async preprocessTranscript(rawTranscriptId: string): Promise<CanonicalTranscriptSegment[]> {
     const rawTranscript = await this.rawTranscriptRepo.findById(rawTranscriptId);
     if (!rawTranscript) {
-      throw new Error('Raw transcript not found');
+      throw new Error("Raw transcript not found");
     }
 
     const result = await this.preprocessorRegistry.preprocess(rawTranscript);
@@ -358,19 +356,19 @@ export class TranscriptService {
       transcripts.map(async (rawTranscript) => {
         const result = await this.preprocessorRegistry.preprocess(rawTranscript);
         const transcriptChunks = chunksByTranscriptId.get(rawTranscript.id) ?? [];
-        return result.segments.map((segment) => this.toReadableTranscriptRow(rawTranscript, segment, transcriptChunks));
-      })
+        return result.segments.map((segment) =>
+          this.toReadableTranscriptRow(rawTranscript, segment, transcriptChunks),
+        );
+      }),
     );
 
-    return rowsByTranscript
-      .flat()
-      .sort((left, right) => {
-        if (left.rawTranscriptUploadedAt !== right.rawTranscriptUploadedAt) {
-          return left.rawTranscriptUploadedAt.localeCompare(right.rawTranscriptUploadedAt);
-        }
+    return rowsByTranscript.flat().sort((left, right) => {
+      if (left.rawTranscriptUploadedAt !== right.rawTranscriptUploadedAt) {
+        return left.rawTranscriptUploadedAt.localeCompare(right.rawTranscriptUploadedAt);
+      }
 
-        return left.sequenceNumber - right.sequenceNumber;
-      });
+      return left.sequenceNumber - right.sequenceNumber;
+    });
   }
 
   private toReadableTranscriptRow(
@@ -410,7 +408,10 @@ export class TranscriptService {
     return row;
   }
 
-  private resolveChunkIdsForSegment(segment: CanonicalTranscriptSegment, chunks: TranscriptChunk[]): string[] {
+  private resolveChunkIdsForSegment(
+    segment: CanonicalTranscriptSegment,
+    chunks: TranscriptChunk[],
+  ): string[] {
     if (chunks.length === 0) {
       return [];
     }
@@ -428,19 +429,21 @@ export class TranscriptService {
       return directMatches.map((chunk) => chunk.id);
     }
 
-    const segmentTokens = normalizedSegmentText.split(' ').filter(Boolean);
+    const segmentTokens = normalizedSegmentText.split(" ").filter(Boolean);
     if (segmentTokens.length === 0) {
       return [];
     }
 
-    const significantTokenSample = segmentTokens.slice(0, Math.min(8, segmentTokens.length)).join(' ');
+    const significantTokenSample = segmentTokens
+      .slice(0, Math.min(8, segmentTokens.length))
+      .join(" ");
     return chunks
       .filter((chunk) => this.normalizeTranscriptText(chunk.text).includes(significantTokenSample))
       .map((chunk) => chunk.id);
   }
 
   private normalizeTranscriptText(text: string): string {
-    return text.replace(/\s+/g, ' ').trim().toLowerCase();
+    return text.replace(/\s+/g, " ").trim().toLowerCase();
   }
 
   private formatTimestamp(timeMs: number | undefined): string | undefined {
@@ -453,7 +456,7 @@ export class TranscriptService {
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
 
-    return [hours, minutes, seconds].map((value) => value.toString().padStart(2, '0')).join(':');
+    return [hours, minutes, seconds].map((value) => value.toString().padStart(2, "0")).join(":");
   }
 
   // Streaming buffer management
@@ -474,7 +477,7 @@ export class TranscriptService {
   }
 
   // Chunk relevance management
-  async tagChunkRelevance(data: Omit<ChunkRelevance, 'id' | 'taggedAt'>): Promise<ChunkRelevance> {
+  async tagChunkRelevance(data: Omit<ChunkRelevance, "id" | "taggedAt">): Promise<ChunkRelevance> {
     return this.relevanceRepo.upsert(data);
   }
 
@@ -485,15 +488,15 @@ export class TranscriptService {
   // Context window management
   async createContextWindow(
     decisionContextId: string,
-    strategy: 'recent' | 'relevant' | 'weighted',
-    usedFor: 'draft' | 'regenerate' | 'field-specific'
+    strategy: "recent" | "relevant" | "weighted",
+    usedFor: "draft" | "regenerate" | "field-specific",
   ): Promise<DecisionContextWindow> {
     // Get relevant chunks based on strategy
     const preview = await this.contextWindowRepo.preview(decisionContextId, strategy);
-    
+
     return this.contextWindowRepo.createOrUpdate({
       decisionContextId,
-      chunkIds: preview.chunks.map(c => c.id),
+      chunkIds: preview.chunks.map((c) => c.id),
       selectionStrategy: strategy,
       totalTokens: preview.totalTokens,
       totalChunks: preview.chunks.length,
@@ -508,7 +511,7 @@ export class TranscriptService {
 
   async previewContextWindow(
     decisionContextId: string,
-    strategy: 'all' | 'recent' | 'relevant' | 'weighted',
+    strategy: "all" | "recent" | "relevant" | "weighted",
     limit: number = 10,
   ): Promise<{
     chunks: TranscriptChunk[];

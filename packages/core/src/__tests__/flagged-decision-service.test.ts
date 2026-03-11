@@ -3,10 +3,10 @@
  * Following TDD approach - tests written first
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { FlaggedDecisionService } from '../../src/services/flagged-decision-service';
-import type { FlaggedDecision, CreateFlaggedDecision, TranscriptChunk } from '@repo/schema';
-import { randomUUID } from 'crypto';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { FlaggedDecisionService } from "../../src/services/flagged-decision-service";
+import type { FlaggedDecision, CreateFlaggedDecision, TranscriptChunk } from "@repo/schema";
+import { randomUUID } from "crypto";
 
 // Mock repository for testing
 const mockRepository = {
@@ -27,7 +27,7 @@ const mockTranscriptChunkRepository = {
   findByDecisionContext: vi.fn(),
 } as any;
 
-describe('FlaggedDecisionService', () => {
+describe("FlaggedDecisionService", () => {
   let service: FlaggedDecisionService;
   let testMeetingId: string;
   let transcriptChunks: TranscriptChunk[];
@@ -40,8 +40,8 @@ describe('FlaggedDecisionService', () => {
         meetingId: testMeetingId,
         rawTranscriptId: randomUUID(),
         sequenceNumber: 12,
-        text: 'Chunk 12',
-        chunkStrategy: 'fixed',
+        text: "Chunk 12",
+        chunkStrategy: "fixed",
         contexts: [`meeting:${testMeetingId}`],
         createdAt: new Date().toISOString(),
       },
@@ -50,8 +50,8 @@ describe('FlaggedDecisionService', () => {
         meetingId: testMeetingId,
         rawTranscriptId: randomUUID(),
         sequenceNumber: 13,
-        text: 'Chunk 13',
-        chunkStrategy: 'fixed',
+        text: "Chunk 13",
+        chunkStrategy: "fixed",
         contexts: [`meeting:${testMeetingId}`],
         createdAt: new Date().toISOString(),
       },
@@ -60,8 +60,8 @@ describe('FlaggedDecisionService', () => {
         meetingId: testMeetingId,
         rawTranscriptId: randomUUID(),
         sequenceNumber: 14,
-        text: 'Chunk 14',
-        chunkStrategy: 'fixed',
+        text: "Chunk 14",
+        chunkStrategy: "fixed",
         contexts: [`meeting:${testMeetingId}`],
         createdAt: new Date().toISOString(),
       },
@@ -71,12 +71,12 @@ describe('FlaggedDecisionService', () => {
     mockTranscriptChunkRepository.findByMeetingId.mockResolvedValue(transcriptChunks);
   });
 
-  describe('createFlaggedDecision', () => {
-    it('should create a flagged decision with valid data', async () => {
+  describe("createFlaggedDecision", () => {
+    it("should create a flagged decision with valid data", async () => {
       const data: CreateFlaggedDecision = {
         meetingId: testMeetingId,
-        suggestedTitle: 'Important Decision',
-        contextSummary: 'This decision affects the architecture',
+        suggestedTitle: "Important Decision",
+        contextSummary: "This decision affects the architecture",
         confidence: 0.9,
         chunkIds: [randomUUID(), randomUUID()],
         priority: 5,
@@ -85,7 +85,7 @@ describe('FlaggedDecisionService', () => {
       const expected: FlaggedDecision = {
         id: randomUUID(),
         ...data,
-        status: 'pending',
+        status: "pending",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -98,27 +98,27 @@ describe('FlaggedDecisionService', () => {
       expect(mockRepository.create).toHaveBeenCalledWith(data);
     });
 
-    it('should throw error for invalid confidence value', async () => {
+    it("should throw error for invalid confidence value", async () => {
       const data: CreateFlaggedDecision = {
         meetingId: testMeetingId,
-        suggestedTitle: 'Decision',
-        contextSummary: 'Context',
+        suggestedTitle: "Decision",
+        contextSummary: "Context",
         confidence: 1.5, // Invalid: > 1
         chunkIds: [randomUUID()],
         priority: 3,
       };
 
       await expect(service.createFlaggedDecision(data)).rejects.toThrow(
-        'Confidence must be between 0 and 1'
+        "Confidence must be between 0 and 1",
       );
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
-    it('should allow empty chunk IDs (manual flag with no transcript yet)', async () => {
+    it("should allow empty chunk IDs (manual flag with no transcript yet)", async () => {
       const data: CreateFlaggedDecision = {
         meetingId: testMeetingId,
-        suggestedTitle: 'Decision',
-        contextSummary: 'Context',
+        suggestedTitle: "Decision",
+        contextSummary: "Context",
         confidence: 0.8,
         chunkIds: [],
         priority: 3,
@@ -127,7 +127,7 @@ describe('FlaggedDecisionService', () => {
       const created: FlaggedDecision = {
         ...data,
         id: randomUUID(),
-        status: 'pending',
+        status: "pending",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -139,17 +139,17 @@ describe('FlaggedDecisionService', () => {
     });
   });
 
-  describe('getDecisionsForMeeting', () => {
-    it('should return all decisions for a meeting ordered by priority', async () => {
+  describe("getDecisionsForMeeting", () => {
+    it("should return all decisions for a meeting ordered by priority", async () => {
       const decisions: FlaggedDecision[] = [
         {
           id: randomUUID(),
           meetingId: testMeetingId,
-          suggestedTitle: 'High Priority',
-          contextSummary: 'Context 1',
+          suggestedTitle: "High Priority",
+          contextSummary: "Context 1",
           confidence: 0.9,
           chunkIds: [randomUUID()],
-          status: 'pending',
+          status: "pending",
           priority: 10,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -157,11 +157,11 @@ describe('FlaggedDecisionService', () => {
         {
           id: randomUUID(),
           meetingId: testMeetingId,
-          suggestedTitle: 'Low Priority',
-          contextSummary: 'Context 2',
+          suggestedTitle: "Low Priority",
+          contextSummary: "Context 2",
           confidence: 0.7,
           chunkIds: [randomUUID()],
-          status: 'pending',
+          status: "pending",
           priority: 1,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -176,7 +176,7 @@ describe('FlaggedDecisionService', () => {
       expect(mockRepository.findByMeetingId).toHaveBeenCalledWith(testMeetingId);
     });
 
-    it('should return empty array for meeting with no decisions', async () => {
+    it("should return empty array for meeting with no decisions", async () => {
       mockRepository.findByMeetingId.mockResolvedValue([]);
 
       const result = await service.getDecisionsForMeeting(testMeetingId);
@@ -186,19 +186,19 @@ describe('FlaggedDecisionService', () => {
     });
   });
 
-  describe('updateDecisionStatus', () => {
-    it('should update decision status', async () => {
+  describe("updateDecisionStatus", () => {
+    it("should update decision status", async () => {
       const decisionId = randomUUID();
-      const newStatus = 'accepted' as const;
+      const newStatus = "accepted" as const;
 
       const existing: FlaggedDecision = {
         id: decisionId,
         meetingId: testMeetingId,
-        suggestedTitle: 'Decision',
-        contextSummary: 'Context',
+        suggestedTitle: "Decision",
+        contextSummary: "Context",
         confidence: 0.8,
         chunkIds: [randomUUID()],
-        status: 'pending',
+        status: "pending",
         priority: 5,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -220,20 +220,20 @@ describe('FlaggedDecisionService', () => {
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(decisionId, newStatus);
     });
 
-    it('should throw error for non-existent decision', async () => {
+    it("should throw error for non-existent decision", async () => {
       const decisionId = randomUUID();
 
       mockRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.updateDecisionStatus(decisionId, 'accepted')
-      ).rejects.toThrow('Decision not found');
+      await expect(service.updateDecisionStatus(decisionId, "accepted")).rejects.toThrow(
+        "Decision not found",
+      );
       expect(mockRepository.updateStatus).not.toHaveBeenCalled();
     });
   });
 
-  describe('prioritizeDecisions', () => {
-    it('should update priority of multiple decisions', async () => {
+  describe("prioritizeDecisions", () => {
+    it("should update priority of multiple decisions", async () => {
       const decisionIds = [randomUUID(), randomUUID(), randomUUID()];
       const priorities = [10, 5, 1];
 
@@ -241,7 +241,7 @@ describe('FlaggedDecisionService', () => {
         const decisionId = decisionIds[i];
         const priority = priorities[i];
         if (decisionId === undefined || priority === undefined) {
-          throw new Error('Decision IDs and priorities must have the same length');
+          throw new Error("Decision IDs and priorities must have the same length");
         }
 
         const decision: FlaggedDecision = {
@@ -251,7 +251,7 @@ describe('FlaggedDecisionService', () => {
           contextSummary: `Context ${i}`,
           confidence: 0.8,
           chunkIds: [randomUUID()],
-          status: 'pending',
+          status: "pending",
           priority: priority,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -265,34 +265,31 @@ describe('FlaggedDecisionService', () => {
 
       for (let i = 0; i < decisionIds.length; i++) {
         expect(mockRepository.findById).toHaveBeenCalledWith(decisionIds[i]);
-        expect(mockRepository.updatePriority).toHaveBeenCalledWith(
-          decisionIds[i],
-          priorities[i]
-        );
+        expect(mockRepository.updatePriority).toHaveBeenCalledWith(decisionIds[i], priorities[i]);
       }
     });
 
-    it('should throw error for mismatched arrays', async () => {
+    it("should throw error for mismatched arrays", async () => {
       const decisionIds = [randomUUID(), randomUUID()];
       const priorities = [10]; // Mismatched length
 
-      await expect(
-        service.prioritizeDecisions(decisionIds, priorities)
-      ).rejects.toThrow('Decision IDs and priorities must have the same length');
+      await expect(service.prioritizeDecisions(decisionIds, priorities)).rejects.toThrow(
+        "Decision IDs and priorities must have the same length",
+      );
     });
   });
 
-  describe('getDecisionById', () => {
-    it('should return a decision when found', async () => {
+  describe("getDecisionById", () => {
+    it("should return a decision when found", async () => {
       const decisionId = randomUUID();
       const expected: FlaggedDecision = {
         id: decisionId,
         meetingId: testMeetingId,
-        suggestedTitle: 'Test Decision',
-        contextSummary: 'Test Context',
+        suggestedTitle: "Test Decision",
+        contextSummary: "Test Context",
         confidence: 0.8,
         chunkIds: [randomUUID()],
-        status: 'pending',
+        status: "pending",
         priority: 3,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -306,7 +303,7 @@ describe('FlaggedDecisionService', () => {
       expect(result).toEqual(expected);
     });
 
-    it('should return null when decision not found', async () => {
+    it("should return null when decision not found", async () => {
       const decisionId = randomUUID();
       mockRepository.findById.mockResolvedValue(null);
 
@@ -317,17 +314,17 @@ describe('FlaggedDecisionService', () => {
     });
   });
 
-  describe('updateDecision', () => {
-    it('should update only allowed fields', async () => {
+  describe("updateDecision", () => {
+    it("should update only allowed fields", async () => {
       const decisionId = randomUUID();
       const existing: FlaggedDecision = {
         id: decisionId,
         meetingId: testMeetingId,
-        suggestedTitle: 'Original Title',
-        contextSummary: 'Original Context',
+        suggestedTitle: "Original Title",
+        contextSummary: "Original Context",
         confidence: 0.8,
         chunkIds: [randomUUID()],
-        status: 'pending',
+        status: "pending",
         priority: 3,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -335,8 +332,8 @@ describe('FlaggedDecisionService', () => {
 
       const updated: FlaggedDecision = {
         ...existing,
-        suggestedTitle: 'Updated Title',
-        status: 'accepted',
+        suggestedTitle: "Updated Title",
+        status: "accepted",
         updatedAt: new Date().toISOString(),
       };
 
@@ -344,38 +341,38 @@ describe('FlaggedDecisionService', () => {
       mockRepository.update.mockResolvedValue(updated);
 
       const result = await service.updateDecision(decisionId, {
-        suggestedTitle: 'Updated Title',
-        status: 'accepted',
+        suggestedTitle: "Updated Title",
+        status: "accepted",
       });
 
       expect(mockRepository.findById).toHaveBeenCalledWith(decisionId);
       expect(mockRepository.update).toHaveBeenCalledWith(decisionId, {
-        suggestedTitle: 'Updated Title',
-        status: 'accepted',
+        suggestedTitle: "Updated Title",
+        status: "accepted",
       });
       expect(result).toEqual(updated);
     });
 
-    it('should throw error when decision not found', async () => {
+    it("should throw error when decision not found", async () => {
       const decisionId = randomUUID();
       mockRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateDecision(decisionId, { suggestedTitle: 'New Title' })
-      ).rejects.toThrow('Decision not found');
+        service.updateDecision(decisionId, { suggestedTitle: "New Title" }),
+      ).rejects.toThrow("Decision not found");
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it('should update chunk IDs when provided', async () => {
+    it("should update chunk IDs when provided", async () => {
       const decisionId = randomUUID();
       const existing: FlaggedDecision = {
         id: decisionId,
         meetingId: testMeetingId,
-        suggestedTitle: 'Original Title',
-        contextSummary: 'Original Context',
+        suggestedTitle: "Original Title",
+        contextSummary: "Original Context",
         confidence: 0.8,
         chunkIds: [randomUUID()],
-        status: 'pending',
+        status: "pending",
         priority: 3,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -401,16 +398,16 @@ describe('FlaggedDecisionService', () => {
       expect(result).toEqual(updated);
     });
 
-    it('should allow chunk ID updates with empty list (clearing chunks)', async () => {
+    it("should allow chunk ID updates with empty list (clearing chunks)", async () => {
       const decisionId = randomUUID();
       const existing: FlaggedDecision = {
         id: decisionId,
         meetingId: testMeetingId,
-        suggestedTitle: 'Original Title',
-        contextSummary: 'Original Context',
+        suggestedTitle: "Original Title",
+        contextSummary: "Original Context",
         confidence: 0.8,
         chunkIds: [randomUUID()],
-        status: 'pending',
+        status: "pending",
         priority: 3,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -425,50 +422,50 @@ describe('FlaggedDecisionService', () => {
     });
   });
 
-  describe('resolveChunkIdsFromSequenceSpec', () => {
-    it('should resolve comma-separated sequence ranges to normalized chunk IDs', async () => {
-      const chunkIds = await service.resolveChunkIdsFromSequenceSpec(testMeetingId, '12-13,14');
+  describe("resolveChunkIdsFromSequenceSpec", () => {
+    it("should resolve comma-separated sequence ranges to normalized chunk IDs", async () => {
+      const chunkIds = await service.resolveChunkIdsFromSequenceSpec(testMeetingId, "12-13,14");
 
       expect(mockTranscriptChunkRepository.findByMeetingId).toHaveBeenCalledWith(testMeetingId);
       expect(chunkIds).toEqual(transcriptChunks.map((chunk) => chunk.id));
     });
 
-    it('should resolve all to all chunk IDs for the meeting', async () => {
-      const chunkIds = await service.resolveChunkIdsFromSequenceSpec(testMeetingId, 'all');
+    it("should resolve all to all chunk IDs for the meeting", async () => {
+      const chunkIds = await service.resolveChunkIdsFromSequenceSpec(testMeetingId, "all");
 
       expect(chunkIds).toEqual(transcriptChunks.map((chunk) => chunk.id));
     });
 
-    it('should reject invalid range formats', async () => {
-      await expect(
-        service.resolveChunkIdsFromSequenceSpec(testMeetingId, '12-')
-      ).rejects.toThrow('Invalid segment range format: 12-');
+    it("should reject invalid range formats", async () => {
+      await expect(service.resolveChunkIdsFromSequenceSpec(testMeetingId, "12-")).rejects.toThrow(
+        "Invalid segment range format: 12-",
+      );
     });
 
-    it('should reject descending ranges', async () => {
-      await expect(
-        service.resolveChunkIdsFromSequenceSpec(testMeetingId, '14-12')
-      ).rejects.toThrow('Segment range cannot be descending: 14-12');
+    it("should reject descending ranges", async () => {
+      await expect(service.resolveChunkIdsFromSequenceSpec(testMeetingId, "14-12")).rejects.toThrow(
+        "Segment range cannot be descending: 14-12",
+      );
     });
 
-    it('should reject out-of-bounds sequence numbers', async () => {
-      await expect(
-        service.resolveChunkIdsFromSequenceSpec(testMeetingId, '99')
-      ).rejects.toThrow('No transcript chunk found for sequence number 99');
+    it("should reject out-of-bounds sequence numbers", async () => {
+      await expect(service.resolveChunkIdsFromSequenceSpec(testMeetingId, "99")).rejects.toThrow(
+        "No transcript chunk found for sequence number 99",
+      );
     });
   });
 
-  describe('updateDecisionPriority', () => {
-    it('should update priority of a single decision', async () => {
+  describe("updateDecisionPriority", () => {
+    it("should update priority of a single decision", async () => {
       const decisionId = randomUUID();
       const existing: FlaggedDecision = {
         id: decisionId,
         meetingId: testMeetingId,
-        suggestedTitle: 'Test Decision',
-        contextSummary: 'Test Context',
+        suggestedTitle: "Test Decision",
+        contextSummary: "Test Context",
         confidence: 0.8,
         chunkIds: [randomUUID()],
-        status: 'pending',
+        status: "pending",
         priority: 3,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -483,25 +480,25 @@ describe('FlaggedDecisionService', () => {
       expect(mockRepository.updatePriority).toHaveBeenCalledWith(decisionId, 5);
     });
 
-    it('should throw error for invalid priority', async () => {
+    it("should throw error for invalid priority", async () => {
       const decisionId = randomUUID();
 
-      await expect(
-        service.updateDecisionPriority(decisionId, 0)
-      ).rejects.toThrow('Priority must be between 1 and 5');
+      await expect(service.updateDecisionPriority(decisionId, 0)).rejects.toThrow(
+        "Priority must be between 1 and 5",
+      );
 
-      await expect(
-        service.updateDecisionPriority(decisionId, 6)
-      ).rejects.toThrow('Priority must be between 1 and 5');
+      await expect(service.updateDecisionPriority(decisionId, 6)).rejects.toThrow(
+        "Priority must be between 1 and 5",
+      );
     });
 
-    it('should throw error when decision not found', async () => {
+    it("should throw error when decision not found", async () => {
       const decisionId = randomUUID();
       mockRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.updateDecisionPriority(decisionId, 3)
-      ).rejects.toThrow('Decision not found');
+      await expect(service.updateDecisionPriority(decisionId, 3)).rejects.toThrow(
+        "Decision not found",
+      );
       expect(mockRepository.updatePriority).not.toHaveBeenCalled();
     });
   });

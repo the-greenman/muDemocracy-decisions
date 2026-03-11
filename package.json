@@ -4,12 +4,10 @@
   "description": "Context-driven decision logging system with LLM-assisted extraction",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "build": "turbo run build",
+    "web": "pnpm --filter @repo/web dev",
     "cli": "pnpm --filter ./apps/cli exec dotenv -e ../../.env -- node dist/index.js",
     "dev": "turbo run dev",
     "up:stack": "bash ./scripts/up-stack.sh",
@@ -23,10 +21,14 @@
     "test:coverage": "turbo run test:coverage",
     "test:e2e": "turbo run test:e2e",
     "test:llm": "turbo run test:llm",
-    "lint": "eslint apps packages scripts eslint.config.js",
+    "lint": "pnpm lint:biome && pnpm lint:eslint:transition",
+    "lint:biome": "biome lint .",
+    "lint:eslint": "pnpm lint:eslint:transition",
+    "lint:eslint:transition": "eslint apps packages scripts eslint.config.js",
     "lint:workspace": "node ./scripts/validate-workspace-types.mjs",
     "lint:all": "pnpm lint && pnpm lint:workspace",
-    "format": "turbo run format",
+    "format": "biome format . --write",
+    "format:check": "biome format .",
     "type-check": "turbo run type-check",
     "db:generate": "turbo run db:generate --filter=@repo/db",
     "db:migrate": "turbo run db:migrate --filter=@repo/db",
@@ -38,6 +40,7 @@
     "prepare": "node ./scripts/install-git-hooks.mjs"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@eslint/js": "^9.22.0",
     "@types/node": "^20.11.0",
     "eslint": "^8.56.0",

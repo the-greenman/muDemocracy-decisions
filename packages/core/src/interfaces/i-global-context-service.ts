@@ -1,4 +1,4 @@
-import type { DecisionContext, DecisionTemplate, FlaggedDecision, Meeting } from '@repo/schema';
+import type { DecisionContext, DecisionTemplate, FlaggedDecision, Meeting } from "@repo/schema";
 
 export type GlobalContextState = {
   activeMeetingId?: string;

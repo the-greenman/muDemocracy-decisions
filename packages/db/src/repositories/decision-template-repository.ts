@@ -2,20 +2,20 @@
  * Drizzle Implementation of Decision Template Repository
  */
 
-import { 
+import {
   decisionTemplates,
   templateFieldAssignments,
   type DecisionTemplateSelect,
   type TemplateFieldAssignmentSelect,
-  type TemplateFieldAssignmentInsert
-} from '../schema.js';
-import { db } from '../client.js';
-import { eq, and, ilike, asc, inArray } from 'drizzle-orm';
-import type { 
+  type TemplateFieldAssignmentInsert,
+} from "../schema.js";
+import { db } from "../client.js";
+import { eq, and, ilike, asc, inArray } from "drizzle-orm";
+import type {
   DecisionTemplate,
   CreateDecisionTemplate,
-  TemplateFieldAssignment
-} from '@repo/schema';
+  TemplateFieldAssignment,
+} from "@repo/schema";
 
 type DecisionTemplateIdentityLookup = {
   namespace?: string;
@@ -43,13 +43,19 @@ interface ITemplateFieldAssignmentRepository {
   createMany(data: TemplateFieldAssignmentInsert[]): Promise<TemplateFieldAssignment[]>;
   findByTemplate(templateId: string): Promise<TemplateFieldAssignment[]>;
   findByField(fieldId: string): Promise<TemplateFieldAssignment[]>;
-  update(templateId: string, fieldId: string, data: Partial<TemplateFieldAssignmentInsert>): Promise<TemplateFieldAssignment | null>;
+  update(
+    templateId: string,
+    fieldId: string,
+    data: Partial<TemplateFieldAssignmentInsert>,
+  ): Promise<TemplateFieldAssignment | null>;
   delete(templateId: string, fieldId: string): Promise<boolean>;
   deleteByTemplate(templateId: string): Promise<boolean>;
 }
 
 export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepository {
-  private mapToSchema(row: DecisionTemplateSelect & { fields?: TemplateFieldAssignment[] }): DecisionTemplate {
+  private mapToSchema(
+    row: DecisionTemplateSelect & { fields?: TemplateFieldAssignment[] },
+  ): DecisionTemplate {
     return {
       id: row.id,
       namespace: row.namespace,
@@ -75,13 +81,10 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
   }
 
   async create(data: CreateDecisionTemplate): Promise<DecisionTemplate> {
-    const [row] = await db
-      .insert(decisionTemplates)
-      .values(data)
-      .returning();
+    const [row] = await db.insert(decisionTemplates).values(data).returning();
 
     if (!row) {
-      throw new Error('Failed to create template');
+      throw new Error("Failed to create template");
     }
 
     return this.mapToSchema(row);
@@ -112,10 +115,10 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .from(decisionTemplates)
       .where(
         and(
-          eq(decisionTemplates.namespace, identity.namespace ?? 'core'),
+          eq(decisionTemplates.namespace, identity.namespace ?? "core"),
           eq(decisionTemplates.name, identity.name),
-          eq(decisionTemplates.version, identity.version ?? 1)
-        )
+          eq(decisionTemplates.version, identity.version ?? 1),
+        ),
       )
       .limit(1);
 
@@ -127,7 +130,10 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .where(eq(templateFieldAssignments.templateId, row.id))
       .orderBy(asc(templateFieldAssignments.order));
 
-    return this.mapToSchema({ ...row, fields: fields.map(f => this.mapFieldAssignmentToSchema(f)) });
+    return this.mapToSchema({
+      ...row,
+      fields: fields.map((f) => this.mapFieldAssignmentToSchema(f)),
+    });
   }
 
   async findAll(): Promise<DecisionTemplate[]> {
@@ -143,14 +149,17 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .orderBy(asc(templateFieldAssignments.templateId), asc(templateFieldAssignments.order));
 
     // Group fields by template
-    const fieldsByTemplate = allFields.reduce((acc, field) => {
-      const templateFields = acc[field.templateId] ?? [];
-      templateFields.push(this.mapFieldAssignmentToSchema(field));
-      acc[field.templateId] = templateFields;
-      return acc;
-    }, {} as Record<string, TemplateFieldAssignment[]>);
+    const fieldsByTemplate = allFields.reduce(
+      (acc, field) => {
+        const templateFields = acc[field.templateId] ?? [];
+        templateFields.push(this.mapFieldAssignmentToSchema(field));
+        acc[field.templateId] = templateFields;
+        return acc;
+      },
+      {} as Record<string, TemplateFieldAssignment[]>,
+    );
 
-    return rows.map(row => this.mapToSchema({ ...row, fields: fieldsByTemplate[row.id] || [] }));
+    return rows.map((row) => this.mapToSchema({ ...row, fields: fieldsByTemplate[row.id] || [] }));
   }
 
   async findDefault(): Promise<DecisionTemplate | null> {
@@ -168,7 +177,10 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .where(eq(templateFieldAssignments.templateId, row.id))
       .orderBy(asc(templateFieldAssignments.order));
 
-    return this.mapToSchema({ ...row, fields: fields.map(f => this.mapFieldAssignmentToSchema(f)) });
+    return this.mapToSchema({
+      ...row,
+      fields: fields.map((f) => this.mapFieldAssignmentToSchema(f)),
+    });
   }
 
   async setDefault(id: string): Promise<DecisionTemplate> {
@@ -191,7 +203,7 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
     });
 
     if (!result) {
-      throw new Error('Template not found');
+      throw new Error("Template not found");
     }
 
     // Fetch fields for the updated template
@@ -201,10 +213,16 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .where(eq(templateFieldAssignments.templateId, result.id))
       .orderBy(asc(templateFieldAssignments.order));
 
-    return this.mapToSchema({ ...result, fields: fields.map(f => this.mapFieldAssignmentToSchema(f)) });
+    return this.mapToSchema({
+      ...result,
+      fields: fields.map((f) => this.mapFieldAssignmentToSchema(f)),
+    });
   }
 
-  async update(id: string, data: Partial<CreateDecisionTemplate>): Promise<DecisionTemplate | null> {
+  async update(
+    id: string,
+    data: Partial<CreateDecisionTemplate>,
+  ): Promise<DecisionTemplate | null> {
     const [row] = await db
       .update(decisionTemplates)
       .set(data)
@@ -219,7 +237,10 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .where(eq(templateFieldAssignments.templateId, id))
       .orderBy(asc(templateFieldAssignments.order));
 
-    return this.mapToSchema({ ...row, fields: fields.map(f => this.mapFieldAssignmentToSchema(f)) });
+    return this.mapToSchema({
+      ...row,
+      fields: fields.map((f) => this.mapFieldAssignmentToSchema(f)),
+    });
   }
 
   async delete(id: string): Promise<boolean> {
@@ -239,21 +260,24 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .orderBy(asc(decisionTemplates.name));
 
     // Get field assignments for these templates
-    const templateIds = rows.map(r => r.id);
+    const templateIds = rows.map((r) => r.id);
     const fields = await db
       .select()
       .from(templateFieldAssignments)
       .where(inArray(templateFieldAssignments.templateId, templateIds))
       .orderBy(asc(templateFieldAssignments.templateId), asc(templateFieldAssignments.order));
 
-    const fieldsByTemplate = fields.reduce((acc, field) => {
-      const templateFields = acc[field.templateId] ?? [];
-      templateFields.push(this.mapFieldAssignmentToSchema(field));
-      acc[field.templateId] = templateFields;
-      return acc;
-    }, {} as Record<string, TemplateFieldAssignment[]>);
+    const fieldsByTemplate = fields.reduce(
+      (acc, field) => {
+        const templateFields = acc[field.templateId] ?? [];
+        templateFields.push(this.mapFieldAssignmentToSchema(field));
+        acc[field.templateId] = templateFields;
+        return acc;
+      },
+      {} as Record<string, TemplateFieldAssignment[]>,
+    );
 
-    return rows.map(row => this.mapToSchema({ ...row, fields: fieldsByTemplate[row.id] || [] }));
+    return rows.map((row) => this.mapToSchema({ ...row, fields: fieldsByTemplate[row.id] || [] }));
   }
 
   async findByName(name: string): Promise<DecisionTemplate | null> {
@@ -271,48 +295,53 @@ export class DrizzleDecisionTemplateRepository implements IDecisionTemplateRepos
       .where(eq(templateFieldAssignments.templateId, row.id))
       .orderBy(asc(templateFieldAssignments.order));
 
-    return this.mapToSchema({ ...row, fields: fields.map(f => this.mapFieldAssignmentToSchema(f)) });
+    return this.mapToSchema({
+      ...row,
+      fields: fields.map((f) => this.mapFieldAssignmentToSchema(f)),
+    });
   }
 
   async search(query: string): Promise<DecisionTemplate[]> {
     const rows = await db
       .select()
       .from(decisionTemplates)
-      .where(
-        ilike(decisionTemplates.name, `%${query}%`)
-      )
+      .where(ilike(decisionTemplates.name, `%${query}%`))
       .orderBy(asc(decisionTemplates.name));
 
     // Get field assignments
-    const templateIds = rows.map(r => r.id);
-    const fields = templateIds.length > 0 ? await db
-      .select()
-      .from(templateFieldAssignments)
-      .where(inArray(templateFieldAssignments.templateId, templateIds))
-      .orderBy(asc(templateFieldAssignments.templateId), asc(templateFieldAssignments.order))
-      : [];
+    const templateIds = rows.map((r) => r.id);
+    const fields =
+      templateIds.length > 0
+        ? await db
+            .select()
+            .from(templateFieldAssignments)
+            .where(inArray(templateFieldAssignments.templateId, templateIds))
+            .orderBy(asc(templateFieldAssignments.templateId), asc(templateFieldAssignments.order))
+        : [];
 
-    const fieldsByTemplate = fields.reduce((acc, field) => {
-      const templateFields = acc[field.templateId] ?? [];
-      templateFields.push(this.mapFieldAssignmentToSchema(field));
-      acc[field.templateId] = templateFields;
-      return acc;
-    }, {} as Record<string, TemplateFieldAssignment[]>);
+    const fieldsByTemplate = fields.reduce(
+      (acc, field) => {
+        const templateFields = acc[field.templateId] ?? [];
+        templateFields.push(this.mapFieldAssignmentToSchema(field));
+        acc[field.templateId] = templateFields;
+        return acc;
+      },
+      {} as Record<string, TemplateFieldAssignment[]>,
+    );
 
-    return rows.map(row => this.mapToSchema({ ...row, fields: fieldsByTemplate[row.id] || [] }));
+    return rows.map((row) => this.mapToSchema({ ...row, fields: fieldsByTemplate[row.id] || [] }));
   }
 
   async createMany(templates: CreateDecisionTemplate[]): Promise<DecisionTemplate[]> {
-    const rows = await db
-      .insert(decisionTemplates)
-      .values(templates)
-      .returning();
+    const rows = await db.insert(decisionTemplates).values(templates).returning();
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 }
 
-export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldAssignmentRepository {
+export class DrizzleTemplateFieldAssignmentRepository
+  implements ITemplateFieldAssignmentRepository
+{
   private mapFieldAssignmentToSchema(row: TemplateFieldAssignmentSelect): TemplateFieldAssignment {
     return {
       id: row.id,
@@ -324,13 +353,10 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
   }
 
   async create(data: TemplateFieldAssignmentInsert): Promise<TemplateFieldAssignment> {
-    const [row] = await db
-      .insert(templateFieldAssignments)
-      .values(data)
-      .returning();
+    const [row] = await db.insert(templateFieldAssignments).values(data).returning();
 
     if (!row) {
-      throw new Error('Failed to create template field assignment');
+      throw new Error("Failed to create template field assignment");
     }
 
     return this.mapFieldAssignmentToSchema(row);
@@ -347,7 +373,7 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
       .where(eq(templateFieldAssignments.templateId, templateId))
       .orderBy(asc(templateFieldAssignments.order));
 
-    return rows.map(row => this.mapFieldAssignmentToSchema(row));
+    return rows.map((row) => this.mapFieldAssignmentToSchema(row));
   }
 
   async findByFieldId(fieldId: string): Promise<TemplateFieldAssignment[]> {
@@ -361,21 +387,23 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
       .where(eq(templateFieldAssignments.fieldId, fieldId))
       .orderBy(asc(templateFieldAssignments.templateId), asc(templateFieldAssignments.order));
 
-    return rows.map(row => this.mapFieldAssignmentToSchema(row));
+    return rows.map((row) => this.mapFieldAssignmentToSchema(row));
   }
 
   async update(
     templateId: string,
     fieldId: string,
-    data: Partial<TemplateFieldAssignmentInsert>
+    data: Partial<TemplateFieldAssignmentInsert>,
   ): Promise<TemplateFieldAssignment | null> {
     const [row] = await db
       .update(templateFieldAssignments)
       .set(data)
-      .where(and(
-        eq(templateFieldAssignments.templateId, templateId),
-        eq(templateFieldAssignments.fieldId, fieldId)
-      ))
+      .where(
+        and(
+          eq(templateFieldAssignments.templateId, templateId),
+          eq(templateFieldAssignments.fieldId, fieldId),
+        ),
+      )
       .returning();
 
     return row ? this.mapFieldAssignmentToSchema(row) : null;
@@ -384,10 +412,12 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
   async delete(templateId: string, fieldId: string): Promise<boolean> {
     const result = await db
       .delete(templateFieldAssignments)
-      .where(and(
-        eq(templateFieldAssignments.templateId, templateId),
-        eq(templateFieldAssignments.fieldId, fieldId)
-      ))
+      .where(
+        and(
+          eq(templateFieldAssignments.templateId, templateId),
+          eq(templateFieldAssignments.fieldId, fieldId),
+        ),
+      )
       .returning();
 
     return result.length > 0;
@@ -406,28 +436,29 @@ export class DrizzleTemplateFieldAssignmentRepository implements ITemplateFieldA
     return result.length > 0;
   }
 
-  async createMany(assignments: TemplateFieldAssignmentInsert[]): Promise<TemplateFieldAssignment[]> {
-    const rows = await db
-      .insert(templateFieldAssignments)
-      .values(assignments)
-      .returning();
+  async createMany(
+    assignments: TemplateFieldAssignmentInsert[],
+  ): Promise<TemplateFieldAssignment[]> {
+    const rows = await db.insert(templateFieldAssignments).values(assignments).returning();
 
-    return rows.map(row => this.mapFieldAssignmentToSchema(row));
+    return rows.map((row) => this.mapFieldAssignmentToSchema(row));
   }
 
   async updateOrder(
     templateId: string,
-    assignments: { fieldId: string; order: number }[]
+    assignments: { fieldId: string; order: number }[],
   ): Promise<void> {
     await db.transaction(async (tx) => {
       for (const { fieldId, order } of assignments) {
         await tx
           .update(templateFieldAssignments)
           .set({ order })
-          .where(and(
-            eq(templateFieldAssignments.templateId, templateId),
-            eq(templateFieldAssignments.fieldId, fieldId)
-          ));
+          .where(
+            and(
+              eq(templateFieldAssignments.templateId, templateId),
+              eq(templateFieldAssignments.fieldId, fieldId),
+            ),
+          );
       }
     });
   }

@@ -3,21 +3,24 @@
  * Tests the service with actual database operations
  */
 
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
-import { DecisionTemplateService } from '../services/decision-template-service';
-import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository } from '../../../db/src/repositories/decision-template-repository';
-import { DrizzleDecisionFieldRepository } from '../../../db/src/repositories/decision-field-repository';
-import { db } from '../../../db/src/client';
-import { decisionTemplates, templateFieldAssignments, decisionFields } from '../../../db/src/schema';
-import type { 
-  CreateDecisionTemplate,
-  CreateTemplateFieldAssignment
-} from '../index';
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
+import { DecisionTemplateService } from "../services/decision-template-service";
+import {
+  DrizzleDecisionTemplateRepository,
+  DrizzleTemplateFieldAssignmentRepository,
+} from "../../../db/src/repositories/decision-template-repository";
+import { DrizzleDecisionFieldRepository } from "../../../db/src/repositories/decision-field-repository";
+import { db } from "../../../db/src/client";
+import {
+  decisionTemplates,
+  templateFieldAssignments,
+  decisionFields,
+} from "../../../db/src/schema";
+import type { CreateDecisionTemplate, CreateTemplateFieldAssignment } from "../index";
 
-const describeWithDb =
-  process.env['RUN_DB_TESTS'] === 'true' ? describe : describe.skip;
+const describeWithDb = process.env["RUN_DB_TESTS"] === "true" ? describe : describe.skip;
 
-describeWithDb('DecisionTemplateService Integration Tests', () => {
+describeWithDb("DecisionTemplateService Integration Tests", () => {
   let service: DecisionTemplateService;
   let templateRepo: DrizzleDecisionTemplateRepository;
   let fieldAssignmentRepo: DrizzleTemplateFieldAssignmentRepository;
@@ -30,16 +33,16 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     fieldAssignmentRepo = new DrizzleTemplateFieldAssignmentRepository();
     fieldRepo = new DrizzleDecisionFieldRepository();
     service = new DecisionTemplateService(templateRepo, fieldAssignmentRepo);
-    
+
     // Create test decision fields
     for (let i = 0; i < 10; i++) {
       const field = await fieldRepo.create({
-        namespace: 'core',
+        namespace: "core",
         name: `Test Field ${i + 1}`,
         description: `Test field number ${i + 1}`,
-        category: 'context',
+        category: "context",
         extractionPrompt: `Extract ${i + 1} from the decision`,
-        fieldType: 'text',
+        fieldType: "text",
       });
       testFieldIds.push(field.id);
     }
@@ -58,20 +61,20 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     await db.delete(decisionFields);
   });
 
-  describe('Template CRUD Operations', () => {
-    it('should create a template with fields', async () => {
+  describe("Template CRUD Operations", () => {
+    it("should create a template with fields", async () => {
       const fieldId1 = testFieldIds[0];
       const fieldId2 = testFieldIds[1];
-      
+
       if (!fieldId1 || !fieldId2) {
-        throw new Error('Test field IDs not properly initialized');
+        throw new Error("Test field IDs not properly initialized");
       }
-      
+
       const templateData: CreateDecisionTemplate = {
-        namespace: 'core',
-        name: 'Test Template',
-        description: 'A test template for integration testing',
-        category: 'standard',
+        namespace: "core",
+        name: "Test Template",
+        description: "A test template for integration testing",
+        category: "standard",
         fields: [
           {
             fieldId: fieldId1!,
@@ -98,13 +101,13 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       expect(result.fields[1]?.fieldId).toBe(fieldId2);
     });
 
-    it('should retrieve a template by ID', async () => {
+    it("should retrieve a template by ID", async () => {
       // Create a template first
       const created = await service.createTemplate({
-        namespace: 'core',
-        name: 'Test Template',
-        description: 'A test template',
-        category: 'technology',
+        namespace: "core",
+        name: "Test Template",
+        description: "A test template",
+        category: "technology",
         fields: [],
       });
 
@@ -116,16 +119,16 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       expect(retrieved?.name).toBe(created.name);
     });
 
-    it('should update a template and its fields', async () => {
+    it("should update a template and its fields", async () => {
       // Create a template
       const fieldId1 = testFieldIds[0];
       const fieldId2 = testFieldIds[1];
-      
+
       const created = await service.createTemplate({
-        namespace: 'core',
-        name: 'Original Template',
-        description: 'Original description',
-        category: 'standard',
+        namespace: "core",
+        name: "Original Template",
+        description: "Original description",
+        category: "standard",
         fields: [
           {
             fieldId: fieldId1!,
@@ -137,8 +140,8 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
 
       // Update it
       const updated = await service.updateTemplate(created.id, {
-        name: 'Updated Template',
-        description: 'Updated description',
+        name: "Updated Template",
+        description: "Updated description",
         fields: [
           {
             fieldId: fieldId1!,
@@ -154,28 +157,28 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       });
 
       expect(updated).toBeDefined();
-      expect(updated?.name).toBe('Updated Template');
-      expect(updated?.description).toBe('Updated description');
+      expect(updated?.name).toBe("Updated Template");
+      expect(updated?.description).toBe("Updated description");
       expect(updated?.fields).toHaveLength(2);
       expect(updated?.fields[0]?.required).toBe(false);
       expect(updated?.fields[1]?.fieldId).toBe(fieldId2);
     });
 
-    it('should set and get default template', async () => {
+    it("should set and get default template", async () => {
       // Create two templates
       const template1 = await service.createTemplate({
-        namespace: 'core',
-        name: 'Template 1',
-        description: 'First template',
-        category: 'standard',
+        namespace: "core",
+        name: "Template 1",
+        description: "First template",
+        category: "standard",
         fields: [],
       });
 
       const template2 = await service.createTemplate({
-        namespace: 'core',
-        name: 'Template 2',
-        description: 'Second template',
-        category: 'technology',
+        namespace: "core",
+        name: "Template 2",
+        description: "Second template",
+        category: "technology",
         fields: [],
       });
 
@@ -194,15 +197,15 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       expect(template1Updated?.isDefault).toBe(false);
     });
 
-    it('should delete a template and its field assignments', async () => {
+    it("should delete a template and its field assignments", async () => {
       const fieldId1 = testFieldIds[0];
-      
+
       // Create a template with fields
       const created = await service.createTemplate({
-        namespace: 'core',
-        name: 'Template to Delete',
-        description: 'Will be deleted',
-        category: 'standard',
+        namespace: "core",
+        name: "Template to Delete",
+        description: "Will be deleted",
+        category: "standard",
         fields: [
           {
             fieldId: fieldId1!,
@@ -229,13 +232,13 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       expect(fieldsAfter).toHaveLength(0);
     });
 
-    it('should prevent deletion of default template', async () => {
+    it("should prevent deletion of default template", async () => {
       // Create and set as default
       const template = await service.createTemplate({
-        namespace: 'core',
-        name: 'Default Template',
-        description: 'Cannot be deleted',
-        category: 'standard',
+        namespace: "core",
+        name: "Default Template",
+        description: "Cannot be deleted",
+        category: "standard",
         fields: [],
       });
 
@@ -243,21 +246,21 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
 
       // Try to delete
       await expect(service.deleteTemplate(template.id)).rejects.toThrow(
-        'Cannot delete the default template'
+        "Cannot delete the default template",
       );
     });
   });
 
-  describe('Field Assignment Operations', () => {
-    it('should add a field to an existing template', async () => {
+  describe("Field Assignment Operations", () => {
+    it("should add a field to an existing template", async () => {
       const fieldId1 = testFieldIds[0];
-      
+
       // Create template without fields
       const template = await service.createTemplate({
-        namespace: 'core',
-        name: 'Template',
-        description: 'Test template',
-        category: 'standard',
+        namespace: "core",
+        name: "Template",
+        description: "Test template",
+        category: "standard",
         fields: [],
       });
 
@@ -275,15 +278,15 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       expect(updatedTemplate?.fields).toHaveLength(1);
     });
 
-    it('should remove a field from a template', async () => {
+    it("should remove a field from a template", async () => {
       const fieldId1 = testFieldIds[0];
-      
+
       // Create template with field
       const template = await service.createTemplate({
-        namespace: 'core',
-        name: 'Template',
-        description: 'Test template',
-        category: 'standard',
+        namespace: "core",
+        name: "Template",
+        description: "Test template",
+        category: "standard",
         fields: [
           {
             fieldId: fieldId1!,
@@ -302,17 +305,17 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
       expect(updatedTemplate?.fields).toHaveLength(0);
     });
 
-    it('should reorder fields in a template', async () => {
+    it("should reorder fields in a template", async () => {
       const fieldId1 = testFieldIds[0];
       const fieldId2 = testFieldIds[1];
       const fieldId3 = testFieldIds[2];
-      
+
       // Create template with multiple fields
       const template = await service.createTemplate({
-        namespace: 'core',
-        name: 'Template',
-        description: 'Test template',
-        category: 'standard',
+        namespace: "core",
+        name: "Template",
+        description: "Test template",
+        category: "standard",
         fields: [
           {
             fieldId: fieldId1!,
@@ -351,121 +354,121 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     });
   });
 
-  describe('Query Operations', () => {
-    it('should get templates by category', async () => {
+  describe("Query Operations", () => {
+    it("should get templates by category", async () => {
       // Create templates in different categories
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Tech Template 1',
-        description: 'First tech template',
-        category: 'technology',
+        namespace: "core",
+        name: "Tech Template 1",
+        description: "First tech template",
+        category: "technology",
         fields: [],
       });
 
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Tech Template 2',
-        description: 'Second tech template',
-        category: 'technology',
+        namespace: "core",
+        name: "Tech Template 2",
+        description: "Second tech template",
+        category: "technology",
         fields: [],
       });
 
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Standard Template',
-        description: 'A standard template',
-        category: 'standard',
+        namespace: "core",
+        name: "Standard Template",
+        description: "A standard template",
+        category: "standard",
         fields: [],
       });
 
       // Query by category
-      const techTemplates = await service.getTemplatesByCategory('technology');
+      const techTemplates = await service.getTemplatesByCategory("technology");
       expect(techTemplates).toHaveLength(2);
-      expect(techTemplates.every(t => t.category === 'technology')).toBe(true);
+      expect(techTemplates.every((t) => t.category === "technology")).toBe(true);
 
-      const standardTemplates = await service.getTemplatesByCategory('standard');
+      const standardTemplates = await service.getTemplatesByCategory("standard");
       expect(standardTemplates).toHaveLength(1);
-      expect(standardTemplates[0]?.category).toBe('standard');
+      expect(standardTemplates[0]?.category).toBe("standard");
     });
 
-    it('should search templates by name', async () => {
+    it("should search templates by name", async () => {
       // Create templates
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Technology Decision Template',
-        description: 'For tech decisions',
-        category: 'technology',
+        namespace: "core",
+        name: "Technology Decision Template",
+        description: "For tech decisions",
+        category: "technology",
         fields: [],
       });
 
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Strategic Template',
-        description: 'For strategy',
-        category: 'strategy',
+        namespace: "core",
+        name: "Strategic Template",
+        description: "For strategy",
+        category: "strategy",
         fields: [],
       });
 
       // Search
-      const results = await service.searchTemplates('Technology');
+      const results = await service.searchTemplates("Technology");
       expect(results).toHaveLength(1);
-      expect(results[0]?.name).toContain('Technology');
+      expect(results[0]?.name).toContain("Technology");
 
-      const results2 = await service.searchTemplates('Template');
+      const results2 = await service.searchTemplates("Template");
       expect(results2).toHaveLength(2);
     });
 
-    it('should get all unique categories', async () => {
+    it("should get all unique categories", async () => {
       // Create templates in various categories
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Template 1',
-        description: 'Tech template',
-        category: 'technology',
+        namespace: "core",
+        name: "Template 1",
+        description: "Tech template",
+        category: "technology",
         fields: [],
       });
 
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Template 2',
-        description: 'Another tech template',
-        category: 'technology',
+        namespace: "core",
+        name: "Template 2",
+        description: "Another tech template",
+        category: "technology",
         fields: [],
       });
 
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Template 3',
-        description: 'Standard template',
-        category: 'standard',
+        namespace: "core",
+        name: "Template 3",
+        description: "Standard template",
+        category: "standard",
         fields: [],
       });
 
       await service.createTemplate({
-        namespace: 'core',
-        name: 'Template 4',
-        description: 'Strategy template',
-        category: 'strategy',
+        namespace: "core",
+        name: "Template 4",
+        description: "Strategy template",
+        category: "strategy",
         fields: [],
       });
 
       // Get categories
       const categories = await service.getTemplateCategories();
-      expect(categories).toEqual(['standard', 'strategy', 'technology']);
+      expect(categories).toEqual(["standard", "strategy", "technology"]);
     });
   });
 
-  describe('Bulk Operations', () => {
-    it('should create a template with multiple fields in one operation', async () => {
+  describe("Bulk Operations", () => {
+    it("should create a template with multiple fields in one operation", async () => {
       const fieldId1 = testFieldIds[0];
       const fieldId2 = testFieldIds[1];
       const fieldId3 = testFieldIds[2];
-      
+
       const templateData: CreateDecisionTemplate = {
-        namespace: 'core',
-        name: 'Complex Template',
-        description: 'Template with many fields',
-        category: 'standard',
+        namespace: "core",
+        name: "Complex Template",
+        description: "Template with many fields",
+        category: "standard",
         fields: [],
       };
 
@@ -496,40 +499,40 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
     });
   });
 
-  describe('Validation', () => {
-    it('should reject invalid template definitions', async () => {
+  describe("Validation", () => {
+    it("should reject invalid template definitions", async () => {
       // Empty name
       await expect(
         service.createTemplate({
-          namespace: 'core',
-          name: '',
-          description: 'Invalid template',
-          category: 'standard',
+          namespace: "core",
+          name: "",
+          description: "Invalid template",
+          category: "standard",
           fields: [],
-        })
-      ).rejects.toThrow('Invalid template definition');
+        }),
+      ).rejects.toThrow("Invalid template definition");
 
       // Invalid category
       await expect(
         service.createTemplate({
-          namespace: 'core',
-          name: 'Invalid Template',
-          description: 'Has invalid category',
-          category: 'invalid' as any,
+          namespace: "core",
+          name: "Invalid Template",
+          description: "Has invalid category",
+          category: "invalid" as any,
           fields: [],
-        })
-      ).rejects.toThrow('Invalid template definition');
+        }),
+      ).rejects.toThrow("Invalid template definition");
 
       // Non-sequential field orders
       const fieldId1 = testFieldIds[0];
       const fieldId2 = testFieldIds[1];
-      
+
       await expect(
         service.createTemplate({
-          namespace: 'core',
-          name: 'Bad Order Template',
-          description: 'Fields not sequential',
-          category: 'standard',
+          namespace: "core",
+          name: "Bad Order Template",
+          description: "Fields not sequential",
+          category: "standard",
           fields: [
             {
               fieldId: fieldId1!,
@@ -542,8 +545,8 @@ describeWithDb('DecisionTemplateService Integration Tests', () => {
               required: true,
             },
           ],
-        })
-      ).rejects.toThrow('Invalid template definition');
+        }),
+      ).rejects.toThrow("Invalid template definition");
     });
   });
 });

@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { FilePlus2, X } from 'lucide-react';
-import { TEMPLATES } from '@/lib/mock-data';
-import type { Template, RelationType } from '@/lib/mock-data';
-import { Select } from '@/components/ui/Select';
+import { useState } from "react";
+import { FilePlus2, X } from "lucide-react";
+import { TEMPLATES } from "@/lib/mock-data";
+import type { Template, RelationType } from "@/lib/mock-data";
+import { Select } from "@/components/ui/Select";
 
 interface CreateContextDialogProps {
   onConfirm: (
@@ -19,21 +19,21 @@ interface CreateContextDialogProps {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  standard: 'Standard',
-  technology: 'Technology',
-  budget: 'Budget',
-  strategy: 'Strategy',
-  policy: 'Policy',
-  proposal: 'Proposal',
+  standard: "Standard",
+  technology: "Technology",
+  budget: "Budget",
+  strategy: "Strategy",
+  policy: "Policy",
+  proposal: "Proposal",
 };
 
 export function CreateContextDialog({
   onConfirm,
   onCancel,
-  initialTitle = '',
-  initialSummary = '',
+  initialTitle = "",
+  initialSummary = "",
   relationTargetTitle,
-  initialRelationType = 'related',
+  initialRelationType = "related",
 }: CreateContextDialogProps) {
   const [title, setTitle] = useState(initialTitle);
   const [summary, setSummary] = useState(initialSummary);
@@ -47,8 +47,13 @@ export function CreateContextDialog({
       <div className="w-full max-w-lg bg-surface border border-border rounded-card shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <FilePlus2 size={16} className="text-accent" />
-          <h2 className="text-fac-field text-text-primary font-medium flex-1">Create decision context</h2>
-          <button onClick={onCancel} className="text-text-muted hover:text-text-primary transition-colors">
+          <h2 className="text-fac-field text-text-primary font-medium flex-1">
+            Create decision context
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
             <X size={16} />
           </button>
         </div>
@@ -60,7 +65,8 @@ export function CreateContextDialog({
                 Relation to existing decision
               </label>
               <p className="text-fac-meta text-text-primary">
-                New context will be linked to: <span className="font-medium">{relationTargetTitle}</span>
+                New context will be linked to:{" "}
+                <span className="font-medium">{relationTargetTitle}</span>
               </p>
               <Select
                 value={relationType}
@@ -95,7 +101,9 @@ export function CreateContextDialog({
           <div className="flex flex-col gap-1.5">
             <label className="text-fac-label text-text-secondary uppercase tracking-wider">
               Summary
-              <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">(optional)</span>
+              <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">
+                (optional)
+              </span>
             </label>
             <textarea
               value={summary}
@@ -118,13 +126,15 @@ export function CreateContextDialog({
                   onClick={() => setSelectedTemplate(tpl)}
                   className={`flex items-start gap-3 px-4 py-3 rounded-card border text-left transition-colors ${
                     selectedTemplate?.id === tpl.id
-                      ? 'border-accent/40 bg-accent-dim/20'
-                      : 'border-border hover:border-border-strong'
+                      ? "border-accent/40 bg-accent-dim/20"
+                      : "border-border hover:border-border-strong"
                   }`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`text-fac-field font-medium ${selectedTemplate?.id === tpl.id ? 'text-text-primary' : 'text-text-secondary'}`}>
+                      <span
+                        className={`text-fac-field font-medium ${selectedTemplate?.id === tpl.id ? "text-text-primary" : "text-text-secondary"}`}
+                      >
                         {tpl.name}
                       </span>
                       <span className="text-fac-meta text-text-muted border border-border rounded px-1.5 py-0.5">
@@ -133,7 +143,9 @@ export function CreateContextDialog({
                     </div>
                     <p className="text-fac-meta text-text-muted mt-0.5">{tpl.description}</p>
                   </div>
-                  <span className="text-fac-meta text-text-muted shrink-0">{tpl.fieldCount} fields</span>
+                  <span className="text-fac-meta text-text-muted shrink-0">
+                    {tpl.fieldCount} fields
+                  </span>
                 </button>
               ))}
             </div>

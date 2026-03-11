@@ -1,110 +1,204 @@
-import { useMemo, useState } from 'react';
-import { Plus, FolderOpen, CalendarDays, Users, X, UserPlus, Trash2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { MeetingSearchPanel } from '@/components/shared/MeetingSearchPanel';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Panel } from '@/components/ui/Panel';
-import { MEETINGS } from '@/lib/mock-data';
-import type { Meeting } from '@/lib/mock-data';
+import { useMemo, useState, useEffect, useCallback } from "react";
+import {
+  Plus,
+  FolderOpen,
+  CalendarDays,
+  Users,
+  X,
+  UserPlus,
+  Trash2,
+  AlertCircle,
+  RefreshCw,
+  ArrowRight,
+  Compass,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Panel } from "@/components/ui/Panel";
+import { MainHeader } from "@/components/shared/MainHeader";
+import { listMeetings, createMeeting, getActiveMeetingsContextSummary } from "@/api/endpoints";
+import type { ActiveMeetingsContextSummary, Meeting } from "@/api/types";
+
+function nowAsLocalDateTimeInputValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hour = String(now.getHours()).padStart(2, "0");
+  const minute = String(now.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+type MeetingLifecycle = "scheduled" | "active" | "closed";
+
+function getMeetingLifecycle(meeting: Meeting): MeetingLifecycle {
+  if (meeting.status === "completed") {
+    return "closed";
+  }
+
+  const startsAt = new Date(meeting.date);
+  if (Number.isNaN(startsAt.getTime())) {
+    return "active";
+  }
+
+  return startsAt.getTime() > Date.now() ? "scheduled" : "active";
+}
+
+function formatMeetingDate(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function MeetingListPage() {
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [activeSummary, setActiveSummary] = useState<ActiveMeetingsContextSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [pastQuery, setPastQuery] = useState('');
-  const [pastMonth, setPastMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [pastTag, setPastTag] = useState('all');
-  const todayIso = new Date().toISOString().slice(0, 10);
 
-  const upcomingMeetings = useMemo(
-    () =>
-      [...MEETINGS]
-        .filter((meeting) => meeting.date >= todayIso)
-        .sort((a, b) => a.date.localeCompare(b.date)),
-    [todayIso],
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [{ meetings: data }, summary] = await Promise.all([
+        listMeetings(),
+        getActiveMeetingsContextSummary(),
+      ]);
+      setMeetings(data);
+      setActiveSummary(summary);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load meetings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const orderedMeetings = useMemo(
+    () => [...meetings].sort((a, b) => b.date.localeCompare(a.date)),
+    [meetings],
   );
-
-  const allMeetingTags = useMemo(
-    () => Array.from(new Set(MEETINGS.flatMap((meeting) => getMeetingTags(meeting.id)))).sort(),
-    [],
-  );
-
-  const filteredPastMeetings = useMemo(() => {
-    const q = pastQuery.trim().toLowerCase();
-    return [...MEETINGS]
-      .filter((meeting) => meeting.date < todayIso)
-      .filter((meeting) => {
-        if (pastMonth && !meeting.date.startsWith(pastMonth)) return false;
-        if (pastTag !== 'all' && !getMeetingTags(meeting.id).includes(pastTag)) return false;
-        if (!q) return true;
-        if (meeting.title.toLowerCase().includes(q)) return true;
-        if (meeting.date.includes(q)) return true;
-        if (meeting.participants.some((p) => p.toLowerCase().includes(q))) return true;
-        if (getMeetingTags(meeting.id).some((tag) => tag.toLowerCase().includes(q))) return true;
-        return false;
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [pastMonth, pastQuery, pastTag, todayIso]);
+  const currentContext = activeSummary?.currentContext;
+  const activeMeetingPath = currentContext?.activeMeetingId
+    ? `/meetings/${currentContext.activeMeetingId}/facilitator/home`
+    : null;
+  const activeWorkspacePath = currentContext?.activeMeetingId
+    ? `/meetings/${currentContext.activeMeetingId}/facilitator`
+    : null;
 
   return (
     <div className="density-facilitator min-h-screen bg-base">
-      <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-fac-title text-text-primary">Decision Logger</h1>
-          <p className="text-fac-meta text-text-secondary mt-0.5">Meeting sessions</p>
-        </div>
-        <Button
-          onClick={() => setShowCreate(true)}
-          variant="primary"
-          className="text-fac-field font-medium"
-        >
-          <Plus size={16} />
-          New meeting
-        </Button>
-      </header>
+      <MainHeader title="Decision Logger" subtitle="Meeting sessions" />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
-        {showCreate && (
-          <div className="mb-6">
-            <NewMeetingForm onCancel={() => setShowCreate(false)} />
+        {error && (
+          <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-card border border-danger/30 bg-danger-dim text-danger text-fac-meta">
+            <AlertCircle size={15} className="shrink-0" />
+            <span className="flex-1">{error}</span>
+            <Button onClick={load} variant="ghost" size="sm" className="text-danger gap-1.5">
+              <RefreshCw size={13} />
+              Retry
+            </Button>
           </div>
         )}
 
-        <Panel title="Upcoming meetings" className="mb-5">
-          {upcomingMeetings.length === 0 ? (
-            <p className="text-fac-meta text-text-muted">No upcoming meetings scheduled.</p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {upcomingMeetings.map((meeting) => (
-                <MeetingRow key={meeting.id} meeting={meeting} />
-              ))}
+        <div className="mb-8 rounded-card border border-accent/30 bg-accent-dim/10 px-6 py-7 text-center">
+          <p className="text-fac-field text-text-primary font-medium">Start here</p>
+          <p className="text-fac-meta text-text-secondary mt-1">
+            Create a meeting to begin facilitation.
+          </p>
+          <div className="mt-4">
+            <Button
+              onClick={() => setShowCreate((prev) => !prev)}
+              variant="primary"
+              className="text-fac-field font-medium"
+            >
+              <Plus size={16} />
+              {showCreate ? "Close" : "New meeting"}
+            </Button>
+          </div>
+        </div>
+
+        {showCreate && (
+          <div className="mb-6">
+            <NewMeetingForm onCancel={() => setShowCreate(false)} onCreated={load} />
+          </div>
+        )}
+
+        <Panel title="Current active context" className="mb-5">
+          {currentContext?.activeMeetingId ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-fac-field text-text-primary font-medium">
+                  <Compass size={16} className="text-accent" />
+                  <span>{currentContext.activeMeeting?.title ?? "Active meeting selected"}</span>
+                </div>
+                <p className="text-fac-meta text-text-secondary">
+                  Meeting: {currentContext.activeMeetingId}
+                </p>
+                {currentContext.activeDecisionContextId && (
+                  <p className="text-fac-meta text-text-secondary">
+                    Decision context:{" "}
+                    {currentContext.activeDecision?.suggestedTitle ??
+                      currentContext.activeDecisionContext?.title ??
+                      currentContext.activeDecisionContextId}
+                  </p>
+                )}
+                {!currentContext.activeDecisionContextId &&
+                  activeSummary &&
+                  activeSummary.activeMeetings.length > 1 && (
+                    <p className="text-fac-meta text-text-muted">
+                      {activeSummary.activeMeetings.length} meetings are open, but this is the one
+                      currently selected for global context.
+                    </p>
+                  )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {activeMeetingPath && (
+                  <Link to={activeMeetingPath}>
+                    <Button variant="outline-accent">Open meeting home</Button>
+                  </Link>
+                )}
+                {activeWorkspacePath && (
+                  <Link to={activeWorkspacePath}>
+                    <Button variant="primary">
+                      Resume active workspace
+                      <ArrowRight size={13} />
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
+          ) : (
+            <p className="text-fac-meta text-text-muted">
+              No active meeting context is selected yet.
+            </p>
           )}
         </Panel>
 
-        <Panel
-          title="Past meetings"
-          right={<span className="text-fac-meta text-text-muted">Browse by date and tag</span>}
-        >
-          <MeetingSearchPanel
-            query={pastQuery}
-            onQueryChange={setPastQuery}
-            month={pastMonth}
-            onMonthChange={setPastMonth}
-            queryPlaceholder="Search title, participant, date, tag..."
-            tagValue={pastTag}
-            onTagChange={setPastTag}
-            tagOptions={[
-              { value: 'all', label: 'All tags' },
-              ...allMeetingTags.map((tag) => ({ value: tag, label: tag })),
-            ]}
-          />
-
-          {filteredPastMeetings.length === 0 ? (
-            <p className="text-fac-meta text-text-muted italic">No past meetings match current filters.</p>
+        <Panel title="Meetings" className="mb-5">
+          {loading ? (
+            <MeetingSkeletons count={3} />
+          ) : orderedMeetings.length === 0 ? (
+            <p className="text-fac-meta text-text-muted">No meetings created yet.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {filteredPastMeetings.map((meeting) => (
-                <MeetingRow key={meeting.id} meeting={meeting} showTags />
+              {orderedMeetings.map((meeting) => (
+                <MeetingRow key={meeting.id} meeting={meeting} />
               ))}
             </div>
           )}
@@ -114,37 +208,75 @@ export function MeetingListPage() {
   );
 }
 
+// ── Loading skeleton ──────────────────────────────────────────────
+
+function MeetingSkeletons({ count }: { count: number }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="h-16 rounded-card border border-border bg-surface animate-pulse-slow"
+        />
+      ))}
+    </div>
+  );
+}
+
 // ── New meeting form ─────────────────────────────────────────────
 
-function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
+function NewMeetingForm({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void;
+  onCreated: () => void;
+}) {
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0] ?? '');
+  const [title, setTitle] = useState("");
+  const [meetingAt, setMeetingAt] = useState(nowAsLocalDateTimeInputValue());
   const [participants, setParticipants] = useState<string[]>([]);
-  const [newParticipant, setNewParticipant] = useState('');
+  const [newParticipant, setNewParticipant] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   function addParticipant() {
     const name = newParticipant.trim();
     if (!name || participants.includes(name)) return;
     setParticipants((prev) => [...prev, name]);
-    setNewParticipant('');
+    setNewParticipant("");
   }
 
   function removeParticipant(name: string) {
     setParticipants((prev) => prev.filter((p) => p !== name));
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!title.trim()) return;
-    navigate('/meetings/mtg-1/facilitator/home', {
-      state: {
-        setupDraft: {
-          meetingTitle: title.trim(),
-          meetingDate: date,
-          participants,
-        },
-      },
-    });
+    if (participants.length === 0) {
+      setFormError("Add at least one participant");
+      return;
+    }
+    setSaving(true);
+    setFormError(null);
+    try {
+      const parsedMeetingAt = meetingAt ? new Date(meetingAt) : new Date();
+      if (Number.isNaN(parsedMeetingAt.getTime())) {
+        setFormError("Enter a valid date and time");
+        setSaving(false);
+        return;
+      }
+      const meeting = await createMeeting({
+        title: title.trim(),
+        date: parsedMeetingAt.toISOString(),
+        participants,
+      });
+      onCreated();
+      navigate(`/meetings/${meeting.id}/facilitator/home`);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to create meeting");
+      setSaving(false);
+    }
   }
 
   return (
@@ -156,6 +288,8 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
         </Button>
       </div>
 
+      {formError && <p className="text-fac-meta text-danger">{formError}</p>}
+
       {/* Title */}
       <div className="flex flex-col gap-1.5">
         <label className="text-fac-label text-text-secondary uppercase tracking-wider">
@@ -166,6 +300,7 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void handleCreate()}
           placeholder="e.g. Q4 Architecture Review"
           className="w-full bg-surface text-fac-field"
         />
@@ -173,21 +308,28 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
 
       {/* Date */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-fac-label text-text-secondary uppercase tracking-wider">Date</label>
+        <label className="text-fac-label text-text-secondary uppercase tracking-wider">
+          Date and time
+        </label>
         <Input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-48 bg-surface text-fac-field"
+          type="datetime-local"
+          value={meetingAt}
+          onChange={(e) => setMeetingAt(e.target.value)}
+          className="w-64 bg-surface text-fac-field"
         />
       </div>
 
       {/* Participants */}
       <div className="flex flex-col gap-2">
-        <label className="text-fac-label text-text-secondary uppercase tracking-wider">Participants</label>
+        <label className="text-fac-label text-text-secondary uppercase tracking-wider">
+          Participants
+        </label>
         <div className="flex flex-col gap-1">
           {participants.map((p) => (
-            <div key={p} className="flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-surface/60">
+            <div
+              key={p}
+              className="flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-surface/60"
+            >
               <span className="text-fac-meta text-text-primary flex-1">{p}</span>
               <button
                 onClick={() => removeParticipant(p)}
@@ -204,7 +346,7 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
             placeholder="Name…"
             value={newParticipant}
             onChange={(e) => setNewParticipant(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addParticipant()}
+            onKeyDown={(e) => e.key === "Enter" && addParticipant()}
             inputSize="sm"
             className="flex-1 bg-surface"
           />
@@ -221,19 +363,16 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
       </div>
 
       <div className="flex gap-2 pt-1">
-        <Button
-          onClick={onCancel}
-          variant="ghost"
-        >
+        <Button onClick={onCancel} variant="ghost">
           Cancel
         </Button>
         <Button
-          onClick={handleCreate}
-          disabled={!title.trim()}
+          onClick={() => void handleCreate()}
+          disabled={!title.trim() || participants.length === 0 || saving}
           variant="primary"
         >
           <Plus size={13} />
-          Create meeting
+          {saving ? "Creating…" : "Create meeting"}
         </Button>
       </div>
     </div>
@@ -242,7 +381,17 @@ function NewMeetingForm({ onCancel }: { onCancel: () => void }) {
 
 // ── Meeting row ──────────────────────────────────────────────────
 
-function MeetingRow({ meeting, showTags = false }: { meeting: Meeting; showTags?: boolean }) {
+function MeetingRow({ meeting }: { meeting: Meeting }) {
+  const lifecycle = getMeetingLifecycle(meeting);
+  const lifecycleBadgeClass =
+    lifecycle === "scheduled"
+      ? "bg-caution-dim text-caution border-caution/30"
+      : lifecycle === "active"
+        ? "bg-accent-dim text-accent border-accent/30"
+        : "bg-overlay text-text-muted border-border";
+  const lifecycleLabel =
+    lifecycle === "scheduled" ? "Scheduled" : lifecycle === "active" ? "Active" : "Closed";
+
   return (
     <Link
       to={`/meetings/${meeting.id}/facilitator/home`}
@@ -255,52 +404,25 @@ function MeetingRow({ meeting, showTags = false }: { meeting: Meeting; showTags?
             <span className="text-fac-field text-text-primary font-medium truncate">
               {meeting.title}
             </span>
-            {meeting.status === 'active' && (
-              <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-badge text-[11px] bg-accent-dim text-accent border border-accent/30 font-medium">
-                Active
-              </span>
-            )}
+            <span
+              className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-badge text-[11px] border font-medium ${lifecycleBadgeClass}`}
+            >
+              {lifecycleLabel}
+            </span>
           </div>
 
           <div className="flex items-center gap-4 mt-2">
             <span className="flex items-center gap-1 text-fac-meta text-text-muted">
               <CalendarDays size={12} />
-              {meeting.date}
+              {formatMeetingDate(meeting.date)}
             </span>
             <span className="flex items-center gap-1 text-fac-meta text-text-muted">
               <Users size={12} />
               {meeting.participants.length} participants
             </span>
           </div>
-          {showTags && (
-            <p className="text-fac-meta text-text-muted mt-1">
-              {getMeetingTags(meeting.id).join(', ')}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <StatChip label="Drafted" value={meeting.draftedCount} />
-          <StatChip label="Logged" value={meeting.loggedCount} />
         </div>
       </div>
     </Link>
   );
-}
-
-function StatChip({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-fac-title text-text-primary">{value}</span>
-      <span className="text-[11px] text-text-muted">{label}</span>
-    </div>
-  );
-}
-
-function getMeetingTags(meetingId: string): string[] {
-  const mapping: Record<string, string[]> = {
-    'mtg-1': ['architecture', 'platform', 'q4'],
-    'mtg-2': ['budget', 'finance', 'planning'],
-  };
-  return mapping[meetingId] ?? ['general'];
 }

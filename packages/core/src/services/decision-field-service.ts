@@ -3,12 +3,12 @@
  * Manages the field library with extraction prompts and validation rules
  */
 
-import type { DecisionField, CreateDecisionField } from '@repo/schema';
-import type { IDecisionFieldService } from '../interfaces/i-decision-field-service';
+import type { DecisionField, CreateDecisionField } from "@repo/schema";
+import type { IDecisionFieldService } from "../interfaces/i-decision-field-service";
 import type {
   IDecisionFieldRepository,
   DecisionFieldIdentityLookup,
-} from '../interfaces/i-decision-field-repository';
+} from "../interfaces/i-decision-field-repository";
 
 export class DecisionFieldService implements IDecisionFieldService {
   constructor(private repository: IDecisionFieldRepository) {}
@@ -17,7 +17,7 @@ export class DecisionFieldService implements IDecisionFieldService {
     // Validate field definition
     const isValid = await this.validateFieldDefinition(data);
     if (!isValid) {
-      throw new Error('Invalid field definition');
+      throw new Error("Invalid field definition");
     }
 
     const field = await this.repository.create(data);
@@ -58,7 +58,7 @@ export class DecisionFieldService implements IDecisionFieldService {
     const updatedData = { ...existingField, ...data };
     const isValid = await this.validateFieldDefinition(updatedData);
     if (!isValid) {
-      throw new Error('Invalid field definition');
+      throw new Error("Invalid field definition");
     }
 
     const field = await this.repository.update(id, data);
@@ -82,13 +82,13 @@ export class DecisionFieldService implements IDecisionFieldService {
 
   async getFieldCategories(): Promise<string[]> {
     const fields = await this.repository.findAll();
-    const categories = [...new Set(fields.map(f => f.category))].sort();
+    const categories = [...new Set(fields.map((f) => f.category))].sort();
     return categories;
   }
 
   async getFieldTypes(): Promise<string[]> {
     const fields = await this.repository.findAll();
-    const types = [...new Set(fields.map(f => f.fieldType))].sort();
+    const types = [...new Set(fields.map((f) => f.fieldType))].sort();
     return types;
   }
 
@@ -115,7 +115,7 @@ export class DecisionFieldService implements IDecisionFieldService {
     }
 
     // Validate fieldType is one of the allowed values
-    const validFieldTypes = ['text', 'textarea', 'select', 'multiselect', 'number', 'date', 'url'];
+    const validFieldTypes = ["text", "textarea", "select", "multiselect", "number", "date", "url"];
     if (!validFieldTypes.includes(field.fieldType)) {
       return false;
     }

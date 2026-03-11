@@ -3,10 +3,10 @@
  * Implements business logic and validation
  */
 
-import type { IFlaggedDecisionService } from '../interfaces/i-flagged-decision-service';
-import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository';
-import type { ITranscriptChunkRepository } from '../interfaces/transcript-repositories';
-import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
+import type { IFlaggedDecisionService } from "../interfaces/i-flagged-decision-service";
+import type { IFlaggedDecisionRepository } from "../interfaces/i-flagged-decision-repository";
+import type { ITranscriptChunkRepository } from "../interfaces/transcript-repositories";
+import type { FlaggedDecision, CreateFlaggedDecision } from "@repo/schema";
 
 export class FlaggedDecisionService implements IFlaggedDecisionService {
   constructor(
@@ -17,7 +17,7 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
   async createFlaggedDecision(data: CreateFlaggedDecision): Promise<FlaggedDecision> {
     // Validate confidence is between 0 and 1
     if (data.confidence < 0 || data.confidence > 1) {
-      throw new Error('Confidence must be between 0 and 1');
+      throw new Error("Confidence must be between 0 and 1");
     }
 
     // Create the flagged decision
@@ -37,15 +37,15 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     data: {
       suggestedTitle?: string;
       contextSummary?: string;
-      status?: FlaggedDecision['status'];
+      status?: FlaggedDecision["status"];
       priority?: number;
       chunkIds?: string[];
-    }
+    },
   ): Promise<FlaggedDecision | null> {
     // Check if decision exists
     const existing = await this.repository.findById(id);
     if (!existing) {
-      throw new Error('Decision not found');
+      throw new Error("Decision not found");
     }
 
     const updateData: Partial<FlaggedDecision> = {};
@@ -70,13 +70,13 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
 
   async resolveChunkIdsFromSequenceSpec(meetingId: string, segmentSpec: string): Promise<string[]> {
     if (!this.transcriptChunkRepository) {
-      throw new Error('Transcript chunk repository is required to resolve segment selections');
+      throw new Error("Transcript chunk repository is required to resolve segment selections");
     }
 
     const normalizedSpec = segmentSpec.trim().toLowerCase();
     const chunks = await this.transcriptChunkRepository.findByMeetingId(meetingId);
 
-    if (normalizedSpec === 'all') {
+    if (normalizedSpec === "all") {
       return chunks.map((chunk) => chunk.id);
     }
 
@@ -84,11 +84,14 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     const selectedChunkIds: string[] = [];
     const seenChunkIds = new Set<string>();
 
-    for (const part of segmentSpec.split(',').map((value) => value.trim()).filter(Boolean)) {
+    for (const part of segmentSpec
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)) {
       const rangeMatch = /^(\d+)-(\d+)$/.exec(part);
       if (rangeMatch) {
-        const start = Number.parseInt(rangeMatch[1] ?? '', 10);
-        const end = Number.parseInt(rangeMatch[2] ?? '', 10);
+        const start = Number.parseInt(rangeMatch[1] ?? "", 10);
+        const end = Number.parseInt(rangeMatch[2] ?? "", 10);
 
         if (end < start) {
           throw new Error(`Segment range cannot be descending: ${part}`);
@@ -124,7 +127,7 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     }
 
     if (selectedChunkIds.length === 0) {
-      throw new Error('At least one segment must be selected');
+      throw new Error("At least one segment must be selected");
     }
 
     return selectedChunkIds;
@@ -132,18 +135,18 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
 
   async updateDecisionStatus(
     decisionId: string,
-    status: FlaggedDecision['status']
+    status: FlaggedDecision["status"],
   ): Promise<FlaggedDecision> {
     // Check if decision exists
     const existing = await this.repository.findById(decisionId);
     if (!existing) {
-      throw new Error('Decision not found');
+      throw new Error("Decision not found");
     }
 
     // Update the status
     const updated = await this.repository.updateStatus(decisionId, status);
     if (!updated) {
-      throw new Error('Failed to update decision status');
+      throw new Error("Failed to update decision status");
     }
 
     return updated;
@@ -152,13 +155,13 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
   async updateDecisionPriority(decisionId: string, priority: number): Promise<void> {
     // Validate priority
     if (priority < 1 || priority > 5) {
-      throw new Error('Priority must be between 1 and 5');
+      throw new Error("Priority must be between 1 and 5");
     }
 
     // Check if decision exists
     const existing = await this.repository.findById(decisionId);
     if (!existing) {
-      throw new Error('Decision not found');
+      throw new Error("Decision not found");
     }
 
     // Update priority
@@ -168,13 +171,10 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
     }
   }
 
-  async prioritizeDecisions(
-    decisionIds: string[],
-    priorities: number[]
-  ): Promise<void> {
+  async prioritizeDecisions(decisionIds: string[], priorities: number[]): Promise<void> {
     // Validate input arrays match
     if (decisionIds.length !== priorities.length) {
-      throw new Error('Decision IDs and priorities must have the same length');
+      throw new Error("Decision IDs and priorities must have the same length");
     }
 
     // Update each decision's priority
@@ -182,7 +182,7 @@ export class FlaggedDecisionService implements IFlaggedDecisionService {
       const decisionId = decisionIds[i];
       const priority = priorities[i];
       if (decisionId === undefined || priority === undefined) {
-        throw new Error('Decision IDs and priorities must have the same length');
+        throw new Error("Decision IDs and priorities must have the same length");
       }
 
       // Check if decision exists

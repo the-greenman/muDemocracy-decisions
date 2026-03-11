@@ -1,5 +1,5 @@
-import { IMeetingRepository } from '@repo/core';
-import { Meeting, CreateMeeting } from '@repo/schema';
+import { IMeetingRepository } from "@repo/core";
+import { Meeting, CreateMeeting } from "@repo/schema";
 
 // Mock repository for CLI testing
 export class MockMeetingRepository implements IMeetingRepository {
@@ -9,10 +9,10 @@ export class MockMeetingRepository implements IMeetingRepository {
     const meeting: Meeting = {
       id: crypto.randomUUID(),
       ...data,
-      status: 'active',
+      status: "active",
       createdAt: new Date().toISOString(),
     };
-    
+
     this.meetings.set(meeting.id, meeting);
     return meeting;
   }
@@ -25,10 +25,13 @@ export class MockMeetingRepository implements IMeetingRepository {
     return Array.from(this.meetings.values());
   }
 
-  async update(id: string, data: Partial<Pick<CreateMeeting, 'title' | 'date' | 'participants'>>): Promise<Meeting> {
+  async update(
+    id: string,
+    data: Partial<Pick<CreateMeeting, "title" | "date" | "participants">>,
+  ): Promise<Meeting> {
     const meeting = this.meetings.get(id);
     if (!meeting) {
-      throw new Error('Meeting not found');
+      throw new Error("Meeting not found");
     }
 
     const updated: Meeting = {
@@ -40,12 +43,12 @@ export class MockMeetingRepository implements IMeetingRepository {
     return updated;
   }
 
-  async updateStatus(id: string, status: 'active' | 'completed'): Promise<Meeting> {
+  async updateStatus(id: string, status: "active" | "completed"): Promise<Meeting> {
     const meeting = this.meetings.get(id);
     if (!meeting) {
-      throw new Error('Meeting not found');
+      throw new Error("Meeting not found");
     }
-    
+
     const updated = { ...meeting, status };
     this.meetings.set(id, updated);
     return updated;

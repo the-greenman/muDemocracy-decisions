@@ -1,4 +1,4 @@
-import type { TagCategory } from '@/lib/mock-data';
+import type { TagCategory } from "@/lib/mock-data";
 
 interface TagPillProps {
   name: string;
@@ -6,9 +6,9 @@ interface TagPillProps {
 }
 
 const CATEGORY_CLASSES: Record<TagCategory, string> = {
-  topic: 'bg-tag-topic-bg text-tag-topic border-tag-topic/30',
-  team: 'bg-tag-team-bg text-tag-team border-tag-team/30',
-  project: 'bg-tag-project-bg text-tag-project border-tag-project/30',
+  topic: "bg-tag-topic-bg text-tag-topic border-tag-topic/30",
+  team: "bg-tag-team-bg text-tag-team border-tag-team/30",
+  project: "bg-tag-project-bg text-tag-project border-tag-project/30",
 };
 
 export function TagPill({ name, category }: TagPillProps) {

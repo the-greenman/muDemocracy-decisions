@@ -6,9 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, "..");
 
-const allowedSourceDeclarationFiles = new Set([
-  "apps/web/src/vite-env.d.ts",
-]);
+const allowedSourceDeclarationFiles = new Set(["apps/web/src/vite-env.d.ts"]);
 
 const tsconfigFiles = [
   "apps/api/tsconfig.json",
@@ -68,14 +66,14 @@ function collectSourceDeclarationFiles(currentPath, collected = []) {
 for (const relativePath of collectSourceDeclarationFiles(resolve(rootDir, "apps"))) {
   if (!allowedSourceDeclarationFiles.has(relativePath)) {
     errors.push(
-      `${relativePath}: source .d.ts files are only allowed for explicit ambient declarations. Move package API types into .ts source and let tsc emit declarations.`
+      `${relativePath}: source .d.ts files are only allowed for explicit ambient declarations. Move package API types into .ts source and let tsc emit declarations.`,
     );
   }
 }
 
 for (const relativePath of collectSourceDeclarationFiles(resolve(rootDir, "packages"))) {
   errors.push(
-    `${relativePath}: checked-in package API .d.ts files are not allowed. Move the declaration surface into .ts source and let tsc emit dist declarations.`
+    `${relativePath}: checked-in package API .d.ts files are not allowed. Move the declaration surface into .ts source and let tsc emit dist declarations.`,
   );
 }
 
@@ -93,12 +91,12 @@ for (const relativePath of tsconfigFiles) {
 
     const targetList = Array.isArray(targets) ? targets : [targets];
     const distDeclarationTargets = targetList.filter(
-      (target) => typeof target === "string" && /dist\/.*\.d\.ts$/u.test(target)
+      (target) => typeof target === "string" && /dist\/.*\.d\.ts$/u.test(target),
     );
 
     if (!isTypecheckConfig && !isDeclarationConfig && distDeclarationTargets.length > 0) {
       errors.push(
-        `${relativePath}: build/dev tsconfig must not map ${alias} to declaration outputs (${distDeclarationTargets.join(", ")}). Use runtime package exports instead.`
+        `${relativePath}: build/dev tsconfig must not map ${alias} to declaration outputs (${distDeclarationTargets.join(", ")}). Use runtime package exports instead.`,
       );
     }
   }
@@ -112,17 +110,18 @@ for (const relativePath of packageJsonFiles) {
     const hasTsup = buildScript.includes("tsup");
     const hasTsc = buildScript.includes("tsc");
     const tsupOwnsDts = buildScript.includes("--dts") || !buildScript.includes("--no-dts");
-    const copiesDeclarations = /(^|\s)(cp|cpy|copyfiles)\s/u.test(buildScript) && buildScript.includes(".d.ts");
+    const copiesDeclarations =
+      /(^|\s)(cp|cpy|copyfiles)\s/u.test(buildScript) && buildScript.includes(".d.ts");
 
     if (hasTsup && hasTsc && tsupOwnsDts) {
       errors.push(
-        `${relativePath}: build script mixes tsup and tsc without disabling tsup DTS output. Keep a single declaration owner.`
+        `${relativePath}: build script mixes tsup and tsc without disabling tsup DTS output. Keep a single declaration owner.`,
       );
     }
 
     if (copiesDeclarations) {
       errors.push(
-        `${relativePath}: build script copies .d.ts files into outputs. Package API declarations must be emitted by tsc, not copied from source.`
+        `${relativePath}: build script copies .d.ts files into outputs. Package API declarations must be emitted by tsc, not copied from source.`,
       );
     }
   }
@@ -133,7 +132,7 @@ for (const relativePath of packageJsonFiles) {
 
     if (!hasBuildScript && !existsSync(absoluteTypesPath)) {
       errors.push(
-        `${relativePath}: advertised types entry ${pkg.types} does not exist and no build script is available to produce it.`
+        `${relativePath}: advertised types entry ${pkg.types} does not exist and no build script is available to produce it.`,
       );
     }
   }

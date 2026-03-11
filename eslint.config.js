@@ -42,28 +42,11 @@ export default tseslint.config(
           ],
         },
       ],
-      "import/no-useless-path-segments": "error",
     },
   },
   {
-    files: ["scripts/**/*.mjs", "eslint.config.js"],
-    languageOptions: {
-      globals: {
-        console: "readonly",
-        process: "readonly",
-      },
-    },
-  },
-  {
-    files: [
-      "apps/api/src/**/*.ts",
-      "packages/core/src/**/*.ts",
-      "packages/db/src/**/*.ts"
-    ],
-    ignores: [
-      "**/__tests__/**",
-      "packages/db/src/scripts/**"
-    ],
+    files: ["apps/api/src/**/*.ts", "packages/core/src/**/*.ts", "packages/db/src/**/*.ts"],
+    ignores: ["**/__tests__/**", "packages/db/src/scripts/**"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -76,16 +59,14 @@ export default tseslint.config(
         {
           selector:
             "ExportNamedDeclaration[source.value=/^\\.{1,2}\\//]:not([source.value=/\\.js$/])",
-          message:
-            "Relative re-exports in these packages must use explicit .js extensions.",
+          message: "Relative re-exports in these packages must use explicit .js extensions.",
         },
         {
           selector:
             "ExportAllDeclaration[source.value=/^\\.{1,2}\\//]:not([source.value=/\\.js$/])",
-          message:
-            "Relative re-exports in these packages must use explicit .js extensions.",
-        }
-      ]
+          message: "Relative re-exports in these packages must use explicit .js extensions.",
+        },
+      ],
     },
-  }
+  },
 );

@@ -1,108 +1,182 @@
-import { Download } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { RelationsAccordion } from '@/components/shared/RelationsAccordion';
-import { TagPill } from '@/components/shared/TagPill';
-import { ACTIVE_CONTEXT, MEETINGS } from '@/lib/mock-data';
+import { useEffect, useState, useCallback } from "react";
+import { useParams } from "react-router-dom";
+import { Download, AlertCircle, RefreshCw, Home, ArrowLeft } from "lucide-react";
+import {
+  getDecisionLog,
+  getDecisionContext,
+  getTemplateFields,
+  exportDecisionLog,
+} from "@/api/endpoints";
+import { formatFieldName } from "@/api/adapters";
+import type { DecisionLog, DecisionField, DecisionContext } from "@/api/types";
+import { MainHeader } from "@/components/shared/MainHeader";
 
-const LOGGED_DECISION = {
-  ...ACTIVE_CONTEXT,
-  method: 'Consensus',
-  loggedBy: 'Alice Chen',
-  loggedAt: '2026-03-08T15:42:00Z',
-  fields: ACTIVE_CONTEXT.fields.map((f) => ({
-    ...f,
-    value: f.value || 'Traefik, for its cloud-native Kubernetes integration and operational familiarity.',
-    status: 'locked' as const,
-  })),
-};
+interface DisplayField {
+  id: string;
+  label: string;
+  value: string;
+}
 
 export function LoggedDecisionPage() {
-  const navigate = useNavigate();
-  const d = LOGGED_DECISION;
-  const activeMeeting = MEETINGS.find((meeting) => meeting.status === 'active') ?? null;
+  const { id } = useParams<{ id: string }>();
+  const [log, setLog] = useState<DecisionLog | null>(null);
+  const [context, setContext] = useState<DecisionContext | null>(null);
+  const [templateFields, setTemplateFields] = useState<DecisionField[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const logData = await getDecisionLog(id);
+      setLog(logData);
+      const contextData = await getDecisionContext(logData.decisionContextId);
+      setContext(contextData);
+      // Load template fields to resolve UUIDs → labels
+      const { fields } = await getTemplateFields(logData.templateId);
+      setTemplateFields(fields);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load decision");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Build ordered display fields from log.fields (keyed by UUID) + template field order
+  const displayFields: DisplayField[] = (() => {
+    if (!log) return [];
+    const fieldMap = new Map(templateFields.map((f) => [f.id, f]));
+    // Use template order, then fall back to any remaining log.fields keys
+    const ordered: DisplayField[] = templateFields
+      .map((f) => {
+        const value = (log.fields as Record<string, string>)[f.id] ?? "";
+        if (!value) return null;
+        return { id: f.id, label: formatFieldName(f.name), value };
+      })
+      .filter((item): item is DisplayField => item !== null);
+    // Include any log field keys not in the template (shouldn't happen normally)
+    Object.entries(log.fields as Record<string, string>).forEach(([key, value]) => {
+      if (!fieldMap.has(key) && value) {
+        ordered.push({ id: key, label: formatFieldName(key), value });
+      }
+    });
+    return ordered;
+  })();
+
+  async function handleExport() {
+    if (!id) return;
+    setExporting(true);
+    try {
+      const { content } = await exportDecisionLog(id, "markdown");
+      const text = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+      // Download as file
+      const blob = new Blob([text], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `decision-${id.slice(0, 8)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const formattedDate = log?.loggedAt
+    ? new Date(log.loggedAt).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
+  const displayTitle = context?.title?.trim() || "Untitled Decision";
+  const meetingHomePath = context ? `/meetings/${context.meetingId}/facilitator/home` : null;
 
   return (
     <div className="density-display min-h-screen bg-base">
+      <MainHeader
+        title={displayTitle}
+        subtitle="Logged decision"
+        status={{ label: "Logged", tone: "completed" }}
+        navItems={[
+          { label: "Landing page", to: "/", icon: <Home size={13} /> },
+          ...(meetingHomePath
+            ? [{ label: "Back to meeting", to: meetingHomePath, icon: <ArrowLeft size={13} /> }]
+            : []),
+        ]}
+        actions={
+          <button
+            onClick={() => void handleExport()}
+            disabled={exporting}
+            className="flex items-center gap-2 px-3 py-2 text-fac-meta text-text-muted border border-border rounded hover:border-border-strong hover:text-text-primary transition-colors disabled:opacity-50"
+          >
+            <Download size={14} />
+            {exporting ? "Exporting…" : "Export"}
+          </button>
+        }
+      />
       <main className="max-w-4xl mx-auto px-8 py-10">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-6 mb-8">
-          <div className="flex-1 min-w-0">
-            <p className="text-display-label text-text-secondary uppercase tracking-widest mb-2">
-              Logged decision
-            </p>
-            <h1 className="text-display-title text-text-primary">{d.title}</h1>
-            <p className="text-display-meta text-text-secondary mt-3 max-w-2xl leading-relaxed">
-              {d.summary}
-            </p>
+        {error && (
+          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-card border border-danger/30 bg-danger-dim text-danger text-fac-meta">
+            <AlertCircle size={15} className="shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button
+              onClick={() => void load()}
+              className="flex items-center gap-1.5 text-fac-meta hover:underline"
+            >
+              <RefreshCw size={13} />
+              Retry
+            </button>
+          </div>
+        )}
 
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2 mt-4">
-              {d.tags.map((tag) => (
-                <TagPill key={tag.id} name={tag.name} category={tag.category} />
+        {loading ? (
+          <div className="flex flex-col gap-6">
+            <div className="h-12 rounded bg-surface animate-pulse-slow w-1/2" />
+            <div className="h-5 rounded bg-surface animate-pulse-slow w-3/4" />
+            <div className="h-40 rounded-card bg-surface animate-pulse-slow" />
+            <div className="h-40 rounded-card bg-surface animate-pulse-slow" />
+          </div>
+        ) : log ? (
+          <>
+            <div className="mb-4">
+              <p className="text-fac-meta text-text-muted">{log.id}</p>
+            </div>
+
+            {/* Meta bar */}
+            <div className="flex items-center gap-6 px-5 py-3 rounded-card border border-border bg-surface mb-8 text-fac-meta">
+              <MetaItem label="Method" value={log.decisionMethod.type} />
+              <MetaItem label="Logged by" value={log.loggedBy} />
+              <MetaItem label="Date" value={formattedDate} />
+            </div>
+
+            {/* Fields */}
+            <div className="flex flex-col gap-6 mb-8">
+              {displayFields.map((field) => (
+                <div
+                  key={field.id}
+                  className="flex flex-col gap-3 p-8 rounded-card border border-border-locked bg-settled-dim/10"
+                >
+                  <p className="text-display-label text-text-secondary uppercase tracking-widest">
+                    {field.label}
+                  </p>
+                  <p className="text-display-field text-text-primary leading-relaxed">
+                    {field.value}
+                  </p>
+                </div>
               ))}
             </div>
-          </div>
-
-          {/* Export */}
-          <div className="flex flex-col gap-2 shrink-0">
-            <button className="flex items-center gap-2 px-3 py-2 text-fac-meta text-text-muted border border-border rounded hover:border-border-strong hover:text-text-primary transition-colors">
-              <Download size={14} />
-              Export
-            </button>
-            <button
-              onClick={() => {
-                if (!activeMeeting) return;
-                navigate(`/meetings/${activeMeeting.id}/facilitator`, {
-                  state: {
-                    createContextDraft: {
-                      title: `Follow-up: ${d.title}`,
-                      summary: `Follow-up context linked to logged decision \"${d.title}\".`,
-                      relation: {
-                        targetId: d.id,
-                        targetTitle: d.title,
-                        relationType: 'related' as const,
-                      },
-                    },
-                  },
-                });
-              }}
-              disabled={!activeMeeting}
-              className="flex items-center gap-2 px-3 py-2 text-fac-meta border border-accent/30 text-accent rounded hover:bg-accent-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Create follow-up in active meeting
-            </button>
-            {!activeMeeting && (
-              <p className="text-fac-meta text-text-muted max-w-48">
-                No active meeting available. Start or resume a meeting to create follow-up contexts.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Meta bar */}
-        <div className="flex items-center gap-6 px-5 py-3 rounded-card border border-border bg-surface mb-8 text-fac-meta">
-          <MetaItem label="Method" value={d.method} />
-          <MetaItem label="Logged by" value={d.loggedBy} />
-          <MetaItem label="Date" value="8 March 2026" />
-          <MetaItem label="Template" value={d.templateName} />
-        </div>
-
-        {/* Fields */}
-        <div className="flex flex-col gap-6 mb-8">
-          {d.fields.filter((f) => f.value).map((field) => (
-            <div key={field.id} className="flex flex-col gap-3 p-8 rounded-card border border-border-locked bg-settled-dim/10">
-              <p className="text-display-label text-text-secondary uppercase tracking-widest">
-                {field.label}
-              </p>
-              <p className="text-display-field text-text-primary leading-relaxed">{field.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Relations */}
-        {d.relations.length > 0 && (
-          <RelationsAccordion relations={d.relations} density="display" />
-        )}
+          </>
+        ) : null}
       </main>
     </div>
   );

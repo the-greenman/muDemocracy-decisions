@@ -1,177 +1,182 @@
 /**
  * Database Seed Script
- * 
+ *
  * Seeds the database with initial data:
  * - Default decision fields
  * - Standard decision templates
  * - Sample expert templates
  */
 
-import { db, client } from '../src/client.js';
-import { prepareTemplatesForSeeding } from '../src/seed-data/decision-templates.js';
-import { 
-  decisionFields, 
-  decisionTemplates, 
+import { db, client } from "../src/client.js";
+import { prepareTemplatesForSeeding } from "../src/seed-data/decision-templates.js";
+import {
+  decisionFields,
+  decisionTemplates,
   expertTemplates,
-  templateFieldAssignments 
-} from '../src/schema';
-import { and, eq } from 'drizzle-orm';
+  templateFieldAssignments,
+} from "../src/schema";
+import { and, eq } from "drizzle-orm";
 
 async function seed() {
-  console.log('🌱 Seeding database...\n');
+  console.log("🌱 Seeding database...\n");
 
   // Seed Decision Fields
-  console.log('Seeding decision fields...');
+  console.log("Seeding decision fields...");
   const CORE_FIELD_IDS = {
-    DECISION_STATEMENT: '550e8400-e29b-41d4-a716-446655440001',
-    CONTEXT: '550e8400-e29b-41d4-a716-446655440002',
-    OPTIONS: '550e8400-e29b-41d4-a716-446655440003',
-    CRITERIA: '550e8400-e29b-41d4-a716-446655440004',
-    ANALYSIS: '550e8400-e29b-41d4-a716-446655440005',
-    OUTCOME: '550e8400-e29b-41d4-a716-446655440006',
-    RISKS: '550e8400-e29b-41d4-a716-446655440007',
-    TIMELINE: '550e8400-e29b-41d4-a716-446655440008',
-    STAKEHOLDERS: '550e8400-e29b-41d4-a716-446655440009',
-    RESOURCES: '550e8400-e29b-41d4-a716-446655440010',
-    OUTSTANDING_ISSUES: '550e8400-e29b-41d4-a716-446655440011',
+    DECISION_STATEMENT: "550e8400-e29b-41d4-a716-446655440001",
+    CONTEXT: "550e8400-e29b-41d4-a716-446655440002",
+    OPTIONS: "550e8400-e29b-41d4-a716-446655440003",
+    CRITERIA: "550e8400-e29b-41d4-a716-446655440004",
+    ANALYSIS: "550e8400-e29b-41d4-a716-446655440005",
+    OUTCOME: "550e8400-e29b-41d4-a716-446655440006",
+    RISKS: "550e8400-e29b-41d4-a716-446655440007",
+    TIMELINE: "550e8400-e29b-41d4-a716-446655440008",
+    STAKEHOLDERS: "550e8400-e29b-41d4-a716-446655440009",
+    RESOURCES: "550e8400-e29b-41d4-a716-446655440010",
+    OUTSTANDING_ISSUES: "550e8400-e29b-41d4-a716-446655440011",
   } as const;
 
   const seedFields: Array<typeof decisionFields.$inferInsert> = [
     {
       id: CORE_FIELD_IDS.DECISION_STATEMENT,
-      namespace: 'core',
-      name: 'decision_statement',
-      description: 'The core decision being made',
-      category: 'outcome' as const,
-      extractionPrompt: 'Extract the main decision statement from the discussion',
-      fieldType: 'textarea' as const,
-      placeholder: 'What decision are we making?',
+      namespace: "core",
+      name: "decision_statement",
+      description: "The core decision being made",
+      category: "outcome" as const,
+      extractionPrompt: "Extract the main decision statement from the discussion",
+      fieldType: "textarea" as const,
+      placeholder: "What decision are we making?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.CONTEXT,
-      namespace: 'core',
-      name: 'context',
-      description: 'Background information and circumstances that led to this decision',
-      category: 'context' as const,
-      extractionPrompt: 'Extract the relevant context and background information for this decision',
-      fieldType: 'textarea' as const,
-      placeholder: 'What context is needed to understand this decision?',
+      namespace: "core",
+      name: "context",
+      description: "Background information and circumstances that led to this decision",
+      category: "context" as const,
+      extractionPrompt: "Extract the relevant context and background information for this decision",
+      fieldType: "textarea" as const,
+      placeholder: "What context is needed to understand this decision?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.OPTIONS,
-      namespace: 'core',
-      name: 'options',
-      description: 'Other options that were discussed',
-      category: 'evaluation' as const,
-      extractionPrompt: 'Extract alternatives or options discussed',
-      fieldType: 'textarea' as const,
-      placeholder: 'What other options were considered?',
+      namespace: "core",
+      name: "options",
+      description: "Other options that were discussed",
+      category: "evaluation" as const,
+      extractionPrompt: "Extract alternatives or options discussed",
+      fieldType: "textarea" as const,
+      placeholder: "What other options were considered?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.CRITERIA,
-      namespace: 'core',
-      name: 'criteria',
-      description: 'Factors to consider when evaluating options',
-      category: 'evaluation' as const,
-      extractionPrompt: 'Extract evaluation criteria or constraints mentioned when comparing options',
-      fieldType: 'textarea' as const,
-      placeholder: 'What criteria matter for this decision?',
+      namespace: "core",
+      name: "criteria",
+      description: "Factors to consider when evaluating options",
+      category: "evaluation" as const,
+      extractionPrompt:
+        "Extract evaluation criteria or constraints mentioned when comparing options",
+      fieldType: "textarea" as const,
+      placeholder: "What criteria matter for this decision?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.ANALYSIS,
-      namespace: 'core',
-      name: 'analysis',
-      description: 'Reasoning, trade-offs, and analysis of the options',
-      category: 'evaluation' as const,
-      extractionPrompt: 'Extract analysis, trade-offs, and reasoning comparing the available options',
-      fieldType: 'textarea' as const,
-      placeholder: 'What analysis supports the decision?',
+      namespace: "core",
+      name: "analysis",
+      description: "Reasoning, trade-offs, and analysis of the options",
+      category: "evaluation" as const,
+      extractionPrompt:
+        "Extract analysis, trade-offs, and reasoning comparing the available options",
+      fieldType: "textarea" as const,
+      placeholder: "What analysis supports the decision?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.OUTCOME,
-      namespace: 'core',
-      name: 'outcome',
-      description: 'Final decision and rationale',
-      category: 'outcome' as const,
-      extractionPrompt: 'Extract the final decision outcome and rationale',
-      fieldType: 'textarea' as const,
-      placeholder: 'What did we decide and why?',
+      namespace: "core",
+      name: "outcome",
+      description: "Final decision and rationale",
+      category: "outcome" as const,
+      extractionPrompt: "Extract the final decision outcome and rationale",
+      fieldType: "textarea" as const,
+      placeholder: "What did we decide and why?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.RISKS,
-      namespace: 'core',
-      name: 'risks',
-      description: 'Risks, concerns, and mitigations related to this decision',
-      category: 'evaluation' as const,
-      extractionPrompt: 'Extract risks, concerns, and mitigations discussed',
-      fieldType: 'textarea' as const,
-      placeholder: 'What risks were identified?',
+      namespace: "core",
+      name: "risks",
+      description: "Risks, concerns, and mitigations related to this decision",
+      category: "evaluation" as const,
+      extractionPrompt: "Extract risks, concerns, and mitigations discussed",
+      fieldType: "textarea" as const,
+      placeholder: "What risks were identified?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.TIMELINE,
-      namespace: 'core',
-      name: 'timeline',
-      description: 'Timeline, milestones, and sequencing for implementing the decision',
-      category: 'metadata' as const,
-      extractionPrompt: 'Extract timeline, milestones, and sequencing details mentioned',
-      fieldType: 'textarea' as const,
-      placeholder: 'What is the timeline for implementation?',
+      namespace: "core",
+      name: "timeline",
+      description: "Timeline, milestones, and sequencing for implementing the decision",
+      category: "metadata" as const,
+      extractionPrompt: "Extract timeline, milestones, and sequencing details mentioned",
+      fieldType: "textarea" as const,
+      placeholder: "What is the timeline for implementation?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.STAKEHOLDERS,
-      namespace: 'core',
-      name: 'stakeholders',
-      description: 'People, teams, or systems affected by this decision',
-      category: 'metadata' as const,
-      extractionPrompt: 'Extract who is affected by this decision and any stakeholders mentioned',
-      fieldType: 'textarea' as const,
-      placeholder: 'Who is impacted?',
+      namespace: "core",
+      name: "stakeholders",
+      description: "People, teams, or systems affected by this decision",
+      category: "metadata" as const,
+      extractionPrompt: "Extract who is affected by this decision and any stakeholders mentioned",
+      fieldType: "textarea" as const,
+      placeholder: "Who is impacted?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.RESOURCES,
-      namespace: 'core',
-      name: 'resources',
-      description: 'Resources required to implement the decision (people, tools, budget)',
-      category: 'metadata' as const,
-      extractionPrompt: 'Extract resources required to implement the decision (people, tools, budget)',
-      fieldType: 'textarea' as const,
-      placeholder: 'What resources are required?',
+      namespace: "core",
+      name: "resources",
+      description: "Resources required to implement the decision (people, tools, budget)",
+      category: "metadata" as const,
+      extractionPrompt:
+        "Extract resources required to implement the decision (people, tools, budget)",
+      fieldType: "textarea" as const,
+      placeholder: "What resources are required?",
       version: 1,
       isCustom: false,
     },
     {
       id: CORE_FIELD_IDS.OUTSTANDING_ISSUES,
-      namespace: 'core',
-      name: 'outstanding_issues',
-      description: 'Unresolved questions, dependencies, or concerns that prevented this decision from being finalised',
-      category: 'evaluation' as const,
-      extractionPrompt: 'Summarise any open questions, unresolved dependencies, or concerns raised during discussion that the group could not answer in this session',
-      fieldType: 'textarea' as const,
-      placeholder: 'What remains unresolved before this decision can proceed?',
+      namespace: "core",
+      name: "outstanding_issues",
+      description:
+        "Unresolved questions, dependencies, or concerns that prevented this decision from being finalised",
+      category: "evaluation" as const,
+      extractionPrompt:
+        "Summarise any open questions, unresolved dependencies, or concerns raised during discussion that the group could not answer in this session",
+      fieldType: "textarea" as const,
+      placeholder: "What remains unresolved before this decision can proceed?",
       version: 1,
       isCustom: false,
     },
   ];
 
-  const fields = [] as Array<(typeof decisionFields.$inferSelect)>;
+  const fields = [] as Array<typeof decisionFields.$inferSelect>;
   for (const fieldSeed of seedFields) {
     const existing = await db
       .select()
@@ -180,10 +185,10 @@ async function seed() {
         fieldSeed.id
           ? eq(decisionFields.id, fieldSeed.id)
           : and(
-              eq(decisionFields.namespace, fieldSeed.namespace ?? 'core'),
-              eq(decisionFields.name, fieldSeed.name ?? ''),
-              eq(decisionFields.version, fieldSeed.version ?? 1)
-            )
+              eq(decisionFields.namespace, fieldSeed.namespace ?? "core"),
+              eq(decisionFields.name, fieldSeed.name ?? ""),
+              eq(decisionFields.version, fieldSeed.version ?? 1),
+            ),
       )
       .limit(1);
 
@@ -199,10 +204,10 @@ async function seed() {
   console.log(`  ✓ Ensured ${fields.length} decision fields`);
 
   // Seed Decision Templates
-  console.log('\nSeeding decision templates...');
+  console.log("\nSeeding decision templates...");
   const seedTemplates = prepareTemplatesForSeeding();
 
-  const templates = [] as Array<(typeof decisionTemplates.$inferSelect)>;
+  const templates = [] as Array<typeof decisionTemplates.$inferSelect>;
   for (const templateSeed of seedTemplates) {
     const { fields: templateFields, ...templateRecord } = templateSeed;
     const templateVersion = 1;
@@ -213,8 +218,8 @@ async function seed() {
         and(
           eq(decisionTemplates.namespace, templateRecord.namespace),
           eq(decisionTemplates.name, templateRecord.name),
-          eq(decisionTemplates.version, templateVersion)
-        )
+          eq(decisionTemplates.version, templateVersion),
+        ),
       )
       .limit(1);
 
@@ -231,9 +236,12 @@ async function seed() {
   console.log(`  ✓ Ensured ${templates.length} decision templates`);
 
   // Seed Template Field Assignments
-  console.log('\nSeeding template field assignments...');
+  console.log("\nSeeding template field assignments...");
   const templateIdByIdentity = new Map(
-    templates.map((template) => [`${template.namespace}:${template.name}:${template.version ?? 1}`, template.id])
+    templates.map((template) => [
+      `${template.namespace}:${template.name}:${template.version ?? 1}`,
+      template.id,
+    ]),
   );
 
   for (const templateSeed of seedTemplates) {
@@ -250,8 +258,8 @@ async function seed() {
         .where(
           and(
             eq(templateFieldAssignments.templateId, templateId),
-            eq(templateFieldAssignments.fieldId, assignment.fieldId)
-          )
+            eq(templateFieldAssignments.fieldId, assignment.fieldId),
+          ),
         )
         .limit(1);
 
@@ -271,32 +279,35 @@ async function seed() {
   }
 
   // Seed Expert Templates
-  console.log('\nSeeding expert templates...');
+  console.log("\nSeeding expert templates...");
   const seedExperts = [
     {
-      name: 'Technical Architecture Review',
-      type: 'technical' as const,
-      promptTemplate: 'You are a senior technical architect. Review the following decision for technical soundness, scalability concerns, and potential pitfalls. Provide specific, actionable feedback.',
-      mcpAccess: ['github', 'docs'],
+      name: "Technical Architecture Review",
+      type: "technical" as const,
+      promptTemplate:
+        "You are a senior technical architect. Review the following decision for technical soundness, scalability concerns, and potential pitfalls. Provide specific, actionable feedback.",
+      mcpAccess: ["github", "docs"],
       isActive: true,
     },
     {
-      name: 'Legal Compliance Check',
-      type: 'legal' as const,
-      promptTemplate: 'You are a legal compliance specialist. Review this decision for potential legal risks, compliance requirements, and regulatory concerns. Flag any issues that need legal review.',
+      name: "Legal Compliance Check",
+      type: "legal" as const,
+      promptTemplate:
+        "You are a legal compliance specialist. Review this decision for potential legal risks, compliance requirements, and regulatory concerns. Flag any issues that need legal review.",
       mcpAccess: [],
       isActive: true,
     },
     {
-      name: 'Stakeholder Impact Analysis',
-      type: 'stakeholder' as const,
-      promptTemplate: 'You are a stakeholder management expert. Analyze how this decision might affect different stakeholders, identify communication needs, and suggest engagement strategies.',
+      name: "Stakeholder Impact Analysis",
+      type: "stakeholder" as const,
+      promptTemplate:
+        "You are a stakeholder management expert. Analyze how this decision might affect different stakeholders, identify communication needs, and suggest engagement strategies.",
       mcpAccess: [],
       isActive: true,
     },
   ];
 
-  const experts = [] as Array<(typeof expertTemplates.$inferSelect)>;
+  const experts = [] as Array<typeof expertTemplates.$inferSelect>;
   for (const expertSeed of seedExperts) {
     const existing = await db
       .select()
@@ -315,18 +326,17 @@ async function seed() {
 
   console.log(`  ✓ Ensured ${experts.length} expert templates`);
 
-  console.log('\n✅ Database seeded successfully!');
+  console.log("\n✅ Database seeded successfully!");
 
   await client.end({ timeout: 5 });
 }
 
-seed()
-  .catch(async (err) => {
-    console.error('❌ Seed failed:', err);
-    try {
-      await client.end({ timeout: 5 });
-    } catch {
-      // ignore
-    }
-    process.exit(1);
-  });
+seed().catch(async (err) => {
+  console.error("❌ Seed failed:", err);
+  try {
+    await client.end({ timeout: 5 });
+  } catch {
+    // ignore
+  }
+  process.exit(1);
+});

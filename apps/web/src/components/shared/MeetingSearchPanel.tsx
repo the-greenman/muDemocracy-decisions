@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import type { ReactNode } from "react";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 interface TagOption {
   value: string;
@@ -37,7 +37,7 @@ export function MeetingSearchPanel({
   className,
 }: MeetingSearchPanelProps) {
   return (
-    <div className={className ?? 'flex flex-wrap gap-2 mb-3'}>
+    <div className={className ?? "flex flex-wrap gap-2 mb-3"}>
       <Input
         list={queryListId}
         type="text"
@@ -64,11 +64,7 @@ export function MeetingSearchPanel({
       />
 
       {tagValue !== undefined && onTagChange && tagOptions && tagOptions.length > 0 && (
-        <Select
-          value={tagValue}
-          onChange={(e) => onTagChange(e.target.value)}
-          className="w-auto"
-        >
+        <Select value={tagValue} onChange={(e) => onTagChange(e.target.value)} className="w-auto">
           {tagOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

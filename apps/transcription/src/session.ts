@@ -1,26 +1,26 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { basename } from 'node:path';
-import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, readdir, readFile as readFileFromDisk, rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { DecisionLoggerApiClient } from './api-client.js';
-import { resolveDecisionLoggerApiUrl } from './config.js';
-import { formatEventPreviewLine, formatEventsAsSrt, formatEventsAsText } from './output-format.js';
-import { createProviderFromEnv } from './providers/index.js';
-import type { ITranscriptionProvider, TranscriptEvent } from './providers/interface.js';
+import { readFile, writeFile } from "node:fs/promises";
+import { basename } from "node:path";
+import { spawn, type ChildProcess } from "node:child_process";
+import { mkdtemp, readdir, readFile as readFileFromDisk, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { DecisionLoggerApiClient } from "./api-client.js";
+import { resolveDecisionLoggerApiUrl } from "./config.js";
+import { formatEventPreviewLine, formatEventsAsSrt, formatEventsAsText } from "./output-format.js";
+import { createProviderFromEnv } from "./providers/index.js";
+import type { ITranscriptionProvider, TranscriptEvent } from "./providers/interface.js";
 import {
   deliverStreamEvents,
   normalizeSequenceNumbers,
   type StreamDeliveryConfig,
-} from './stream-delivery.js';
+} from "./stream-delivery.js";
 
 export interface BatchTranscriptionOptions {
   audioFilePath: string;
   meetingId: string;
   language?: string;
-  mode: 'upload' | 'stream';
-  chunkStrategy: 'fixed' | 'semantic' | 'speaker' | 'streaming';
+  mode: "upload" | "stream";
+  chunkStrategy: "fixed" | "semantic" | "speaker" | "streaming";
 }
 
 interface BatchTranscriptionDependencies {
@@ -29,7 +29,7 @@ interface BatchTranscriptionDependencies {
     uploadWhisperJson: (
       meetingId: string,
       rawResponse: unknown,
-      chunkStrategy: 'fixed' | 'semantic' | 'speaker' | 'streaming',
+      chunkStrategy: "fixed" | "semantic" | "speaker" | "streaming",
     ) => Promise<{ transcript: { id: string }; chunks: Array<{ id: string }> }>;
     postStreamEvent: (meetingId: string, event: TranscriptEvent) => Promise<void>;
     flushStream: (meetingId: string) => Promise<void>;
@@ -81,11 +81,13 @@ export interface UploadSmokeOptions {
   audioFilePath: string;
   meetingId?: string;
   language?: string;
-  chunkStrategy: 'fixed' | 'semantic' | 'speaker' | 'streaming';
-  mode: 'upload' | 'stream';
+  chunkStrategy: "fixed" | "semantic" | "speaker" | "streaming";
+  mode: "upload" | "stream";
 }
 
-function buildBatchDependencies(deps?: Partial<BatchTranscriptionDependencies>): BatchTranscriptionDependencies {
+function buildBatchDependencies(
+  deps?: Partial<BatchTranscriptionDependencies>,
+): BatchTranscriptionDependencies {
   const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
   return {
@@ -115,12 +117,12 @@ function createDefaultLiveDependencies(
         shutdownPromise = Promise.resolve(onShutdown()).catch(() => undefined);
       }
     };
-    process.on('SIGINT', handler);
-    process.on('SIGTERM', handler);
+    process.on("SIGINT", handler);
+    process.on("SIGTERM", handler);
 
     return () => {
-      process.off('SIGINT', handler);
-      process.off('SIGTERM', handler);
+      process.off("SIGINT", handler);
+      process.off("SIGTERM", handler);
     };
   };
 
@@ -146,62 +148,60 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return Math.floor(parsed);
 }
 
-function resolveDeliveryConfig(
-  override?: Partial<StreamDeliveryConfig>,
-): StreamDeliveryConfig {
+function resolveDeliveryConfig(override?: Partial<StreamDeliveryConfig>): StreamDeliveryConfig {
   return {
-    maxAttempts: override?.maxAttempts
-      ?? parsePositiveInt(process.env.STREAM_MAX_RETRY_ATTEMPTS, 5),
-    baseBackoffMs: override?.baseBackoffMs
-      ?? parsePositiveInt(process.env.STREAM_RETRY_BASE_MS, 250),
-    maxQueueSize: override?.maxQueueSize
-      ?? parsePositiveInt(process.env.STREAM_MAX_OUTBOUND_QUEUE, 200),
+    maxAttempts:
+      override?.maxAttempts ?? parsePositiveInt(process.env.STREAM_MAX_RETRY_ATTEMPTS, 5),
+    baseBackoffMs:
+      override?.baseBackoffMs ?? parsePositiveInt(process.env.STREAM_RETRY_BASE_MS, 250),
+    maxQueueSize:
+      override?.maxQueueSize ?? parsePositiveInt(process.env.STREAM_MAX_OUTBOUND_QUEUE, 200),
   };
 }
 
 async function createFfmpegChunkSource(chunkMs: number): Promise<LiveChunkSource> {
   const chunkSeconds = Math.max(1, Math.round(chunkMs / 1000));
-  const inputFormat = process.env.TRANSCRIPTION_LIVE_INPUT_FORMAT ?? 'pulse';
-  const inputDevice = process.env.TRANSCRIPTION_LIVE_INPUT_DEVICE ?? 'default';
-  const ffmpegBin = process.env.FFMPEG_BIN ?? 'ffmpeg';
-  const captureDirectory = await mkdtemp(join(tmpdir(), 'decision-logger-live-'));
-  const segmentPattern = join(captureDirectory, 'chunk-%06d.wav');
+  const inputFormat = process.env.TRANSCRIPTION_LIVE_INPUT_FORMAT ?? "pulse";
+  const inputDevice = process.env.TRANSCRIPTION_LIVE_INPUT_DEVICE ?? "default";
+  const ffmpegBin = process.env.FFMPEG_BIN ?? "ffmpeg";
+  const captureDirectory = await mkdtemp(join(tmpdir(), "decision-logger-live-"));
+  const segmentPattern = join(captureDirectory, "chunk-%06d.wav");
 
   const child = spawn(
     ffmpegBin,
     [
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-f',
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
       inputFormat,
-      '-i',
+      "-i",
       inputDevice,
-      '-ac',
-      '1',
-      '-ar',
-      '16000',
-      '-f',
-      'segment',
-      '-segment_time',
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "-f",
+      "segment",
+      "-segment_time",
       String(chunkSeconds),
-      '-reset_timestamps',
-      '1',
+      "-reset_timestamps",
+      "1",
       segmentPattern,
     ],
-    { stdio: ['ignore', 'pipe', 'pipe'] },
+    { stdio: ["ignore", "pipe", "pipe"] },
   );
 
   let stopped = false;
   let childExited = false;
   const processed = new Set<string>();
-  let childError = '';
+  let childError = "";
 
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (chunk: string) => {
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
     childError += chunk;
   });
-  child.on('exit', () => {
+  child.on("exit", () => {
     childExited = true;
   });
 
@@ -212,7 +212,7 @@ async function createFfmpegChunkSource(chunkMs: number): Promise<LiveChunkSource
       }
 
       const files = (await readdir(captureDirectory))
-        .filter((file) => file.endsWith('.wav'))
+        .filter((file) => file.endsWith(".wav"))
         .sort();
 
       for (const file of files) {
@@ -235,9 +235,7 @@ async function createFfmpegChunkSource(chunkMs: number): Promise<LiveChunkSource
     }
 
     // Drain remaining chunks on shutdown.
-    const files = (await readdir(captureDirectory))
-      .filter((file) => file.endsWith('.wav'))
-      .sort();
+    const files = (await readdir(captureDirectory)).filter((file) => file.endsWith(".wav")).sort();
     for (const file of files) {
       if (processed.has(file)) {
         continue;
@@ -255,7 +253,7 @@ async function createFfmpegChunkSource(chunkMs: number): Promise<LiveChunkSource
     }
     stopped = true;
     if (!child.killed) {
-      child.kill('SIGTERM');
+      child.kill("SIGTERM");
     }
     await waitForProcessExit(child);
     await rm(captureDirectory, { recursive: true, force: true });
@@ -273,7 +271,7 @@ function waitForProcessExit(child: ChildProcess): Promise<void> {
   }
 
   return new Promise((resolve) => {
-    child.once('exit', () => resolve());
+    child.once("exit", () => resolve());
   });
 }
 
@@ -295,7 +293,7 @@ export async function runLiveTranscription(
 ): Promise<void> {
   const { provider, apiClient, createChunkSource, registerSignalHandlers, sleep, deliveryConfig } =
     createDefaultLiveDependencies(deps);
-  const chunkMs = options.chunkMs ?? Number(process.env.STREAM_CHUNK_MS ?? '30000');
+  const chunkMs = options.chunkMs ?? Number(process.env.STREAM_CHUNK_MS ?? "30000");
   const chunkSource = await createChunkSource(chunkMs);
   let stopRequested = false;
   let flushCompleted = false;
@@ -311,7 +309,7 @@ export async function runLiveTranscription(
     stopRequested = true;
     await chunkSource.stop();
     await apiClient.flushStream(options.meetingId);
-    console.log('Live transcription stream flushed.');
+    console.log("Live transcription stream flushed.");
   };
 
   const unregisterSignals = registerSignalHandlers(flushAndStop);
@@ -357,7 +355,8 @@ export async function runBatchTranscription(
   options: BatchTranscriptionOptions,
   deps?: Partial<BatchTranscriptionDependencies>,
 ): Promise<void> {
-  const { provider, apiClient, readAudioFile, sleep, deliveryConfig } = buildBatchDependencies(deps);
+  const { provider, apiClient, readAudioFile, sleep, deliveryConfig } =
+    buildBatchDependencies(deps);
   const audioBuffer = await readAudioFile(options.audioFilePath);
   const transcribeOptions: { filename: string; language?: string } = {
     filename: basename(options.audioFilePath),
@@ -368,13 +367,15 @@ export async function runBatchTranscription(
 
   const transcription = await provider.transcribe(audioBuffer, transcribeOptions);
 
-  if (options.mode === 'upload') {
+  if (options.mode === "upload") {
     const result = await apiClient.uploadWhisperJson(
       options.meetingId,
       transcription.rawResponse,
       options.chunkStrategy,
     );
-    console.log(`Uploaded transcript ${result.transcript.id}; created ${result.chunks.length} chunks.`);
+    console.log(
+      `Uploaded transcript ${result.transcript.id}; created ${result.chunks.length} chunks.`,
+    );
     return;
   }
 
@@ -414,17 +415,17 @@ export async function runLocalTranscription(options: LocalTranscriptionOptions):
   }
 
   if (options.outputPath !== undefined) {
-    await writeFile(options.outputPath, JSON.stringify(transcription, null, 2), 'utf8');
+    await writeFile(options.outputPath, JSON.stringify(transcription, null, 2), "utf8");
     console.log(`Saved raw transcription output to ${options.outputPath}`);
   }
 
   if (options.outputTextPath !== undefined) {
-    await writeFile(options.outputTextPath, formatEventsAsText(transcription.events), 'utf8');
+    await writeFile(options.outputTextPath, formatEventsAsText(transcription.events), "utf8");
     console.log(`Saved plain text transcript to ${options.outputTextPath}`);
   }
 
   if (options.outputSrtPath !== undefined) {
-    await writeFile(options.outputSrtPath, formatEventsAsSrt(transcription.events), 'utf8');
+    await writeFile(options.outputSrtPath, formatEventsAsSrt(transcription.events), "utf8");
     console.log(`Saved SRT transcript to ${options.outputSrtPath}`);
   }
 }
@@ -439,26 +440,31 @@ export async function runUploadSmoke(options: UploadSmokeOptions): Promise<void>
     const createdMeeting = await apiClient.createMeeting({
       title: `Transcription Smoke ${new Date().toISOString()}`,
       date: new Date().toISOString(),
-      participants: ['transcription-service'],
+      participants: ["transcription-service"],
     });
     meetingId = createdMeeting.id;
     console.log(`Created smoke meeting: ${meetingId}`);
   }
 
-  await runBatchTranscription({
-    audioFilePath: options.audioFilePath,
-    meetingId,
-    mode: options.mode,
-    chunkStrategy: options.chunkStrategy,
-    ...(options.language === undefined ? {} : { language: options.language }),
-  }, {
-    apiClient,
-  });
+  await runBatchTranscription(
+    {
+      audioFilePath: options.audioFilePath,
+      meetingId,
+      mode: options.mode,
+      chunkStrategy: options.chunkStrategy,
+      ...(options.language === undefined ? {} : { language: options.language }),
+    },
+    {
+      apiClient,
+    },
+  );
 
   const reading = await apiClient.getTranscriptReading(meetingId);
   console.log(`Smoke verification rows (${options.mode}): ${reading.rows.length}`);
   const [first] = reading.rows;
   if (first) {
-    console.log(`First row: ${first.startTime ?? 'n/a'} -> ${first.endTime ?? 'n/a'} | ${first.displayText}`);
+    console.log(
+      `First row: ${first.startTime ?? "n/a"} -> ${first.endTime ?? "n/a"} | ${first.displayText}`,
+    );
   }
 }

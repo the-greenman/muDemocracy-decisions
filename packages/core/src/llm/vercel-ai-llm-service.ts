@@ -1,14 +1,19 @@
-import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { z } from '@repo/schema';
-import type { ILLMService, GenerateDraftParams, RegenerateFieldParams, DraftResult } from './i-llm-service';
+import { generateObject } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { z } from "@repo/schema";
+import type {
+  ILLMService,
+  GenerateDraftParams,
+  RegenerateFieldParams,
+  DraftResult,
+} from "./i-llm-service";
 
 function getModel() {
-  const provider = process.env['LLM_PROVIDER'] ?? 'anthropic';
-  const modelId = process.env['LLM_MODEL'] ?? 'claude-opus-4-5';
+  const provider = process.env["LLM_PROVIDER"] ?? "anthropic";
+  const modelId = process.env["LLM_MODEL"] ?? "claude-opus-4-5";
 
-  if (provider === 'openai') {
+  if (provider === "openai") {
     return openai(modelId);
   }
   return anthropic(modelId);
@@ -20,8 +25,8 @@ function getModel() {
  */
 export class VercelAILLMService implements ILLMService {
   async generateDraft(params: GenerateDraftParams): Promise<DraftResult> {
-    const fieldSchema = this.buildFieldSchema(params.templateFields.map(f => f.id));
-    const prompt = params.promptText ?? '';
+    const fieldSchema = this.buildFieldSchema(params.templateFields.map((f) => f.id));
+    const prompt = params.promptText ?? "";
 
     const { object } = await generateObject({
       model: getModel(),
@@ -33,12 +38,12 @@ export class VercelAILLMService implements ILLMService {
   }
 
   async regenerateField(params: RegenerateFieldParams): Promise<string> {
-    const field = params.templateFields.find(f => f.id === params.fieldId);
+    const field = params.templateFields.find((f) => f.id === params.fieldId);
     if (!field) {
       throw new Error(`Field ${params.fieldId} not found in template fields`);
     }
 
-    const prompt = params.promptText ?? '';
+    const prompt = params.promptText ?? "";
 
     const { object } = await generateObject({
       model: getModel(),
@@ -48,7 +53,7 @@ export class VercelAILLMService implements ILLMService {
       prompt,
     });
 
-    return (object as Record<string, string>)[params.fieldId] ?? '';
+    return (object as Record<string, string>)[params.fieldId] ?? "";
   }
 
   private buildFieldSchema(fieldIds: string[]): z.ZodObject<Record<string, z.ZodString>> {

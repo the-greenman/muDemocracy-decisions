@@ -1,5 +1,5 @@
-import { AgendaItem } from '@/components/shared/AgendaItem';
-import type { AgendaItemStatus } from '@/lib/mock-data';
+import { AgendaItem } from "@/components/shared/AgendaItem";
+import type { AgendaItemStatus } from "@/lib/mock-data";
 
 type AgendaListItem = {
   id: string;
@@ -20,7 +20,7 @@ export function AgendaList({
   items,
   activeId,
   startAt = 1,
-  emptyLabel = 'No agenda items yet.',
+  emptyLabel = "No agenda items yet.",
   onSelectItem,
   renderItemActions,
 }: AgendaListProps) {

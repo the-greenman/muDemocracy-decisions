@@ -1,4 +1,4 @@
-import type { CreateLLMInteraction, LLMInteraction } from '@repo/schema';
+import type { CreateLLMInteraction, LLMInteraction } from "@repo/schema";
 
 export interface ILLMInteractionRepository {
   create(data: CreateLLMInteraction): Promise<LLMInteraction>;

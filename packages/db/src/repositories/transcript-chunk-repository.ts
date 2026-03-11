@@ -2,10 +2,10 @@
  * Drizzle implementation of ITranscriptChunkRepository
  */
 
-import { eq, and, ilike, arrayContains, inArray } from 'drizzle-orm';
-import { db } from '../client.js';
-import { transcriptChunks, TranscriptChunkSelect, TranscriptChunkInsert } from '../schema.js';
-import { TranscriptChunk } from '@repo/schema';
+import { eq, and, ilike, arrayContains, inArray } from "drizzle-orm";
+import { db } from "../client.js";
+import { transcriptChunks, TranscriptChunkSelect, TranscriptChunkInsert } from "../schema.js";
+import { TranscriptChunk } from "@repo/schema";
 
 export class DrizzleTranscriptChunkRepository {
   async create(data: any): Promise<TranscriptChunk> {
@@ -24,50 +24,54 @@ export class DrizzleTranscriptChunkRepository {
       topics: data.topics || null,
     };
 
-    const [result] = await db.insert(transcriptChunks)
-      .values(insertData)
-      .returning();
+    const [result] = await db.insert(transcriptChunks).values(insertData).returning();
 
     return this.mapToSchema(result!);
   }
 
   async findByMeetingId(meetingId: string): Promise<TranscriptChunk[]> {
-    const results = await db.select()
+    const results = await db
+      .select()
       .from(transcriptChunks)
       .where(eq(transcriptChunks.meetingId, meetingId))
       .orderBy(transcriptChunks.sequenceNumber);
 
-    return results.map(r => r ? this.mapToSchema(r) : null).filter(Boolean) as TranscriptChunk[];
+    return results
+      .map((r) => (r ? this.mapToSchema(r) : null))
+      .filter(Boolean) as TranscriptChunk[];
   }
 
   async findByContext(contextTag: string): Promise<TranscriptChunk[]> {
     // Using arrayContains for array search
-    const results = await db.select()
+    const results = await db
+      .select()
       .from(transcriptChunks)
       .where(arrayContains(transcriptChunks.contexts, [contextTag]))
       .orderBy(transcriptChunks.sequenceNumber);
 
-    return results.map(r => r ? this.mapToSchema(r) : null).filter(Boolean) as TranscriptChunk[];
+    return results
+      .map((r) => (r ? this.mapToSchema(r) : null))
+      .filter(Boolean) as TranscriptChunk[];
   }
 
   async findById(id: string): Promise<TranscriptChunk | null> {
-    const [result] = await db.select()
-      .from(transcriptChunks)
-      .where(eq(transcriptChunks.id, id));
+    const [result] = await db.select().from(transcriptChunks).where(eq(transcriptChunks.id, id));
 
     return result ? this.mapToSchema(result) : null;
   }
 
   async search(meetingId: string, query: string): Promise<TranscriptChunk[]> {
-    const results = await db.select()
+    const results = await db
+      .select()
       .from(transcriptChunks)
-      .where(and(
-        eq(transcriptChunks.meetingId, meetingId),
-        ilike(transcriptChunks.text, `%${query}%`)
-      ))
+      .where(
+        and(eq(transcriptChunks.meetingId, meetingId), ilike(transcriptChunks.text, `%${query}%`)),
+      )
       .orderBy(transcriptChunks.sequenceNumber);
 
-    return results.map(r => r ? this.mapToSchema(r) : null).filter(Boolean) as TranscriptChunk[];
+    return results
+      .map((r) => (r ? this.mapToSchema(r) : null))
+      .filter(Boolean) as TranscriptChunk[];
   }
 
   async findByDecisionContext(decisionContextId: string): Promise<TranscriptChunk[]> {
@@ -84,7 +88,8 @@ export class DrizzleTranscriptChunkRepository {
 
     const dedupedChunkIds = Array.from(new Set(chunkIds));
     const dedupedContexts = Array.from(new Set(contexts));
-    const existing = await db.select()
+    const existing = await db
+      .select()
       .from(transcriptChunks)
       .where(inArray(transcriptChunks.id, dedupedChunkIds));
 
@@ -92,14 +97,17 @@ export class DrizzleTranscriptChunkRepository {
       return [];
     }
 
-    const updatedRows = await Promise.all(existing.map(async (row) => {
-      const mergedContexts = Array.from(new Set([...(row.contexts ?? []), ...dedupedContexts]));
-      const [updated] = await db.update(transcriptChunks)
-        .set({ contexts: mergedContexts })
-        .where(eq(transcriptChunks.id, row.id))
-        .returning();
-      return updated;
-    }));
+    const updatedRows = await Promise.all(
+      existing.map(async (row) => {
+        const mergedContexts = Array.from(new Set([...(row.contexts ?? []), ...dedupedContexts]));
+        const [updated] = await db
+          .update(transcriptChunks)
+          .set({ contexts: mergedContexts })
+          .where(eq(transcriptChunks.id, row.id))
+          .returning();
+        return updated;
+      }),
+    );
 
     const bySequence = updatedRows
       .filter((row): row is TranscriptChunkSelect => Boolean(row))

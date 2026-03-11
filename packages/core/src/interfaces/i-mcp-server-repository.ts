@@ -3,11 +3,7 @@
  * Manages MCP server configurations and status
  */
 
-import type { 
-  MCPServer,
-  CreateMCPServer,
-  UpdateMCPServer
-} from '@repo/schema';
+import type { MCPServer, CreateMCPServer, UpdateMCPServer } from "@repo/schema";
 
 export interface IMCPServerRepository {
   // Basic CRUD operations
@@ -19,10 +15,10 @@ export interface IMCPServerRepository {
   findActive(): Promise<MCPServer[]>;
   update(name: string, data: UpdateMCPServer): Promise<MCPServer | null>;
   delete(name: string): Promise<boolean>;
-  
+
   // Status management
-  updateStatus(name: string, status: 'active' | 'inactive' | 'error'): Promise<boolean>;
-  
+  updateStatus(name: string, status: "active" | "inactive" | "error"): Promise<boolean>;
+
   // Health check
   healthCheck(): Promise<Record<string, boolean>>;
 }

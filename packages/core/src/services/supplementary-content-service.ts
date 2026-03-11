@@ -1,6 +1,6 @@
-import { CreateSupplementaryContentSchema } from '@repo/schema';
-import type { SupplementaryContent, CreateSupplementaryContent } from '@repo/schema';
-import type { ISupplementaryContentRepository } from '../interfaces/i-supplementary-content-repository';
+import { CreateSupplementaryContentSchema } from "@repo/schema";
+import type { SupplementaryContent, CreateSupplementaryContent } from "@repo/schema";
+import type { ISupplementaryContentRepository } from "../interfaces/i-supplementary-content-repository";
 
 export class SupplementaryContentService {
   constructor(private repository: ISupplementaryContentRepository) {}
@@ -21,7 +21,7 @@ export class SupplementaryContentService {
       label: options?.label,
       contexts: options?.contexts ?? [],
       createdBy: options?.createdBy,
-      sourceType: options?.sourceType ?? 'manual',
+      sourceType: options?.sourceType ?? "manual",
     } satisfies CreateSupplementaryContent);
 
     return this.repository.create(validatedData);
@@ -29,7 +29,7 @@ export class SupplementaryContentService {
 
   async listByContext(contextTag: string): Promise<SupplementaryContent[]> {
     if (!contextTag.trim()) {
-      throw new Error('Context tag is required');
+      throw new Error("Context tag is required");
     }
 
     return this.repository.findByContext(contextTag);
@@ -37,12 +37,12 @@ export class SupplementaryContentService {
 
   async remove(id: string): Promise<void> {
     if (!id.trim()) {
-      throw new Error('Supplementary content ID is required');
+      throw new Error("Supplementary content ID is required");
     }
 
     const deleted = await this.repository.delete(id);
     if (!deleted) {
-      throw new Error('Supplementary content not found');
+      throw new Error("Supplementary content not found");
     }
   }
 }

@@ -3,14 +3,14 @@
  * Tests against real test database
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DrizzleDecisionContextRepository } from '@repo/db';
-import { DrizzleMeetingRepository } from '@repo/db';
-import { DrizzleFlaggedDecisionRepository } from '@repo/db';
-import { db } from '@repo/db';
-import { decisionContexts } from '@repo/db';
-import { eq, sql } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { DrizzleDecisionContextRepository } from "@repo/db";
+import { DrizzleMeetingRepository } from "@repo/db";
+import { DrizzleFlaggedDecisionRepository } from "@repo/db";
+import { db } from "@repo/db";
+import { decisionContexts } from "@repo/db";
+import { eq, sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 // Type definition to avoid circular dependency
 interface CreateDecisionContext {
@@ -23,9 +23,10 @@ interface CreateDecisionContext {
 }
 
 // Use test database
-process.env.DATABASE_URL = 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test';
+process.env.DATABASE_URL =
+  "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test";
 
-describe('DrizzleDecisionContextRepository', () => {
+describe("DrizzleDecisionContextRepository", () => {
   let repository: DrizzleDecisionContextRepository;
   let meetingRepo: DrizzleMeetingRepository;
   let flaggedDecisionRepo: DrizzleFlaggedDecisionRepository;
@@ -37,13 +38,13 @@ describe('DrizzleDecisionContextRepository', () => {
     repository = new DrizzleDecisionContextRepository();
     meetingRepo = new DrizzleMeetingRepository();
     flaggedDecisionRepo = new DrizzleFlaggedDecisionRepository();
-    
+
     // Create test meeting
     testMeetingId = randomUUID();
     const meeting = await meetingRepo.create({
-      title: 'Test Meeting',
-      date: '2026-02-28',
-      participants: ['Alice', 'Bob'],
+      title: "Test Meeting",
+      date: "2026-02-28",
+      participants: ["Alice", "Bob"],
     });
     testMeetingId = meeting.id;
 
@@ -51,8 +52,8 @@ describe('DrizzleDecisionContextRepository', () => {
     testFlaggedDecisionId = randomUUID();
     const flaggedDecision = await flaggedDecisionRepo.create({
       meetingId: testMeetingId,
-      suggestedTitle: 'Test Decision',
-      contextSummary: 'Test context',
+      suggestedTitle: "Test Decision",
+      contextSummary: "Test context",
       confidence: 0.8,
       chunkIds: [randomUUID()],
       priority: 0,
@@ -70,17 +71,15 @@ describe('DrizzleDecisionContextRepository', () => {
 
   afterEach(async () => {
     // Clean up test data
-    await db
-      .delete(decisionContexts)
-      .where(eq(decisionContexts.meetingId, testMeetingId));
+    await db.delete(decisionContexts).where(eq(decisionContexts.meetingId, testMeetingId));
   });
 
-  describe('create', () => {
-    it('should create a decision context with default values', async () => {
+  describe("create", () => {
+    it("should create a decision context with default values", async () => {
       const data: CreateDecisionContext = {
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Decision Context',
+        title: "Test Decision Context",
         templateId: testTemplateId,
       };
 
@@ -90,20 +89,20 @@ describe('DrizzleDecisionContextRepository', () => {
       expect(result.id).toBeDefined();
       expect(result.meetingId).toBe(testMeetingId);
       expect(result.flaggedDecisionId).toBe(testFlaggedDecisionId);
-      expect(result.title).toBe('Test Decision Context');
+      expect(result.title).toBe("Test Decision Context");
       expect(result.templateId).toBe(testTemplateId);
-      expect(result.status).toBe('drafting');
+      expect(result.status).toBe("drafting");
       expect(result.lockedFields).toEqual([]);
       expect(result.activeField).toBeNull();
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
     });
 
-    it('should persist in database', async () => {
+    it("should persist in database", async () => {
       const data: CreateDecisionContext = {
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       };
 
@@ -114,12 +113,12 @@ describe('DrizzleDecisionContextRepository', () => {
     });
   });
 
-  describe('findById', () => {
-    it('should return a context when it exists', async () => {
+  describe("findById", () => {
+    it("should return a context when it exists", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -128,24 +127,24 @@ describe('DrizzleDecisionContextRepository', () => {
       expect(found).toEqual(created);
     });
 
-    it('should return null when context does not exist', async () => {
-      const found = await repository.findById('00000000-0000-0000-0000-000000000000');
+    it("should return null when context does not exist", async () => {
+      const found = await repository.findById("00000000-0000-0000-0000-000000000000");
       expect(found).toBeNull();
     });
   });
 
-  describe('findByMeetingId', () => {
-    it('should return all contexts for a meeting', async () => {
+  describe("findByMeetingId", () => {
+    it("should return all contexts for a meeting", async () => {
       const meeting1 = await meetingRepo.create({
-        title: 'Meeting 1',
-        date: '2026-02-28',
-        participants: ['Alice'],
+        title: "Meeting 1",
+        date: "2026-02-28",
+        participants: ["Alice"],
       });
 
       const flaggedDecision1 = await flaggedDecisionRepo.create({
         meetingId: meeting1.id,
-        suggestedTitle: 'Decision 1',
-        contextSummary: 'Context 1',
+        suggestedTitle: "Decision 1",
+        contextSummary: "Context 1",
         confidence: 0.8,
         chunkIds: [randomUUID()],
         priority: 0,
@@ -154,14 +153,14 @@ describe('DrizzleDecisionContextRepository', () => {
       await repository.create({
         meetingId: meeting1.id,
         flaggedDecisionId: flaggedDecision1.id,
-        title: 'Context 1',
+        title: "Context 1",
         templateId: testTemplateId,
       });
 
       const flaggedDecision2 = await flaggedDecisionRepo.create({
         meetingId: meeting1.id,
-        suggestedTitle: 'Decision 2',
-        contextSummary: 'Context 2',
+        suggestedTitle: "Decision 2",
+        contextSummary: "Context 2",
         confidence: 0.8,
         chunkIds: [randomUUID()],
         priority: 0,
@@ -170,36 +169,36 @@ describe('DrizzleDecisionContextRepository', () => {
       await repository.create({
         meetingId: meeting1.id,
         flaggedDecisionId: flaggedDecision2.id,
-        title: 'Context 2',
+        title: "Context 2",
         templateId: testTemplateId,
       });
 
       await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Context 3',
+        title: "Context 3",
         templateId: testTemplateId,
       });
 
       const results = await repository.findByMeetingId(meeting1.id);
 
       expect(results).toHaveLength(2);
-      expect(results[0]!.title).toBe('Context 1');
-      expect(results[1]!.title).toBe('Context 2');
+      expect(results[0]!.title).toBe("Context 1");
+      expect(results[1]!.title).toBe("Context 2");
     });
 
-    it('should return empty array for meeting with no contexts', async () => {
+    it("should return empty array for meeting with no contexts", async () => {
       const results = await repository.findByMeetingId(randomUUID());
       expect(results).toEqual([]);
     });
   });
 
-  describe('findByFlaggedDecisionId', () => {
-    it('should return context for a flagged decision', async () => {
+  describe("findByFlaggedDecisionId", () => {
+    it("should return context for a flagged decision", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -208,47 +207,49 @@ describe('DrizzleDecisionContextRepository', () => {
       expect(found).toEqual(created);
     });
 
-    it('should return null when no context exists for flagged decision', async () => {
+    it("should return null when no context exists for flagged decision", async () => {
       const found = await repository.findByFlaggedDecisionId(randomUUID());
       expect(found).toBeNull();
     });
   });
 
-  describe('update', () => {
-    it('should update context fields', async () => {
+  describe("update", () => {
+    it("should update context fields", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Original Title',
+        title: "Original Title",
         templateId: testTemplateId,
       });
 
-      await new Promise(resolve => setTimeout(resolve, 10)); // Ensure timestamp difference
+      await new Promise((resolve) => setTimeout(resolve, 10)); // Ensure timestamp difference
 
       const updated = await repository.update(created.id, {
-        title: 'Updated Title',
-        draftData: { field1: 'updated' },
+        title: "Updated Title",
+        draftData: { field1: "updated" },
       });
 
       expect(updated).toBeDefined();
       expect(updated!.id).toBe(created.id);
-      expect(updated!.title).toBe('Updated Title');
-      expect(updated!.draftData).toEqual({ field1: 'updated' });
+      expect(updated!.title).toBe("Updated Title");
+      expect(updated!.draftData).toEqual({ field1: "updated" });
       expect(updated!.updatedAt).not.toBe(created.updatedAt);
     });
 
-    it('should return null when updating non-existent context', async () => {
-      const result = await repository.update('00000000-0000-0000-0000-000000000000', { title: 'New Title' });
+    it("should return null when updating non-existent context", async () => {
+      const result = await repository.update("00000000-0000-0000-0000-000000000000", {
+        title: "New Title",
+      });
       expect(result).toBeNull();
     });
   });
 
-  describe('lockField', () => {
-    it('should lock a field in the context', async () => {
+  describe("lockField", () => {
+    it("should lock a field in the context", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -257,18 +258,18 @@ describe('DrizzleDecisionContextRepository', () => {
 
       expect(updated).toBeDefined();
       expect(updated!.lockedFields).toContain(fieldId);
-      
+
       // Re-query to verify it was actually written to the database
       const persisted = await repository.findById(created.id);
       expect(persisted).toBeDefined();
       expect(persisted!.lockedFields).toContain(fieldId);
     });
 
-    it('should not duplicate locked fields', async () => {
+    it("should not duplicate locked fields", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -281,12 +282,12 @@ describe('DrizzleDecisionContextRepository', () => {
     });
   });
 
-  describe('unlockField', () => {
-    it('should unlock a field in the context', async () => {
+  describe("unlockField", () => {
+    it("should unlock a field in the context", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -296,18 +297,18 @@ describe('DrizzleDecisionContextRepository', () => {
 
       expect(updated).toBeDefined();
       expect(updated!.lockedFields).not.toContain(fieldId);
-      
+
       // Re-query to verify it was actually written to the database
       const persisted = await repository.findById(created.id);
       expect(persisted).toBeDefined();
       expect(persisted!.lockedFields).not.toContain(fieldId);
     });
 
-    it('should handle unlocking non-locked field gracefully', async () => {
+    it("should handle unlocking non-locked field gracefully", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -316,7 +317,7 @@ describe('DrizzleDecisionContextRepository', () => {
 
       expect(updated).toBeDefined();
       expect(updated!.lockedFields).toEqual([]);
-      
+
       // Re-query to verify it was actually written to the database
       const persisted = await repository.findById(created.id);
       expect(persisted).toBeDefined();
@@ -324,12 +325,12 @@ describe('DrizzleDecisionContextRepository', () => {
     });
   });
 
-  describe('setActiveField', () => {
-    it('should set the active field', async () => {
+  describe("setActiveField", () => {
+    it("should set the active field", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -350,11 +351,11 @@ describe('DrizzleDecisionContextRepository', () => {
       expect(persisted!.activeField).toBe(fieldId);
     });
 
-    it('should clear the active field when set to null', async () => {
+    it("should clear the active field when set to null", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -371,7 +372,7 @@ describe('DrizzleDecisionContextRepository', () => {
 
       expect(updated).toBeDefined();
       expect(updated!.activeField).toBeNull();
-      
+
       // Re-query to verify it was actually written to the database
       const persisted = await repository.findById(created.id);
       expect(persisted).toBeDefined();
@@ -379,24 +380,24 @@ describe('DrizzleDecisionContextRepository', () => {
     });
   });
 
-  describe('updateStatus', () => {
-    it('should update the context status', async () => {
+  describe("updateStatus", () => {
+    it("should update the context status", async () => {
       const created = await repository.create({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
-      const updated = await repository.updateStatus(created.id, 'reviewing');
+      const updated = await repository.updateStatus(created.id, "reviewing");
 
       expect(updated).toBeDefined();
-      expect(updated!.status).toBe('reviewing');
-      
+      expect(updated!.status).toBe("reviewing");
+
       // Re-query to verify it was actually written to the database
       const persisted = await repository.findById(created.id);
       expect(persisted).toBeDefined();
-      expect(persisted!.status).toBe('reviewing');
+      expect(persisted!.status).toBe("reviewing");
     });
   });
 });

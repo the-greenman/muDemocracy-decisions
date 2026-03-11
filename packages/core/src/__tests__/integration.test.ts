@@ -1,65 +1,65 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { DrizzleMeetingRepository } from '@repo/db';
-import { MeetingService } from '@repo/core';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { DrizzleMeetingRepository } from "@repo/db";
+import { MeetingService } from "@repo/core";
 
-const TEST_DB_URL = 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev';
+const TEST_DB_URL =
+  "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev";
 
-const describeWithDb =
-  process.env['RUN_DB_TESTS'] === 'true' ? describe : describe.skip;
+const describeWithDb = process.env["RUN_DB_TESTS"] === "true" ? describe : describe.skip;
 
-describeWithDb('Meeting Integration Tests', () => {
+describeWithDb("Meeting Integration Tests", () => {
   let repo: DrizzleMeetingRepository;
   let service: MeetingService;
-  
+
   beforeAll(async () => {
     // Override DATABASE_URL for tests
     process.env.DATABASE_URL = TEST_DB_URL;
     repo = new DrizzleMeetingRepository();
     service = new MeetingService(repo);
   });
-  
-  it('should create and retrieve a meeting', async () => {
+
+  it("should create and retrieve a meeting", async () => {
     const meetingData = {
-      title: 'Integration Test Meeting',
+      title: "Integration Test Meeting",
       date: new Date().toISOString(),
-      participants: ['Alice', 'Bob'],
+      participants: ["Alice", "Bob"],
     };
-    
+
     // Create meeting
     const created = await service.create(meetingData);
     expect(created).toBeDefined();
     expect(created.title).toBe(meetingData.title);
     expect(created.participants).toEqual(meetingData.participants);
-    
+
     // Retrieve meeting
     const found = await service.findById(created.id);
     expect(found).toBeDefined();
     expect(found?.id).toBe(created.id);
     expect(found?.title).toBe(meetingData.title);
   });
-  
-  it('should list all meetings', async () => {
+
+  it("should list all meetings", async () => {
     const meetings = await service.findAll();
     expect(Array.isArray(meetings)).toBe(true);
     expect(meetings.length).toBeGreaterThan(0);
   });
-  
-  it('should update meeting status', async () => {
+
+  it("should update meeting status", async () => {
     // First create a meeting
     const meetingData = {
-      title: 'Status Update Test',
+      title: "Status Update Test",
       date: new Date().toISOString(),
-      participants: ['Charlie'],
+      participants: ["Charlie"],
     };
-    
+
     const created = await service.create(meetingData);
-    
+
     // Update status
-    const updated = await service.updateStatus(created.id, 'completed');
+    const updated = await service.updateStatus(created.id, "completed");
     expect(updated).toBeDefined();
-    expect(updated?.status).toBe('completed');
+    expect(updated?.status).toBe("completed");
   });
-  
+
   afterAll(async () => {
     // Cleanup if needed
   });

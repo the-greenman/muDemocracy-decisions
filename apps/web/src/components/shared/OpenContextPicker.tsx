@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
-import { CalendarDays } from 'lucide-react';
-import type { OpenContextSummary } from '@/lib/mock-data';
-import { MeetingSearchPanel } from '@/components/shared/MeetingSearchPanel';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { useMemo, useState } from "react";
+import { CalendarDays } from "lucide-react";
+import type { OpenContextSummary } from "@/lib/mock-data";
+import { MeetingSearchPanel } from "@/components/shared/MeetingSearchPanel";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 interface OpenContextPickerProps {
   contexts: OpenContextSummary[];
   currentMeeting: { title: string; date: string };
-  selectionMode: 'single' | 'multiple';
+  selectionMode: "single" | "multiple";
   selectedIds: string[];
   onChange: (nextIds: string[]) => void;
   idPrefix?: string;
@@ -20,11 +20,11 @@ export function OpenContextPicker({
   selectionMode,
   selectedIds,
   onChange,
-  idPrefix = 'open-context-picker',
+  idPrefix = "open-context-picker",
 }: OpenContextPickerProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
 
   const querySuggestions = useMemo(() => {
@@ -35,7 +35,9 @@ export function OpenContextPicker({
       values.add(ctx.sourceMeetingDate);
       ctx.sourceMeetingTags.forEach((tag) => values.add(tag));
     });
-    return Array.from(values).sort((a, b) => a.localeCompare(b)).slice(0, 16);
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, 16);
   }, [contexts]);
 
   const filtered = useMemo(() => {
@@ -60,17 +62,16 @@ export function OpenContextPicker({
     return Array.from(new Set(all)).sort();
   }, [contexts, month]);
 
-  const selectedPrimary = selectedIds.length > 0
-    ? contexts.find((ctx) => ctx.id === selectedIds[0]) ?? null
-    : null;
+  const selectedPrimary =
+    selectedIds.length > 0 ? (contexts.find((ctx) => ctx.id === selectedIds[0]) ?? null) : null;
 
-  const selectedPrimaryIsCrossMeeting = !!selectedPrimary && (
-    selectedPrimary.sourceMeetingDate !== currentMeeting.date ||
-    selectedPrimary.sourceMeetingTitle !== currentMeeting.title
-  );
+  const selectedPrimaryIsCrossMeeting =
+    !!selectedPrimary &&
+    (selectedPrimary.sourceMeetingDate !== currentMeeting.date ||
+      selectedPrimary.sourceMeetingTitle !== currentMeeting.title);
 
   function toggleContext(contextId: string) {
-    if (selectionMode === 'single') {
+    if (selectionMode === "single") {
       onChange([contextId]);
       return;
     }
@@ -90,22 +91,22 @@ export function OpenContextPicker({
         month={month}
         onMonthChange={(value) => {
           setMonth(value);
-          setSelectedDate('');
+          setSelectedDate("");
         }}
         queryPlaceholder="Search by date, title, or tag..."
         queryListId={`${idPrefix}-suggestions`}
         querySuggestions={querySuggestions}
         className="flex flex-wrap gap-2"
-        actions={(
+        actions={
           <Button
             onClick={() => setShowCalendar((prev) => !prev)}
-            variant={showCalendar ? 'outline-accent' : 'secondary'}
+            variant={showCalendar ? "outline-accent" : "secondary"}
             className="px-3 py-2 shrink-0"
           >
             <CalendarDays size={13} />
             Calendar
           </Button>
-        )}
+        }
       />
 
       {showCalendar && (
@@ -117,14 +118,14 @@ export function OpenContextPicker({
               value={month}
               onChange={(e) => {
                 setMonth(e.target.value);
-                setSelectedDate('');
+                setSelectedDate("");
               }}
               inputSize="sm"
               className="bg-surface"
             />
             {selectedDate && (
               <Button
-                onClick={() => setSelectedDate('')}
+                onClick={() => setSelectedDate("")}
                 variant="ghost"
                 size="sm"
                 className="ml-auto"
@@ -135,14 +136,16 @@ export function OpenContextPicker({
           </div>
           <div className="flex flex-wrap gap-1.5">
             {monthDates.length === 0 && (
-              <span className="text-fac-meta text-text-muted italic">No related meetings this month.</span>
+              <span className="text-fac-meta text-text-muted italic">
+                No related meetings this month.
+              </span>
             )}
             {monthDates.map((date) => (
               <Button
                 key={date}
                 onClick={() => setSelectedDate(date)}
                 size="sm"
-                variant={selectedDate === date ? 'outline-accent' : 'secondary'}
+                variant={selectedDate === date ? "outline-accent" : "secondary"}
                 className="px-2 py-1"
               >
                 {date}
@@ -161,8 +164,8 @@ export function OpenContextPicker({
               onClick={() => toggleContext(ctx.id)}
               className={`text-left p-3 rounded-card border transition-colors ${
                 selected
-                  ? 'border-accent/40 bg-accent-dim/20'
-                  : 'border-border hover:border-border-strong'
+                  ? "border-accent/40 bg-accent-dim/20"
+                  : "border-border hover:border-border-strong"
               }`}
             >
               <p className="text-fac-field text-text-primary font-medium">{ctx.title}</p>
@@ -170,7 +173,7 @@ export function OpenContextPicker({
                 {ctx.sourceMeetingDate} · {ctx.sourceMeetingTitle}
               </p>
               <p className="text-fac-meta text-text-muted">
-                {ctx.templateName} · {ctx.status} · {ctx.sourceMeetingTags.join(', ')}
+                {ctx.templateName} · {ctx.status} · {ctx.sourceMeetingTags.join(", ")}
               </p>
             </button>
           );
@@ -180,7 +183,7 @@ export function OpenContextPicker({
         )}
       </div>
 
-      {selectionMode === 'single' && selectedPrimaryIsCrossMeeting && selectedPrimary && (
+      {selectionMode === "single" && selectedPrimaryIsCrossMeeting && selectedPrimary && (
         <div className="rounded-card border border-accent/30 bg-accent-dim/15 p-3">
           <p className="text-fac-meta text-text-secondary">
             This context is from another meeting. Saving will first link the meeting relation:

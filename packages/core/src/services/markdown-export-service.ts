@@ -2,14 +2,14 @@
  * Service for exporting decision drafts to markdown format
  */
 
-import { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
-import { IDecisionTemplateRepository } from '../interfaces/i-decision-template-repository.js';
-import { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository.js';
-import { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository.js';
-import { IMeetingRepository } from '../interfaces/i-meeting-repository.js';
-import type { TemplateFieldAssignment, DecisionField } from '@repo/schema';
+import { IDecisionContextRepository } from "../interfaces/i-decision-context-repository.js";
+import { IDecisionTemplateRepository } from "../interfaces/i-decision-template-repository.js";
+import { ITemplateFieldAssignmentRepository } from "../interfaces/i-decision-template-repository.js";
+import { IDecisionFieldRepository } from "../interfaces/i-decision-field-repository.js";
+import { IMeetingRepository } from "../interfaces/i-meeting-repository.js";
+import type { TemplateFieldAssignment, DecisionField } from "@repo/schema";
 
-const FIELD_META_KEY = '__fieldMeta';
+const FIELD_META_KEY = "__fieldMeta";
 
 type FieldMetaRecord = Record<string, { manuallyEdited?: boolean }>;
 
@@ -17,8 +17,8 @@ export interface MarkdownExportOptions {
   includeMetadata?: boolean;
   includeTimestamps?: boolean;
   includeParticipants?: boolean;
-  fieldOrder?: 'template' | 'alphabetical';
-  lockedFieldIndicator?: 'prefix' | 'suffix' | 'none';
+  fieldOrder?: "template" | "alphabetical";
+  lockedFieldIndicator?: "prefix" | "suffix" | "none";
 }
 
 export class MarkdownExportService {
@@ -27,38 +27,35 @@ export class MarkdownExportService {
     private templateRepo: IDecisionTemplateRepository,
     private fieldAssignmentRepo: ITemplateFieldAssignmentRepository,
     private fieldRepo: IDecisionFieldRepository,
-    private meetingRepo: IMeetingRepository
+    private meetingRepo: IMeetingRepository,
   ) {}
 
   /**
    * Export a decision context to markdown format
    */
-  async exportToMarkdown(
-    contextId: string,
-    options: MarkdownExportOptions = {}
-  ): Promise<string> {
+  async exportToMarkdown(contextId: string, options: MarkdownExportOptions = {}): Promise<string> {
     const {
       includeMetadata = true,
       includeTimestamps = true,
       includeParticipants = true,
-      fieldOrder = 'template',
-      lockedFieldIndicator = 'prefix'
+      fieldOrder = "template",
+      lockedFieldIndicator = "prefix",
     } = options;
 
     // Fetch all necessary data
     const context = await this.contextRepo.findById(contextId);
     if (!context) {
-      throw new Error('Decision context not found');
+      throw new Error("Decision context not found");
     }
 
     const template = await this.templateRepo.findById(context.templateId);
     if (!template) {
-      throw new Error('Template not found');
+      throw new Error("Template not found");
     }
 
     const meeting = await this.meetingRepo.findById(context.meetingId);
     const fieldAssignments = await this.fieldAssignmentRepo.findByTemplateId(template.id);
-    
+
     // Get field details
     const fields = new Map<string, DecisionField>();
     for (const assignment of fieldAssignments) {
@@ -66,33 +63,6 @@ export class MarkdownExportService {
       if (field) {
         fields.set(field.id, field);
       }
-    }
-
-    // Build markdown
-    let markdown = '';
-
-    // Header with decision title
-    const title = context.draftData?.decision_statement || 'Untitled Decision';
-    markdown += `# Decision: ${title}\n\n`;
-
-    // Metadata section
-    if (includeMetadata) {
-      markdown += '---\n\n';
-      
-      if (meeting) {
-        markdown += `**Meeting:** ${meeting.title}\n`;
-        if (includeParticipants && meeting.participants.length > 0) {
-          markdown += `**Participants:** ${meeting.participants.join(', ')}\n`;
-        }
-      }
-      
-      if (includeTimestamps) {
-        markdown += `**Created:** ${new Date(context.createdAt).toLocaleString()}\n`;
-        markdown += `**Updated:** ${new Date(context.updatedAt).toLocaleString()}\n`;
-      }
-      
-      markdown += `**Decision ID:** ${context.id}\n`;
-      markdown += `\n---\n\n`;
     }
 
     // Sort fields according to option
@@ -104,7 +74,7 @@ export class MarkdownExportService {
       }
     }
 
-    if (fieldOrder === 'alphabetical') {
+    if (fieldOrder === "alphabetical") {
       sortedFields.sort((a, b) => a.field.name.localeCompare(b.field.name));
     } else {
       // Keep template order
@@ -116,52 +86,80 @@ export class MarkdownExportService {
     const lockedFields = context.lockedFields || [];
     const fieldMeta = this.getFieldMeta(draftData);
 
+    // Build markdown
+    let markdown = "";
+
+    // Header with decision title (prefer explicit context title, then derived statement)
+    const title =
+      this.resolveDecisionTitle(context.title, draftData, sortedFields) || "Untitled Decision";
+    markdown += `# Decision: ${title}\n\n`;
+
+    // Metadata section
+    if (includeMetadata) {
+      markdown += "---\n\n";
+
+      if (meeting) {
+        markdown += `**Meeting:** ${meeting.title}\n`;
+        if (includeParticipants && meeting.participants.length > 0) {
+          markdown += `**Participants:** ${meeting.participants.join(", ")}\n`;
+        }
+      }
+
+      if (includeTimestamps) {
+        markdown += `**Created:** ${new Date(context.createdAt).toLocaleString()}\n`;
+        markdown += `**Updated:** ${new Date(context.updatedAt).toLocaleString()}\n`;
+      }
+
+      markdown += `**Decision ID:** ${context.id}\n`;
+      markdown += `\n---\n\n`;
+    }
+
     for (const { field } of sortedFields) {
-      const value = draftData[field.id] || '';
+      const value = draftData[field.id] || "";
       const isLocked = lockedFields.includes(field.id);
       const isManuallyEdited = fieldMeta[field.id]?.manuallyEdited === true;
-      
+
       // Field name with lock indicator
       let fieldName = field.name;
-      if (isLocked && lockedFieldIndicator === 'prefix') {
+      if (isLocked && lockedFieldIndicator === "prefix") {
         fieldName = `[LOCKED] ${fieldName}`;
-      } else if (isLocked && lockedFieldIndicator === 'suffix') {
+      } else if (isLocked && lockedFieldIndicator === "suffix") {
         fieldName = `${fieldName} [LOCKED]`;
       }
       if (isManuallyEdited) {
         fieldName = `[MANUALLY EDITED] ${fieldName}`;
       }
-      
+
       markdown += `## ${fieldName}\n\n`;
-      
+
       // Field value
       if (value) {
         // Format based on field type
-        if (field.fieldType === 'textarea') {
+        if (field.fieldType === "textarea") {
           markdown += `${value}\n\n`;
-        } else if (field.fieldType === 'multiselect') {
-          const items = Array.isArray(value) ? value : value.split('\n').filter(Boolean);
+        } else if (field.fieldType === "multiselect") {
+          const items = Array.isArray(value) ? value : value.split("\n").filter(Boolean);
           for (const item of items) {
             markdown += `- ${item}\n`;
           }
-          markdown += '\n';
+          markdown += "\n";
         } else {
           markdown += `${value}\n\n`;
         }
       } else {
-        markdown += `*${field.description || 'No value provided'}*\n\n`;
+        markdown += `*${field.description || "No value provided"}*\n\n`;
       }
     }
 
     // Footer metadata
     if (includeMetadata) {
-      markdown += '---\n\n';
+      markdown += "---\n\n";
       markdown += `*Exported from Decision Logger on ${new Date().toLocaleString()}*\n`;
-      
+
       if (template) {
         markdown += `*Template: ${template.name}*\n`;
       }
-      
+
       if (context.flaggedDecisionId) {
         markdown += `*Flagged Decision ID: ${context.flaggedDecisionId}*\n`;
       }
@@ -172,11 +170,36 @@ export class MarkdownExportService {
 
   private getFieldMeta(draftData: Record<string, unknown>): FieldMetaRecord {
     const meta = draftData[FIELD_META_KEY];
-    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
       return {};
     }
 
     return meta as FieldMetaRecord;
+  }
+
+  private resolveDecisionTitle(
+    contextTitle: string | undefined,
+    draftData: Record<string, unknown>,
+    sortedFields: Array<{ field: DecisionField; assignment: TemplateFieldAssignment }>,
+  ): string | null {
+    if (typeof contextTitle === "string" && contextTitle.trim().length > 0) {
+      return contextTitle.trim();
+    }
+
+    const decisionStatementField = sortedFields.find(
+      ({ field }) => field.name === "decision_statement",
+    );
+    if (!decisionStatementField) {
+      return null;
+    }
+
+    const value = draftData[decisionStatementField.field.id];
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 
   /**
@@ -184,20 +207,20 @@ export class MarkdownExportService {
    */
   async exportMultipleToMarkdown(
     contextIds: string[],
-    options: MarkdownExportOptions = {}
+    options: MarkdownExportOptions = {},
   ): Promise<string> {
     const sections: string[] = [];
-    
+
     for (const contextId of contextIds) {
       const markdown = await this.exportToMarkdown(contextId, options);
       sections.push(markdown);
-      
+
       // Add separator between decisions
       if (contextIds.length > 1 && contextId !== contextIds[contextIds.length - 1]) {
-        sections.push('\n\n---\n\n# --- Next Decision ---\n\n');
+        sections.push("\n\n---\n\n# --- Next Decision ---\n\n");
       }
     }
-    
-    return sections.join('');
+
+    return sections.join("");
   }
 }

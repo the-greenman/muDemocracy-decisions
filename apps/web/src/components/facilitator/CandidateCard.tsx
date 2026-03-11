@@ -1,5 +1,5 @@
-import { ArrowUpCircle, X, Clock } from 'lucide-react';
-import type { Candidate } from '@/lib/mock-data';
+import { ArrowUpCircle, X, Clock } from "lucide-react";
+import type { Candidate } from "@/lib/mock-data";
 
 interface CandidateCardProps {
   candidate: Candidate;
@@ -12,7 +12,9 @@ export function CandidateCard({ candidate, onPromote, onDismiss }: CandidateCard
     <div className="flex flex-col gap-2 p-3 rounded-card border border-candidate-new/30 bg-caution-dim/20">
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-fac-field text-text-primary font-medium leading-snug">{candidate.title}</p>
+          <p className="text-fac-field text-text-primary font-medium leading-snug">
+            {candidate.title}
+          </p>
           <p className="text-fac-meta text-text-secondary mt-1 leading-snug">{candidate.summary}</p>
         </div>
       </div>

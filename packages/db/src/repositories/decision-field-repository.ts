@@ -2,13 +2,10 @@
  * Drizzle implementation of Decision Field Repository
  */
 
-import { and, eq, sql } from 'drizzle-orm';
-import { db } from '../client.js';
-import { decisionFields } from '../schema.js';
-import type { 
-  DecisionField,
-  CreateDecisionField
-} from '@repo/schema';
+import { and, eq, sql } from "drizzle-orm";
+import { db } from "../client.js";
+import { decisionFields } from "../schema.js";
+import type { DecisionField, CreateDecisionField } from "@repo/schema";
 
 type DecisionFieldIdentityLookup = {
   namespace?: string;
@@ -42,11 +39,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
   }
 
   async findById(id: string): Promise<DecisionField | null> {
-    const [row] = await db
-      .select()
-      .from(decisionFields)
-      .where(eq(decisionFields.id, id))
-      .limit(1);
+    const [row] = await db.select().from(decisionFields).where(eq(decisionFields.id, id)).limit(1);
 
     return row ? this.mapToSchema(row) : null;
   }
@@ -57,10 +50,10 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
       .from(decisionFields)
       .where(
         and(
-          eq(decisionFields.namespace, identity.namespace ?? 'core'),
+          eq(decisionFields.namespace, identity.namespace ?? "core"),
           eq(decisionFields.name, identity.name),
-          eq(decisionFields.version, identity.version ?? 1)
-        )
+          eq(decisionFields.version, identity.version ?? 1),
+        ),
       )
       .limit(1);
 
@@ -73,7 +66,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
       .from(decisionFields)
       .orderBy(decisionFields.category, decisionFields.name);
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByCategory(category: string): Promise<DecisionField[]> {
@@ -83,7 +76,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
       .where(eq(decisionFields.category, category as any))
       .orderBy(decisionFields.name);
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async update(id: string, data: Partial<CreateDecisionField>): Promise<DecisionField | null> {
@@ -91,7 +84,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
     if (data.placeholder !== undefined) {
       updateData.placeholder = data.placeholder || null;
     }
-    
+
     const [row] = await db
       .update(decisionFields)
       .set(updateData)
@@ -102,10 +95,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await db
-      .delete(decisionFields)
-      .where(eq(decisionFields.id, id))
-      .returning();
+    const result = await db.delete(decisionFields).where(eq(decisionFields.id, id)).returning();
 
     return result.length > 0;
   }
@@ -114,14 +104,14 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
     const rows = await db
       .insert(decisionFields)
       .values(
-        fields.map(field => ({
+        fields.map((field) => ({
           ...field,
           placeholder: field.placeholder || null,
-        }))
+        })),
       )
       .returning();
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async search(query: string): Promise<DecisionField[]> {
@@ -129,13 +119,13 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
       .select()
       .from(decisionFields)
       .where(
-        sql`CAST(${decisionFields.name} AS TEXT) ILIKE ${'%' + query + '%'} OR 
-             CAST(${decisionFields.description} AS TEXT) ILIKE ${'%' + query + '%'} OR
-             CAST(${decisionFields.category} AS TEXT) ILIKE ${'%' + query + '%'}`
+        sql`CAST(${decisionFields.name} AS TEXT) ILIKE ${"%" + query + "%"} OR 
+             CAST(${decisionFields.description} AS TEXT) ILIKE ${"%" + query + "%"} OR
+             CAST(${decisionFields.category} AS TEXT) ILIKE ${"%" + query + "%"}`,
       )
       .orderBy(decisionFields.category, decisionFields.name);
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByType(type: string): Promise<DecisionField[]> {
@@ -145,7 +135,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
       .where(eq(decisionFields.fieldType, type as any))
       .orderBy(decisionFields.category, decisionFields.name);
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   private mapToSchema(row: any): DecisionField {

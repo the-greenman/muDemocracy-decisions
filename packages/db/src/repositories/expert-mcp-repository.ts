@@ -8,25 +8,22 @@ import {
   expertAdvice,
   type ExpertTemplateSelect,
   type ExpertAdviceSelect,
-  type MCPServerSelect
-} from '../schema.js';
-import { db } from '../client.js';
-import { eq, and, ilike, desc, asc, gte, lte, sql } from 'drizzle-orm';
-import type { 
+  type MCPServerSelect,
+} from "../schema.js";
+import { db } from "../client.js";
+import { eq, and, ilike, desc, asc, gte, lte, sql } from "drizzle-orm";
+import type {
   ExpertTemplate,
   CreateExpertTemplate,
   MCPServer,
   CreateMCPServer,
   ExpertAdvice,
-  CreateExpertAdvice
-} from '@repo/schema';
-import { 
-  CreateMCPServerWithCompatSchema,
-  CreateExpertAdviceWithCompatSchema
-} from '@repo/schema';
+  CreateExpertAdvice,
+} from "@repo/schema";
+import { CreateMCPServerWithCompatSchema, CreateExpertAdviceWithCompatSchema } from "@repo/schema";
 
-type UpdateExpertTemplate = Partial<Omit<CreateExpertTemplate, 'id'>>;
-type UpdateMCPServer = Partial<Omit<CreateMCPServer, 'id'>>;
+type UpdateExpertTemplate = Partial<Omit<CreateExpertTemplate, "id">>;
+type UpdateMCPServer = Partial<Omit<CreateMCPServer, "id">>;
 
 // Interface definitions to avoid circular dependency
 interface IExpertTemplateRepository {
@@ -50,7 +47,7 @@ interface IMCPServerRepository {
   findByStatus(status: string): Promise<MCPServer[]>;
   findActive(): Promise<MCPServer[]>;
   update(id: string, data: UpdateMCPServer): Promise<MCPServer | null>;
-  updateStatus(name: string, status: 'active' | 'inactive' | 'error'): Promise<boolean>;
+  updateStatus(name: string, status: "active" | "inactive" | "error"): Promise<boolean>;
   delete(id: string): Promise<boolean>;
   checkHealth(): Promise<Record<string, boolean>>;
 }
@@ -95,38 +92,32 @@ export class DrizzleExpertTemplateRepository implements IExpertTemplateRepositor
       .returning();
 
     if (!row) {
-      throw new Error('Failed to create expert template');
+      throw new Error("Failed to create expert template");
     }
 
     return this.mapToSchema(row);
   }
 
   async findById(id: string): Promise<ExpertTemplate | null> {
-    const [row] = await db
-      .select()
-      .from(expertTemplates)
-      .where(eq(expertTemplates.id, id));
+    const [row] = await db.select().from(expertTemplates).where(eq(expertTemplates.id, id));
 
     return row ? this.mapToSchema(row) : null;
   }
 
   async findAll(): Promise<ExpertTemplate[]> {
-    const rows = await db
-      .select()
-      .from(expertTemplates)
-      .orderBy(asc(expertTemplates.name));
+    const rows = await db.select().from(expertTemplates).orderBy(asc(expertTemplates.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByType(type: string): Promise<ExpertTemplate[]> {
     const rows = await db
       .select()
       .from(expertTemplates)
-      .where(eq(expertTemplates.type, type as 'technical' | 'legal' | 'stakeholder' | 'custom'))
+      .where(eq(expertTemplates.type, type as "technical" | "legal" | "stakeholder" | "custom"))
       .orderBy(asc(expertTemplates.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findActive(): Promise<ExpertTemplate[]> {
@@ -136,21 +127,21 @@ export class DrizzleExpertTemplateRepository implements IExpertTemplateRepositor
       .where(eq(expertTemplates.isActive, true))
       .orderBy(asc(expertTemplates.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async update(id: string, data: UpdateExpertTemplate): Promise<ExpertTemplate | null> {
     const updateData: any = {
       updatedAt: new Date(),
     };
-    
+
     if (data.name !== undefined) updateData.name = data.name;
     if (data.type !== undefined) updateData.type = data.type;
     if (data.promptTemplate !== undefined) updateData.promptTemplate = data.promptTemplate;
     if (data.mcpAccess !== undefined) updateData.mcpAccess = data.mcpAccess;
     if (data.outputSchema !== undefined) updateData.outputSchema = data.outputSchema;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
-    
+
     const [row] = await db
       .update(expertTemplates)
       .set(updateData)
@@ -165,10 +156,7 @@ export class DrizzleExpertTemplateRepository implements IExpertTemplateRepositor
   }
 
   async delete(id: string): Promise<boolean> {
-    const [row] = await db
-      .delete(expertTemplates)
-      .where(eq(expertTemplates.id, id))
-      .returning();
+    const [row] = await db.delete(expertTemplates).where(eq(expertTemplates.id, id)).returning();
 
     return !!row;
   }
@@ -177,30 +165,28 @@ export class DrizzleExpertTemplateRepository implements IExpertTemplateRepositor
     const rows = await db
       .select()
       .from(expertTemplates)
-      .where(
-        ilike(expertTemplates.name, `%${query}%`)
-      )
+      .where(ilike(expertTemplates.name, `%${query}%`))
       .orderBy(asc(expertTemplates.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async createMany(templates: CreateExpertTemplate[]): Promise<ExpertTemplate[]> {
     const rows = await db
       .insert(expertTemplates)
       .values(
-        templates.map(t => ({
+        templates.map((t) => ({
           name: t.name,
           type: t.type,
           promptTemplate: t.promptTemplate,
           mcpAccess: t.mcpAccess,
           outputSchema: t.outputSchema,
           isActive: t.isActive ?? true,
-        }))
+        })),
       )
       .returning();
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 }
 
@@ -221,7 +207,7 @@ export class DrizzleMCPServerRepository implements IMCPServerRepository {
   async create(data: CreateMCPServer): Promise<MCPServer> {
     // Transform data to handle both connection and connectionConfig fields
     const transformedData = CreateMCPServerWithCompatSchema.parse(data);
-    
+
     const [row] = await db
       .insert(mcpServers)
       .values({
@@ -229,22 +215,19 @@ export class DrizzleMCPServerRepository implements IMCPServerRepository {
         type: transformedData.type,
         connectionConfig: transformedData.connectionConfig,
         capabilities: transformedData.capabilities,
-        status: transformedData.status ?? 'active',
+        status: transformedData.status ?? "active",
       })
       .returning();
 
     if (!row) {
-      throw new Error('Failed to create MCP server');
+      throw new Error("Failed to create MCP server");
     }
 
     return this.mapToSchema(row);
   }
 
   async findByName(name: string): Promise<MCPServer | null> {
-    const [row] = await db
-      .select()
-      .from(mcpServers)
-      .where(eq(mcpServers.name, name));
+    const [row] = await db.select().from(mcpServers).where(eq(mcpServers.name, name));
 
     if (!row) {
       return null;
@@ -254,10 +237,7 @@ export class DrizzleMCPServerRepository implements IMCPServerRepository {
   }
 
   async findById(id: string): Promise<MCPServer | null> {
-    const [row] = await db
-      .select()
-      .from(mcpServers)
-      .where(eq(mcpServers.id, id));
+    const [row] = await db.select().from(mcpServers).where(eq(mcpServers.id, id));
 
     if (!row) {
       return null;
@@ -267,48 +247,45 @@ export class DrizzleMCPServerRepository implements IMCPServerRepository {
   }
 
   async findAll(): Promise<MCPServer[]> {
-    const rows = await db
-      .select()
-      .from(mcpServers)
-      .orderBy(asc(mcpServers.name));
+    const rows = await db.select().from(mcpServers).orderBy(asc(mcpServers.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByType(type: string): Promise<MCPServer[]> {
     const rows = await db
       .select()
       .from(mcpServers)
-      .where(eq(mcpServers.type, type as 'stdio' | 'http' | 'sse'))
+      .where(eq(mcpServers.type, type as "stdio" | "http" | "sse"))
       .orderBy(asc(mcpServers.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByStatus(status: string): Promise<MCPServer[]> {
     const rows = await db
       .select()
       .from(mcpServers)
-      .where(eq(mcpServers.status, status as 'active' | 'inactive' | 'error'))
+      .where(eq(mcpServers.status, status as "active" | "inactive" | "error"))
       .orderBy(asc(mcpServers.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findActive(): Promise<MCPServer[]> {
     const rows = await db
       .select()
       .from(mcpServers)
-      .where(eq(mcpServers.status, 'active'))
+      .where(eq(mcpServers.status, "active"))
       .orderBy(asc(mcpServers.name));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async update(name: string, data: UpdateMCPServer): Promise<MCPServer | null> {
     // Transform data to handle both connection and connectionConfig fields
     const transformedData = CreateMCPServerWithCompatSchema.parse(data);
-    
+
     const [row] = await db
       .update(mcpServers)
       .set({
@@ -325,18 +302,15 @@ export class DrizzleMCPServerRepository implements IMCPServerRepository {
   }
 
   async delete(name: string): Promise<boolean> {
-    const [row] = await db
-      .delete(mcpServers)
-      .where(eq(mcpServers.name, name))
-      .returning();
+    const [row] = await db.delete(mcpServers).where(eq(mcpServers.name, name)).returning();
 
     return !!row;
   }
 
-  async updateStatus(name: string, status: 'active' | 'inactive' | 'error'): Promise<boolean> {
+  async updateStatus(name: string, status: "active" | "inactive" | "error"): Promise<boolean> {
     const [row] = await db
       .update(mcpServers)
-      .set({ 
+      .set({
         status,
         updatedAt: new Date(),
       })
@@ -354,7 +328,7 @@ export class DrizzleMCPServerRepository implements IMCPServerRepository {
     for (const server of servers) {
       result[server.name] = true;
     }
-    
+
     return result;
   }
 
@@ -380,7 +354,7 @@ export class DrizzleExpertAdviceHistoryRepository implements IExpertAdviceHistor
   async create(data: CreateExpertAdvice): Promise<ExpertAdvice> {
     // Transform data to handle both advice and response fields
     const transformedData = CreateExpertAdviceWithCompatSchema.parse(data);
-    
+
     // Map advice to response for database
     const [row] = await db
       .insert(expertAdvice)
@@ -388,14 +362,14 @@ export class DrizzleExpertAdviceHistoryRepository implements IExpertAdviceHistor
         decisionContextId: transformedData.decisionContextId,
         expertId: transformedData.expertId,
         expertName: transformedData.expertName,
-        request: transformedData.request || 'Advice requested', // Default request if not provided
+        request: transformedData.request || "Advice requested", // Default request if not provided
         response: transformedData.response, // Already transformed
         mcpToolsUsed: transformedData.mcpToolsUsed,
       })
       .returning();
 
     if (!row) {
-      throw new Error('Failed to create expert advice');
+      throw new Error("Failed to create expert advice");
     }
 
     return this.mapToSchema(row);
@@ -408,7 +382,7 @@ export class DrizzleExpertAdviceHistoryRepository implements IExpertAdviceHistor
       .where(eq(expertAdvice.decisionContextId, decisionContextId))
       .orderBy(desc(expertAdvice.requestedAt));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByExpertId(expertId: string): Promise<ExpertAdvice[]> {
@@ -418,14 +392,11 @@ export class DrizzleExpertAdviceHistoryRepository implements IExpertAdviceHistor
       .where(eq(expertAdvice.expertId, expertId))
       .orderBy(desc(expertAdvice.requestedAt));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findById(id: string): Promise<ExpertAdvice | null> {
-    const [row] = await db
-      .select()
-      .from(expertAdvice)
-      .where(eq(expertAdvice.id, id));
+    const [row] = await db.select().from(expertAdvice).where(eq(expertAdvice.id, id));
 
     if (!row) {
       return null;
@@ -438,15 +409,10 @@ export class DrizzleExpertAdviceHistoryRepository implements IExpertAdviceHistor
     const rows = await db
       .select()
       .from(expertAdvice)
-      .where(
-        and(
-          gte(expertAdvice.requestedAt, startDate),
-          lte(expertAdvice.requestedAt, endDate)
-        )
-      )
+      .where(and(gte(expertAdvice.requestedAt, startDate), lte(expertAdvice.requestedAt, endDate)))
       .orderBy(desc(expertAdvice.requestedAt));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findRecent(limit: number): Promise<ExpertAdvice[]> {
@@ -456,7 +422,7 @@ export class DrizzleExpertAdviceHistoryRepository implements IExpertAdviceHistor
       .orderBy(desc(expertAdvice.requestedAt))
       .limit(limit);
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async getAdviceCountByExpert(expertId: string): Promise<number> {
@@ -469,10 +435,7 @@ export class DrizzleExpertAdviceHistoryRepository implements IExpertAdviceHistor
   }
 
   async delete(id: string): Promise<boolean> {
-    const [row] = await db
-      .delete(expertAdvice)
-      .where(eq(expertAdvice.id, id))
-      .returning();
+    const [row] = await db.delete(expertAdvice).where(eq(expertAdvice.id, id)).returning();
 
     return !!row;
   }

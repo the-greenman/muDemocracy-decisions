@@ -1,13 +1,12 @@
-import { Command } from 'commander';
-import chalk from 'chalk';
-import { spawn } from 'node:child_process';
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
-import { api, requireActiveMeeting } from '../client.js';
-import { withSpinner } from '../runtime.js';
+import { Command } from "commander";
+import chalk from "chalk";
+import { spawn } from "node:child_process";
+import { readFile } from "fs/promises";
+import { resolve } from "path";
+import { api, requireActiveMeeting } from "../client.js";
+import { withSpinner } from "../runtime.js";
 
-export const transcriptCommand = new Command('transcript')
-  .description('Transcript management');
+export const transcriptCommand = new Command("transcript").description("Transcript management");
 
 interface TranscriptReadingRow {
   id: string;
@@ -18,7 +17,7 @@ interface TranscriptReadingRow {
 }
 
 interface StreamingStatusResponse {
-  status: 'active' | 'idle' | 'flushing';
+  status: "active" | "idle" | "flushing";
   eventCount: number;
 }
 
@@ -30,21 +29,25 @@ interface TranscriptChunkSummary {
 
 interface TranscriptionServiceHealth {
   reachable: boolean;
-  status: 'ok' | 'unreachable' | 'error';
+  status: "ok" | "unreachable" | "error";
   url: string;
   error?: string;
 }
 
 function resolveApiUrl(): string {
-  return process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? 'http://localhost:3001';
+  return process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? "http://localhost:3001";
 }
 
 function resolveTranscriptionServiceUrl(): string {
-  return process.env.TRANSCRIPTION_SERVICE_URL ?? process.env.TRANSCRIPTION_URL ?? 'http://localhost:8788';
+  return (
+    process.env.TRANSCRIPTION_SERVICE_URL ??
+    process.env.TRANSCRIPTION_URL ??
+    "http://localhost:8788"
+  );
 }
 
 function resolveWhisperLocalUrl(): string {
-  return process.env.WHISPER_LOCAL_URL ?? 'http://localhost:9000';
+  return process.env.WHISPER_LOCAL_URL ?? "http://localhost:9000";
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -54,15 +57,18 @@ async function sleep(ms: number): Promise<void> {
 }
 
 function formatTranscriptRow(row: TranscriptReadingRow): string {
-  const timeRange = row.startTime && row.endTime
-    ? `${row.startTime} -> ${row.endTime}`
-    : row.startTime ?? row.endTime ?? 'n/a';
-  const speaker = row.speaker ?? 'Unknown';
+  const timeRange =
+    row.startTime && row.endTime
+      ? `${row.startTime} -> ${row.endTime}`
+      : (row.startTime ?? row.endTime ?? "n/a");
+  const speaker = row.speaker ?? "Unknown";
   return `${chalk.gray(timeRange)} ${chalk.cyan(`[${speaker}]`)} ${row.displayText}`;
 }
 
 async function getTranscriptRows(meetingId: string): Promise<TranscriptReadingRow[]> {
-  const response = await api.get<{ rows: TranscriptReadingRow[] }>(`/api/meetings/${meetingId}/transcript-reading`);
+  const response = await api.get<{ rows: TranscriptReadingRow[] }>(
+    `/api/meetings/${meetingId}/transcript-reading`,
+  );
   return response.rows;
 }
 
@@ -71,41 +77,45 @@ async function getStreamingStatus(meetingId: string): Promise<StreamingStatusRes
 }
 
 async function flushTranscriptStream(meetingId: string): Promise<number> {
-  const response = await api.post<{ chunks: Array<{ id: string }> }>(`/api/meetings/${meetingId}/streaming/flush`);
+  const response = await api.post<{ chunks: Array<{ id: string }> }>(
+    `/api/meetings/${meetingId}/streaming/flush`,
+  );
   return response.chunks.length;
 }
 
 async function getTranscriptChunks(meetingId: string): Promise<TranscriptChunkSummary[]> {
-  const response = await api.get<{ chunks: TranscriptChunkSummary[] }>(`/api/meetings/${meetingId}/chunks`);
+  const response = await api.get<{ chunks: TranscriptChunkSummary[] }>(
+    `/api/meetings/${meetingId}/chunks`,
+  );
   return response.chunks;
 }
 
 async function getTranscriptionServiceHealth(): Promise<TranscriptionServiceHealth> {
-  const baseUrl = resolveTranscriptionServiceUrl().replace(/\/$/, '');
+  const baseUrl = resolveTranscriptionServiceUrl().replace(/\/$/, "");
   const url = `${baseUrl}/health`;
 
   try {
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetch(url, { method: "GET" });
     if (!response.ok) {
       return {
         reachable: false,
-        status: 'error',
+        status: "error",
         url,
         error: `${response.status} ${response.statusText}`.trim(),
       };
     }
 
-    const payload = await response.json().catch(() => ({})) as { status?: string };
+    const payload = (await response.json().catch(() => ({}))) as { status?: string };
     return {
       reachable: true,
-      status: payload.status === 'ok' ? 'ok' : 'error',
+      status: payload.status === "ok" ? "ok" : "error",
       url,
-      ...(payload.status === 'ok' ? {} : { error: 'Unexpected health response' }),
+      ...(payload.status === "ok" ? {} : { error: "Unexpected health response" }),
     };
   } catch (error) {
     return {
       reachable: false,
-      status: 'unreachable',
+      status: "unreachable",
       url,
       error: error instanceof Error ? error.message : String(error),
     };
@@ -113,15 +123,15 @@ async function getTranscriptionServiceHealth(): Promise<TranscriptionServiceHeal
 }
 
 async function getWhisperLocalHealth(): Promise<TranscriptionServiceHealth> {
-  const baseUrl = resolveWhisperLocalUrl().replace(/\/$/, '');
+  const baseUrl = resolveWhisperLocalUrl().replace(/\/$/, "");
   const url = `${baseUrl}/openapi.json`;
 
   try {
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetch(url, { method: "GET" });
     if (!response.ok) {
       return {
         reachable: false,
-        status: 'error',
+        status: "error",
         url,
         error: `${response.status} ${response.statusText}`.trim(),
       };
@@ -129,13 +139,13 @@ async function getWhisperLocalHealth(): Promise<TranscriptionServiceHealth> {
 
     return {
       reachable: true,
-      status: 'ok',
+      status: "ok",
       url,
     };
   } catch (error) {
     return {
       reachable: false,
-      status: 'unreachable',
+      status: "unreachable",
       url,
       error: error instanceof Error ? error.message : String(error),
     };
@@ -143,8 +153,8 @@ async function getWhisperLocalHealth(): Promise<TranscriptionServiceHealth> {
 }
 
 function launchTranscriptionClient(args: string[], apiUrl: string): Promise<void> {
-  const child = spawn('pnpm', args, {
-    stdio: 'inherit',
+  const child = spawn("pnpm", args, {
+    stdio: "inherit",
     env: {
       ...process.env,
       DECISION_LOGGER_API_URL: apiUrl,
@@ -164,24 +174,24 @@ function launchTranscriptionClient(args: string[], apiUrl: string): Promise<void
   };
 
   const handleSigint = (): void => {
-    forwardShutdownSignal('SIGINT');
+    forwardShutdownSignal("SIGINT");
   };
 
   const handleSigterm = (): void => {
-    forwardShutdownSignal('SIGTERM');
+    forwardShutdownSignal("SIGTERM");
   };
 
-  process.once('SIGINT', handleSigint);
-  process.once('SIGTERM', handleSigterm);
+  process.once("SIGINT", handleSigint);
+  process.once("SIGTERM", handleSigterm);
 
   return new Promise<void>((resolvePromise, rejectPromise) => {
     const cleanupHandlers = (): void => {
-      process.off('SIGINT', handleSigint);
-      process.off('SIGTERM', handleSigterm);
+      process.off("SIGINT", handleSigint);
+      process.off("SIGTERM", handleSigterm);
     };
 
-    child.on('error', rejectPromise);
-    child.on('exit', (code) => {
+    child.on("error", rejectPromise);
+    child.on("exit", (code) => {
       cleanupHandlers();
       if (code === 0) {
         resolvePromise();
@@ -193,7 +203,7 @@ function launchTranscriptionClient(args: string[], apiUrl: string): Promise<void
         return;
       }
 
-      rejectPromise(new Error(`Transcription client exited with code ${code ?? 'unknown'}`));
+      rejectPromise(new Error(`Transcription client exited with code ${code ?? "unknown"}`));
     });
   });
 }
@@ -253,7 +263,7 @@ async function runTranscriptionWithOptionalWatch(
 
 function formatRelativeActivity(timestamp: string | undefined): string {
   if (!timestamp) {
-    return 'n/a';
+    return "n/a";
   }
 
   const parsed = Date.parse(timestamp);
@@ -275,17 +285,19 @@ function formatRelativeActivity(timestamp: string | undefined): string {
 
 function buildActivitySparkline(chunks: TranscriptChunkSummary[]): string {
   if (chunks.length === 0) {
-    return '.....';
+    return ".....";
   }
 
-  const bars = '._-~=^#';
+  const bars = "._-~=^#";
   const recent = chunks.slice(-8);
   const maxWords = Math.max(...recent.map((chunk) => chunk.wordCount ?? 0), 1);
-  return recent.map((chunk) => {
-    const value = chunk.wordCount ?? 0;
-    const index = Math.min(bars.length - 1, Math.floor((value / maxWords) * (bars.length - 1)));
-    return bars[index] ?? bars[0];
-  }).join('');
+  return recent
+    .map((chunk) => {
+      const value = chunk.wordCount ?? 0;
+      const index = Math.min(bars.length - 1, Math.floor((value / maxWords) * (bars.length - 1)));
+      return bars[index] ?? bars[0];
+    })
+    .join("");
 }
 
 function printTranscriptionStatus(
@@ -298,10 +310,10 @@ function printTranscriptionStatus(
 ): void {
   const lastChunk = chunks[chunks.length - 1];
   const lastPersistedAt = lastChunk?.createdAt;
-  const lastSentRecent = lastPersistedAt !== undefined && Date.now() - Date.parse(lastPersistedAt) < 90_000;
-  const activityLabel = streamStatus.eventCount > 0 || lastSentRecent
-    ? 'sending_to_meeting_context'
-    : 'idle';
+  const lastSentRecent =
+    lastPersistedAt !== undefined && Date.now() - Date.parse(lastPersistedAt) < 90_000;
+  const activityLabel =
+    streamStatus.eventCount > 0 || lastSentRecent ? "sending_to_meeting_context" : "idle";
 
   console.log(chalk.white(`Meeting:           ${meetingId}`));
   console.log(chalk.white(`API URL:           ${resolveApiUrl()}`));
@@ -322,120 +334,140 @@ function printTranscriptionStatus(
   console.log(chalk.white(`Persisted chunks:  ${chunks.length}`));
   console.log(chalk.white(`Last persisted:    ${formatRelativeActivity(lastPersistedAt)}`));
   console.log(chalk.white(`Recent activity:   ${buildActivitySparkline(chunks)}`));
-  console.log(chalk.white(`FFmpeg binary:     ${process.env.FFMPEG_BIN ?? 'ffmpeg'}`));
-  console.log(chalk.white(`Input format:      ${process.env.TRANSCRIPTION_LIVE_INPUT_FORMAT ?? 'pulse'}`));
-  console.log(chalk.white(`Input device:      ${process.env.TRANSCRIPTION_LIVE_INPUT_DEVICE ?? 'default'}`));
-  console.log(chalk.white(`Chunk duration ms: ${process.env.STREAM_CHUNK_MS ?? '30000'}`));
+  console.log(chalk.white(`FFmpeg binary:     ${process.env.FFMPEG_BIN ?? "ffmpeg"}`));
+  console.log(
+    chalk.white(`Input format:      ${process.env.TRANSCRIPTION_LIVE_INPUT_FORMAT ?? "pulse"}`),
+  );
+  console.log(
+    chalk.white(`Input device:      ${process.env.TRANSCRIPTION_LIVE_INPUT_DEVICE ?? "default"}`),
+  );
+  console.log(chalk.white(`Chunk duration ms: ${process.env.STREAM_CHUNK_MS ?? "30000"}`));
 }
 
 transcriptCommand
-  .command('upload')
-  .description('Upload a transcript file to a meeting')
-  .requiredOption('-f, --file <path>', 'Path to transcript file (.txt or .json)')
-  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
-  .option('-s, --strategy <strategy>', 'Chunking strategy: fixed|semantic', 'fixed')
-  .option('--chunk-size <n>', 'Chunk size in tokens', '500')
-  .option('--overlap <n>', 'Chunk overlap in tokens', '50')
-  .action(async (opts: { file: string; meetingId?: string; strategy: string; chunkSize: string; overlap: string }) => {
-    const meetingId = opts.meetingId ?? await requireActiveMeeting();
-    const filePath = resolve(opts.file);
-    const raw = await readFile(filePath, 'utf-8');
-
-    let content = raw;
-    if (opts.file.endsWith('.json')) {
-      const parsed = JSON.parse(raw) as Array<{ speaker?: string; text?: string }>;
-      if (Array.isArray(parsed)) {
-        content = parsed.map((e) => `[${e.speaker ?? 'Unknown'}]: ${e.text ?? ''}`).join('\n');
-      }
-    }
-
-    const result = await withSpinner('Uploading transcript…', () => api.post<{ transcript: { id: string; format: string }; chunks: unknown[] }>(
-      `/api/meetings/${meetingId}/transcripts/upload`,
-      {
-        content,
-        format: opts.file.endsWith('.json') ? 'json' : 'txt',
-        chunkStrategy: opts.strategy,
-        chunkSize: parseInt(opts.chunkSize, 10),
-        overlap: parseInt(opts.overlap, 10),
-      },
-    ));
-
-    console.log(chalk.green('✓ Transcript uploaded'));
-    console.log(chalk.gray(`Transcript ID: ${result.transcript.id}`));
-    console.log(chalk.white(`Chunks created: ${result.chunks.length}`));
-    console.log(chalk.white(`Strategy: ${opts.strategy}`));
-  });
-
-transcriptCommand
-  .command('transcribe-file')
-  .description('Transcribe an audio file for a meeting using the external transcription client')
-  .argument('<file>', 'Path to audio file')
-  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
-  .option('-l, --language <code>', 'Language code for transcription')
-  .option('--mode <mode>', 'Delivery mode: upload|stream', 'upload')
-  .option('--chunk-strategy <strategy>', 'Chunk strategy: fixed|semantic|speaker|streaming', 'speaker')
-  .option('-w, --watch', 'Watch the transcript as it is generated')
-  .option('--flush', 'Flush buffered stream events before each transcript watch poll')
-  .option('--interval-ms <milliseconds>', 'Interval between transcript checks', '2000')
-  .action(async (
-    file: string,
-    opts: {
+  .command("upload")
+  .description("Upload a transcript file to a meeting")
+  .requiredOption("-f, --file <path>", "Path to transcript file (.txt or .json)")
+  .option("-m, --meeting-id <id>", "Meeting ID (defaults to active meeting)")
+  .option("-s, --strategy <strategy>", "Chunking strategy: fixed|semantic", "fixed")
+  .option("--chunk-size <n>", "Chunk size in tokens", "500")
+  .option("--overlap <n>", "Chunk overlap in tokens", "50")
+  .action(
+    async (opts: {
+      file: string;
       meetingId?: string;
-      language?: string;
-      mode: string;
-      chunkStrategy: string;
-      watch?: boolean;
-      flush?: boolean;
-      intervalMs?: string;
+      strategy: string;
+      chunkSize: string;
+      overlap: string;
+    }) => {
+      const meetingId = opts.meetingId ?? (await requireActiveMeeting());
+      const filePath = resolve(opts.file);
+      const raw = await readFile(filePath, "utf-8");
+
+      let content = raw;
+      if (opts.file.endsWith(".json")) {
+        const parsed = JSON.parse(raw) as Array<{ speaker?: string; text?: string }>;
+        if (Array.isArray(parsed)) {
+          content = parsed.map((e) => `[${e.speaker ?? "Unknown"}]: ${e.text ?? ""}`).join("\n");
+        }
+      }
+
+      const result = await withSpinner("Uploading transcript…", () =>
+        api.post<{ transcript: { id: string; format: string }; chunks: unknown[] }>(
+          `/api/meetings/${meetingId}/transcripts/upload`,
+          {
+            content,
+            format: opts.file.endsWith(".json") ? "json" : "txt",
+            chunkStrategy: opts.strategy,
+            chunkSize: parseInt(opts.chunkSize, 10),
+            overlap: parseInt(opts.overlap, 10),
+          },
+        ),
+      );
+
+      console.log(chalk.green("✓ Transcript uploaded"));
+      console.log(chalk.gray(`Transcript ID: ${result.transcript.id}`));
+      console.log(chalk.white(`Chunks created: ${result.chunks.length}`));
+      console.log(chalk.white(`Strategy: ${opts.strategy}`));
     },
-  ) => {
-    const meetingId = opts.meetingId ?? await requireActiveMeeting();
-    const apiUrl = resolveApiUrl();
-    const args = [
-      '--filter',
-      '@repo/transcription',
-      'exec',
-      'tsx',
-      'src/index.ts',
-      'transcribe',
-      resolve(file),
-      '--meeting-id',
-      meetingId,
-      '--api-url',
-      apiUrl,
-      '--mode',
-      opts.mode,
-      '--chunk-strategy',
-      opts.chunkStrategy,
-    ];
-
-    if (opts.language) {
-      args.push('--language', opts.language);
-    }
-
-    console.log(chalk.gray(`Starting file transcription for meeting ${meetingId}`));
-
-    const intervalMs = Number.parseInt(opts.intervalMs ?? '2000', 10);
-    await runTranscriptionWithOptionalWatch(
-      meetingId,
-      apiUrl,
-      args,
-      opts.watch === true,
-      Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 2000,
-      opts.flush === true,
-    );
-  });
+  );
 
 transcriptCommand
-  .command('read')
-  .description('Read transcript rows for a meeting')
-  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
+  .command("transcribe-file")
+  .description("Transcribe an audio file for a meeting using the external transcription client")
+  .argument("<file>", "Path to audio file")
+  .option("-m, --meeting-id <id>", "Meeting ID (defaults to active meeting)")
+  .option("-l, --language <code>", "Language code for transcription")
+  .option("--mode <mode>", "Delivery mode: upload|stream", "upload")
+  .option(
+    "--chunk-strategy <strategy>",
+    "Chunk strategy: fixed|semantic|speaker|streaming",
+    "speaker",
+  )
+  .option("-w, --watch", "Watch the transcript as it is generated")
+  .option("--flush", "Flush buffered stream events before each transcript watch poll")
+  .option("--interval-ms <milliseconds>", "Interval between transcript checks", "2000")
+  .action(
+    async (
+      file: string,
+      opts: {
+        meetingId?: string;
+        language?: string;
+        mode: string;
+        chunkStrategy: string;
+        watch?: boolean;
+        flush?: boolean;
+        intervalMs?: string;
+      },
+    ) => {
+      const meetingId = opts.meetingId ?? (await requireActiveMeeting());
+      const apiUrl = resolveApiUrl();
+      const args = [
+        "--filter",
+        "@repo/transcription",
+        "exec",
+        "tsx",
+        "src/index.ts",
+        "transcribe",
+        resolve(file),
+        "--meeting-id",
+        meetingId,
+        "--api-url",
+        apiUrl,
+        "--mode",
+        opts.mode,
+        "--chunk-strategy",
+        opts.chunkStrategy,
+      ];
+
+      if (opts.language) {
+        args.push("--language", opts.language);
+      }
+
+      console.log(chalk.gray(`Starting file transcription for meeting ${meetingId}`));
+
+      const intervalMs = Number.parseInt(opts.intervalMs ?? "2000", 10);
+      await runTranscriptionWithOptionalWatch(
+        meetingId,
+        apiUrl,
+        args,
+        opts.watch === true,
+        Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 2000,
+        opts.flush === true,
+      );
+    },
+  );
+
+transcriptCommand
+  .command("read")
+  .description("Read transcript rows for a meeting")
+  .option("-m, --meeting-id <id>", "Meeting ID (defaults to active meeting)")
   .action(async (opts: { meetingId?: string }) => {
-    const meetingId = opts.meetingId ?? await requireActiveMeeting();
-    const rows = await withSpinner('Loading transcript…', () => getTranscriptRows(meetingId));
+    const meetingId = opts.meetingId ?? (await requireActiveMeeting());
+    const rows = await withSpinner("Loading transcript…", () => getTranscriptRows(meetingId));
 
     if (rows.length === 0) {
-      console.log(chalk.yellow('No transcript rows found'));
+      console.log(chalk.yellow("No transcript rows found"));
       return;
     }
 
@@ -445,89 +477,115 @@ transcriptCommand
   });
 
 transcriptCommand
-  .command('status')
-  .description('Show transcription stream status and local capture configuration for a meeting')
-  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
+  .command("status")
+  .description("Show transcription stream status and local capture configuration for a meeting")
+  .option("-m, --meeting-id <id>", "Meeting ID (defaults to active meeting)")
   .action(async (opts: { meetingId?: string }) => {
-    const meetingId = opts.meetingId ?? await requireActiveMeeting();
-    const [streamStatus, rows, chunks, serviceHealth, whisperHealth] = await withSpinner('Loading transcription status…', () => Promise.all([
-      getStreamingStatus(meetingId),
-      getTranscriptRows(meetingId),
-      getTranscriptChunks(meetingId),
-      getTranscriptionServiceHealth(),
-      getWhisperLocalHealth(),
-    ]));
+    const meetingId = opts.meetingId ?? (await requireActiveMeeting());
+    const [streamStatus, rows, chunks, serviceHealth, whisperHealth] = await withSpinner(
+      "Loading transcription status…",
+      () =>
+        Promise.all([
+          getStreamingStatus(meetingId),
+          getTranscriptRows(meetingId),
+          getTranscriptChunks(meetingId),
+          getTranscriptionServiceHealth(),
+          getWhisperLocalHealth(),
+        ]),
+    );
 
-    printTranscriptionStatus(meetingId, streamStatus, rows.length, chunks, serviceHealth, whisperHealth);
+    printTranscriptionStatus(
+      meetingId,
+      streamStatus,
+      rows.length,
+      chunks,
+      serviceHealth,
+      whisperHealth,
+    );
   });
 
 transcriptCommand
-  .command('flush')
-  .description('Flush buffered transcript stream events into persisted transcript rows')
-  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
+  .command("flush")
+  .description("Flush buffered transcript stream events into persisted transcript rows")
+  .option("-m, --meeting-id <id>", "Meeting ID (defaults to active meeting)")
   .action(async (opts: { meetingId?: string }) => {
-    const meetingId = opts.meetingId ?? await requireActiveMeeting();
-    const chunkCount = await withSpinner('Flushing transcript stream…', () => flushTranscriptStream(meetingId));
-    console.log(chalk.green('✓ Transcript stream flushed'));
+    const meetingId = opts.meetingId ?? (await requireActiveMeeting());
+    const chunkCount = await withSpinner("Flushing transcript stream…", () =>
+      flushTranscriptStream(meetingId),
+    );
+    console.log(chalk.green("✓ Transcript stream flushed"));
     console.log(chalk.white(`Chunks created: ${chunkCount}`));
   });
 
 transcriptCommand
-  .command('watch')
-  .description('Watch transcript rows arrive in real time for a meeting')
-  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
-  .option('--interval-ms <milliseconds>', 'Interval between transcript checks', '2000')
-  .option('--flush', 'Flush buffered stream events before each read poll')
+  .command("watch")
+  .description("Watch transcript rows arrive in real time for a meeting")
+  .option("-m, --meeting-id <id>", "Meeting ID (defaults to active meeting)")
+  .option("--interval-ms <milliseconds>", "Interval between transcript checks", "2000")
+  .option("--flush", "Flush buffered stream events before each read poll")
   .action(async (opts: { meetingId?: string; intervalMs?: string; flush?: boolean }) => {
-    const meetingId = opts.meetingId ?? await requireActiveMeeting();
-    const intervalMs = Number.parseInt(opts.intervalMs ?? '2000', 10);
+    const meetingId = opts.meetingId ?? (await requireActiveMeeting());
+    const intervalMs = Number.parseInt(opts.intervalMs ?? "2000", 10);
 
     console.log(chalk.gray(`Watching transcript stream for meeting ${meetingId}`));
-    await watchTranscript(meetingId, Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 2000, opts.flush === true);
-  });
-
-transcriptCommand
-  .command('live')
-  .description('Start live transcription for a meeting using the external transcription client')
-  .option('-m, --meeting-id <id>', 'Meeting ID (defaults to active meeting)')
-  .option('-l, --language <code>', 'Language code for transcription')
-  .option('--chunk-ms <milliseconds>', 'Chunk duration in milliseconds')
-  .option('-w, --watch', 'Watch the transcript as it is generated')
-  .option('--interval-ms <milliseconds>', 'Interval between transcript checks', '2000')
-  .option('--flush', 'Flush buffered stream events before each transcript watch poll')
-  .action(async (opts: { meetingId?: string; language?: string; chunkMs?: string; watch?: boolean; intervalMs?: string; flush?: boolean }) => {
-    const meetingId = opts.meetingId ?? await requireActiveMeeting();
-    const apiUrl = resolveApiUrl();
-    const args = [
-      '--filter',
-      '@repo/transcription',
-      'exec',
-      'tsx',
-      'src/index.ts',
-      'live',
-      '--meeting-id',
+    await watchTranscript(
       meetingId,
-      '--api-url',
-      apiUrl,
-    ];
-
-    if (opts.language) {
-      args.push('--language', opts.language);
-    }
-
-    if (opts.chunkMs) {
-      args.push('--chunk-ms', opts.chunkMs);
-    }
-
-    console.log(chalk.gray(`Starting live transcription for meeting ${meetingId}`));
-
-    const intervalMs = Number.parseInt(opts.intervalMs ?? '2000', 10);
-    await runTranscriptionWithOptionalWatch(
-      meetingId,
-      apiUrl,
-      args,
-      opts.watch === true,
       Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 2000,
       opts.flush === true,
     );
   });
+
+transcriptCommand
+  .command("live")
+  .description("Start live transcription for a meeting using the external transcription client")
+  .option("-m, --meeting-id <id>", "Meeting ID (defaults to active meeting)")
+  .option("-l, --language <code>", "Language code for transcription")
+  .option("--chunk-ms <milliseconds>", "Chunk duration in milliseconds")
+  .option("-w, --watch", "Watch the transcript as it is generated")
+  .option("--interval-ms <milliseconds>", "Interval between transcript checks", "2000")
+  .option("--flush", "Flush buffered stream events before each transcript watch poll")
+  .action(
+    async (opts: {
+      meetingId?: string;
+      language?: string;
+      chunkMs?: string;
+      watch?: boolean;
+      intervalMs?: string;
+      flush?: boolean;
+    }) => {
+      const meetingId = opts.meetingId ?? (await requireActiveMeeting());
+      const apiUrl = resolveApiUrl();
+      const args = [
+        "--filter",
+        "@repo/transcription",
+        "exec",
+        "tsx",
+        "src/index.ts",
+        "live",
+        "--meeting-id",
+        meetingId,
+        "--api-url",
+        apiUrl,
+      ];
+
+      if (opts.language) {
+        args.push("--language", opts.language);
+      }
+
+      if (opts.chunkMs) {
+        args.push("--chunk-ms", opts.chunkMs);
+      }
+
+      console.log(chalk.gray(`Starting live transcription for meeting ${meetingId}`));
+
+      const intervalMs = Number.parseInt(opts.intervalMs ?? "2000", 10);
+      await runTranscriptionWithOptionalWatch(
+        meetingId,
+        apiUrl,
+        args,
+        opts.watch === true,
+        Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 2000,
+        opts.flush === true,
+      );
+    },
+  );

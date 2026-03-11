@@ -12,7 +12,7 @@ export interface LogContext {
 }
 
 export interface LoggerConfig {
-  level: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+  level: "fatal" | "error" | "warn" | "info" | "debug" | "trace";
   prettyPrint: boolean;
   redactFields: string[];
   service: string;
@@ -25,28 +25,21 @@ export interface RedactionOptions {
 }
 
 export const DEFAULT_REDACT_FIELDS = [
-  'password',
-  'token',
-  'secret',
-  'key',
-  'auth',
-  'authorization',
-  'cookie',
-  'session',
-  'creditCard',
-  'ssn',
-  'socialSecurityNumber',
-  'apiKey',
-  'privateKey',
+  "password",
+  "token",
+  "secret",
+  "key",
+  "auth",
+  "authorization",
+  "cookie",
+  "session",
+  "creditCard",
+  "ssn",
+  "socialSecurityNumber",
+  "apiKey",
+  "privateKey",
 ];
 
-export const LOG_LEVELS = [
-  'fatal',
-  'error',
-  'warn',
-  'info',
-  'debug',
-  'trace',
-] as const;
+export const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace"] as const;
 
-export type LogLevel = typeof LOG_LEVELS[number];
+export type LogLevel = (typeof LOG_LEVELS)[number];

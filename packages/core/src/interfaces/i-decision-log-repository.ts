@@ -3,7 +3,7 @@
  * Handles immutable decision recording
  */
 
-import type { DecisionLog, CreateDecisionLog } from '@repo/schema';
+import type { DecisionLog, CreateDecisionLog } from "@repo/schema";
 
 export interface IDecisionLogRepository {
   /**

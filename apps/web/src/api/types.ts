@@ -7,7 +7,7 @@ export interface Meeting {
   title: string;
   date: string;
   participants: string[];
-  status: 'active' | 'completed';
+  status: "active" | "completed";
   createdAt: string;
 }
 
@@ -27,7 +27,7 @@ export interface FlaggedDecision {
   chunkIds: string[];
   suggestedTemplateId: string | null;
   templateConfidence: number | null;
-  status: 'pending' | 'accepted' | 'rejected' | 'dismissed';
+  status: "pending" | "accepted" | "rejected" | "dismissed";
   priority: number;
   createdAt: string;
   updatedAt: string;
@@ -56,7 +56,7 @@ export interface DecisionContext {
     data: Record<string, string>;
     savedAt: string;
   }>;
-  status: 'drafting' | 'reviewing' | 'locked' | 'logged';
+  status: "drafting" | "reviewing" | "locked" | "logged";
   createdAt: string;
   updatedAt: string;
 }
@@ -110,11 +110,19 @@ export interface LLMInteraction {
   fieldId: string | null;
   operation: string;
   promptSegments: Array<
-    | { type: 'system'; content: string }
-    | { type: 'transcript'; speaker?: string; text: string; tags: string[] }
-    | { type: 'supplementary'; label?: string; content: string; tags: string[] }
-    | { type: 'guidance'; fieldId?: string; content: string; source: 'user_text' | 'tagged_transcript' }
-    | { type: 'template_fields'; fields: Array<{ id: string; displayName: string; description: string }> }
+    | { type: "system"; content: string }
+    | { type: "transcript"; speaker?: string; text: string; tags: string[] }
+    | { type: "supplementary"; label?: string; content: string; tags: string[] }
+    | {
+        type: "guidance";
+        fieldId?: string;
+        content: string;
+        source: "user_text" | "tagged_transcript";
+      }
+    | {
+        type: "template_fields";
+        fields: Array<{ id: string; displayName: string; description: string }>;
+      }
   >;
   promptText: string;
   responseText: string;

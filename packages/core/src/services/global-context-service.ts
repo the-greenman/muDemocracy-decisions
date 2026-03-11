@@ -1,17 +1,17 @@
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import { dirname, join } from 'path';
-import { homedir } from 'os';
-import type { IMeetingRepository } from '../interfaces/i-meeting-repository';
-import type { IDecisionContextService } from '../interfaces/i-decision-context-service';
-import type { IDecisionTemplateService } from '../interfaces/i-decision-template-service';
-import type { IFlaggedDecisionService } from '../interfaces/i-flagged-decision-service';
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { dirname, join } from "path";
+import { homedir } from "os";
+import type { IMeetingRepository } from "../interfaces/i-meeting-repository";
+import type { IDecisionContextService } from "../interfaces/i-decision-context-service";
+import type { IDecisionTemplateService } from "../interfaces/i-decision-template-service";
+import type { IFlaggedDecisionService } from "../interfaces/i-flagged-decision-service";
 import type {
   GlobalContext,
   GlobalContextState,
   IGlobalContextService,
   IGlobalContextStore,
-} from '../interfaces/i-global-context-service';
-import type { DecisionContext, DecisionTemplate } from '@repo/schema';
+} from "../interfaces/i-global-context-service";
+import type { DecisionContext, DecisionTemplate } from "@repo/schema";
 
 export class InMemoryGlobalContextStore implements IGlobalContextStore {
   constructor(private state: GlobalContextState = {}) {}
@@ -26,15 +26,17 @@ export class InMemoryGlobalContextStore implements IGlobalContextStore {
 }
 
 export class FileGlobalContextStore implements IGlobalContextStore {
-  constructor(private readonly filePath: string = join(homedir(), '.decision-logger', 'context.json')) {}
+  constructor(
+    private readonly filePath: string = join(homedir(), ".decision-logger", "context.json"),
+  ) {}
 
   async load(): Promise<GlobalContextState> {
     try {
-      const raw = await readFile(this.filePath, 'utf-8');
+      const raw = await readFile(this.filePath, "utf-8");
       return JSON.parse(raw) as GlobalContextState;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
+      if (code === "ENOENT") {
         return {};
       }
       throw error;
@@ -43,11 +45,11 @@ export class FileGlobalContextStore implements IGlobalContextStore {
 
   async save(state: GlobalContextState): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
-    await writeFile(this.filePath, JSON.stringify(state, null, 2), 'utf-8');
+    await writeFile(this.filePath, JSON.stringify(state, null, 2), "utf-8");
   }
 }
 
-type TemplateLookup = Pick<IDecisionTemplateService, 'getDefaultTemplate' | 'getTemplate'>;
+type TemplateLookup = Pick<IDecisionTemplateService, "getDefaultTemplate" | "getTemplate">;
 
 export class GlobalContextService implements IGlobalContextService {
   constructor(
@@ -61,7 +63,7 @@ export class GlobalContextService implements IGlobalContextService {
   async setActiveMeeting(meetingId: string): Promise<void> {
     const meeting = await this.meetingRepository.findById(meetingId);
     if (!meeting) {
-      throw new Error('Meeting not found');
+      throw new Error("Meeting not found");
     }
 
     await this.store.save({ activeMeetingId: meetingId });
@@ -71,19 +73,25 @@ export class GlobalContextService implements IGlobalContextService {
     await this.store.save({});
   }
 
-  async setActiveDecision(flaggedDecisionId: string, templateId?: string): Promise<DecisionContext> {
+  async setActiveDecision(
+    flaggedDecisionId: string,
+    templateId?: string,
+  ): Promise<DecisionContext> {
     const decision = await this.flaggedDecisionService.getDecisionById(flaggedDecisionId);
     if (!decision) {
-      throw new Error('Flagged decision not found');
+      throw new Error("Flagged decision not found");
     }
 
-    const existing = await this.decisionContextService.getContextByFlaggedDecision(flaggedDecisionId);
-    const context = existing ?? await this.decisionContextService.createContext({
-      meetingId: decision.meetingId,
-      flaggedDecisionId,
-      title: decision.suggestedTitle,
-      templateId: templateId ?? (await this.getDefaultTemplateId()),
-    });
+    const existing =
+      await this.decisionContextService.getContextByFlaggedDecision(flaggedDecisionId);
+    const context =
+      existing ??
+      (await this.decisionContextService.createContext({
+        meetingId: decision.meetingId,
+        flaggedDecisionId,
+        title: decision.suggestedTitle,
+        templateId: templateId ?? (await this.getDefaultTemplateId()),
+      }));
 
     await this.store.save({
       activeMeetingId: decision.meetingId,
@@ -107,12 +115,15 @@ export class GlobalContextService implements IGlobalContextService {
   async setActiveField(fieldId: string): Promise<void> {
     const current = await this.store.load();
     if (!current.activeDecisionContextId) {
-      throw new Error('No active decision context');
+      throw new Error("No active decision context");
     }
 
-    const updated = await this.decisionContextService.setActiveField(current.activeDecisionContextId, fieldId);
+    const updated = await this.decisionContextService.setActiveField(
+      current.activeDecisionContextId,
+      fieldId,
+    );
     if (!updated) {
-      throw new Error('Decision context not found');
+      throw new Error("Decision context not found");
     }
 
     await this.store.save({
@@ -124,9 +135,12 @@ export class GlobalContextService implements IGlobalContextService {
   async clearField(): Promise<void> {
     const current = await this.store.load();
     if (current.activeDecisionContextId) {
-      const updated = await this.decisionContextService.setActiveField(current.activeDecisionContextId, null);
+      const updated = await this.decisionContextService.setActiveField(
+        current.activeDecisionContextId,
+        null,
+      );
       if (!updated) {
-        throw new Error('Decision context not found');
+        throw new Error("Decision context not found");
       }
     }
 
@@ -147,20 +161,22 @@ export class GlobalContextService implements IGlobalContextService {
   async getContext(): Promise<GlobalContext> {
     const state = await this.store.load();
     const activeMeeting = state.activeMeetingId
-      ? await this.meetingRepository.findById(state.activeMeetingId) ?? undefined
+      ? ((await this.meetingRepository.findById(state.activeMeetingId)) ?? undefined)
       : undefined;
     const activeDecision = state.activeDecisionId
-      ? await this.flaggedDecisionService.getDecisionById(state.activeDecisionId) ?? undefined
+      ? ((await this.flaggedDecisionService.getDecisionById(state.activeDecisionId)) ?? undefined)
       : undefined;
     const activeDecisionContext = state.activeDecisionId
-      ? await this.decisionContextService.getContextByFlaggedDecision(state.activeDecisionId) ?? undefined
+      ? ((await this.decisionContextService.getContextByFlaggedDecision(state.activeDecisionId)) ??
+        undefined)
       : undefined;
     const activeTemplate = activeDecisionContext?.templateId
       ? await this.getTemplateById(activeDecisionContext.templateId)
       : undefined;
 
     const context: GlobalContext = {};
-    const resolvedActiveField = state.activeField ?? activeDecisionContext?.activeField ?? undefined;
+    const resolvedActiveField =
+      state.activeField ?? activeDecisionContext?.activeField ?? undefined;
     if (state.activeMeetingId !== undefined) {
       context.activeMeetingId = state.activeMeetingId;
     }
@@ -193,12 +209,12 @@ export class GlobalContextService implements IGlobalContextService {
   private async getDefaultTemplateId(): Promise<string> {
     const template = await this.decisionTemplateService.getDefaultTemplate();
     if (!template) {
-      throw new Error('Default template not found');
+      throw new Error("Default template not found");
     }
     return template.id;
   }
 
   private async getTemplateById(templateId: string): Promise<DecisionTemplate | undefined> {
-    return await this.decisionTemplateService.getTemplate(templateId) ?? undefined;
+    return (await this.decisionTemplateService.getTemplate(templateId)) ?? undefined;
   }
 }

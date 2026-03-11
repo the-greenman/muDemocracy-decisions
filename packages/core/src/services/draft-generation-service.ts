@@ -1,17 +1,21 @@
-import type { DecisionContext, DecisionField, SupplementaryContent } from '@repo/schema';
-import type { ILLMService, GuidanceSegment } from '../llm/i-llm-service.js';
-import type { PromptSegmentData } from '@repo/schema';
-import { buildDraftPrompt, buildFieldRegenerationPrompt, buildDraftPromptFromTemplate } from '../llm/prompt-builder.js';
-import type { ITranscriptChunkRepository } from '../interfaces/transcript-repositories.js';
-import type { ITemplateFieldAssignmentRepository } from '../interfaces/i-decision-template-repository.js';
-import type { IDecisionContextRepository } from '../interfaces/i-decision-context-repository.js';
-import type { IDecisionFieldRepository } from '../interfaces/i-decision-field-repository.js';
-import type { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository.js';
-import type { IFlaggedDecisionRepository } from '../interfaces/i-flagged-decision-repository.js';
-import type { ISupplementaryContentRepository } from '../interfaces/i-supplementary-content-repository.js';
-import type { FlaggedDecision } from '@repo/schema';
+import type { DecisionContext, DecisionField, SupplementaryContent } from "@repo/schema";
+import type { ILLMService, GuidanceSegment } from "../llm/i-llm-service.js";
+import type { PromptSegmentData } from "@repo/schema";
+import {
+  buildDraftPrompt,
+  buildFieldRegenerationPrompt,
+  buildDraftPromptFromTemplate,
+} from "../llm/prompt-builder.js";
+import type { ITranscriptChunkRepository } from "../interfaces/transcript-repositories.js";
+import type { ITemplateFieldAssignmentRepository } from "../interfaces/i-decision-template-repository.js";
+import type { IDecisionContextRepository } from "../interfaces/i-decision-context-repository.js";
+import type { IDecisionFieldRepository } from "../interfaces/i-decision-field-repository.js";
+import type { ILLMInteractionRepository } from "../interfaces/i-llm-interaction-repository.js";
+import type { IFlaggedDecisionRepository } from "../interfaces/i-flagged-decision-repository.js";
+import type { ISupplementaryContentRepository } from "../interfaces/i-supplementary-content-repository.js";
+import type { FlaggedDecision } from "@repo/schema";
 
-const FIELD_META_KEY = '__fieldMeta';
+const FIELD_META_KEY = "__fieldMeta";
 
 /**
  * Orchestrates LLM-based draft generation for a decision context.
@@ -36,14 +40,17 @@ export class DraftGenerationService {
     private supplementaryContentRepo: ISupplementaryContentRepository,
   ) {}
 
-  async generateDraft(decisionContextId: string, guidance?: GuidanceSegment[]): Promise<DecisionContext> {
+  async generateDraft(
+    decisionContextId: string,
+    guidance?: GuidanceSegment[],
+  ): Promise<DecisionContext> {
     const context = await this.contextRepo.findById(decisionContextId);
     if (!context) {
       throw new Error(`Decision context not found: ${decisionContextId}`);
     }
 
     const fields = await this.resolveTemplateFields(context.templateId);
-    const unlockedFields = fields.filter(f => !context.lockedFields.includes(f.id));
+    const unlockedFields = fields.filter((f) => !context.lockedFields.includes(f.id));
 
     if (unlockedFields.length === 0) {
       // All fields locked — nothing to generate
@@ -51,33 +58,45 @@ export class DraftGenerationService {
     }
 
     const chunks = await this.fetchDraftChunks(context.meetingId, decisionContextId);
-    const supplementaryItems = await this.fetchDraftSupplementaryContent(context.meetingId, decisionContextId);
+    const supplementaryItems = await this.fetchDraftSupplementaryContent(
+      context.meetingId,
+      decisionContextId,
+    );
     const currentDraftText = this.buildCurrentDraftText(context.draftData ?? {}, fields);
 
     // Check if we should use the template-based prompt
-    const useTemplatePrompt = process.env['USE_TEMPLATE_PROMPT'] === 'true';
-    
+    const useTemplatePrompt = process.env["USE_TEMPLATE_PROMPT"] === "true";
+
     let prompt;
     if (useTemplatePrompt) {
       // Get additional context for the template
       const flaggedDecision = await this.findFlaggedDecision(context.flaggedDecisionId);
-      const decisionTitle = flaggedDecision?.suggestedTitle || context.draftData?.decision_statement || 'Untitled Decision';
-      const contextSummary = flaggedDecision?.contextSummary || 'No summary available';
-      
+      const decisionTitle =
+        flaggedDecision?.suggestedTitle ||
+        context.draftData?.decision_statement ||
+        "Untitled Decision";
+      const contextSummary = flaggedDecision?.contextSummary || "No summary available";
+
       prompt = await buildDraftPromptFromTemplate(
-        chunks, 
-        unlockedFields, 
+        chunks,
+        unlockedFields,
         guidance ?? [],
         context.meetingId,
         decisionTitle,
-        contextSummary
+        contextSummary,
       );
     } else {
-      prompt = buildDraftPrompt(chunks, supplementaryItems, unlockedFields, guidance ?? [], currentDraftText);
+      prompt = buildDraftPrompt(
+        chunks,
+        supplementaryItems,
+        unlockedFields,
+        guidance ?? [],
+        currentDraftText,
+      );
     }
 
-    const provider = process.env['LLM_PROVIDER'] ?? 'anthropic';
-    const model = process.env['LLM_MODEL'] ?? 'claude-opus-4-5';
+    const provider = process.env["LLM_PROVIDER"] ?? "anthropic";
+    const model = process.env["LLM_MODEL"] ?? "claude-opus-4-5";
 
     const start = Date.now();
     const draftResult = await this.llm.generateDraft({
@@ -91,7 +110,7 @@ export class DraftGenerationService {
     await this.llmInteractionRepo.create({
       decisionContextId,
       fieldId: null,
-      operation: 'generate_draft',
+      operation: "generate_draft",
       promptSegments: prompt.segments as PromptSegmentData[],
       promptText: prompt.text,
       responseText: JSON.stringify(draftResult),
@@ -147,19 +166,29 @@ export class DraftGenerationService {
     }
 
     const fields = await this.resolveTemplateFields(context.templateId);
-    const field = fields.find(f => f.id === fieldId);
+    const field = fields.find((f) => f.id === fieldId);
     if (!field) {
       throw new Error(`Field ${fieldId} not found in template ${context.templateId}`);
     }
 
     // Field-tagged chunks get priority (fetched with context tag for this field)
     const chunks = await this.fetchFieldChunks(context.meetingId, decisionContextId, fieldId);
-    const supplementaryItems = await this.fetchFieldSupplementaryContent(context.meetingId, decisionContextId, fieldId);
+    const supplementaryItems = await this.fetchFieldSupplementaryContent(
+      context.meetingId,
+      decisionContextId,
+      fieldId,
+    );
 
-    const prompt = buildFieldRegenerationPrompt(chunks, supplementaryItems, field, fieldId, guidance ?? []);
+    const prompt = buildFieldRegenerationPrompt(
+      chunks,
+      supplementaryItems,
+      field,
+      fieldId,
+      guidance ?? [],
+    );
 
-    const provider = process.env['LLM_PROVIDER'] ?? 'anthropic';
-    const model = process.env['LLM_MODEL'] ?? 'claude-opus-4-5';
+    const provider = process.env["LLM_PROVIDER"] ?? "anthropic";
+    const model = process.env["LLM_MODEL"] ?? "claude-opus-4-5";
 
     const start = Date.now();
     const value = await this.llm.regenerateField({
@@ -174,7 +203,7 @@ export class DraftGenerationService {
     await this.llmInteractionRepo.create({
       decisionContextId,
       fieldId,
-      operation: 'regenerate_field',
+      operation: "regenerate_field",
       promptSegments: prompt.segments as PromptSegmentData[],
       promptText: prompt.text,
       responseText: JSON.stringify({ [fieldId]: value }),
@@ -192,7 +221,9 @@ export class DraftGenerationService {
     });
 
     if (!updated) {
-      throw new Error(`Failed to persist regenerated field ${fieldId} for context: ${decisionContextId}`);
+      throw new Error(
+        `Failed to persist regenerated field ${fieldId} for context: ${decisionContextId}`,
+      );
     }
 
     return value;
@@ -234,19 +265,22 @@ export class DraftGenerationService {
 
     const decisionTag = `decision:${decisionContextId}`;
     return allChunks.sort((a, b) => {
-      const aTagged = a.contexts.some(c => c.startsWith(decisionTag));
-      const bTagged = b.contexts.some(c => c.startsWith(decisionTag));
+      const aTagged = a.contexts.some((c) => c.startsWith(decisionTag));
+      const bTagged = b.contexts.some((c) => c.startsWith(decisionTag));
       if (aTagged && !bTagged) return -1;
       if (!aTagged && bTagged) return 1;
       return a.sequenceNumber - b.sequenceNumber;
     });
   }
 
-  private buildCurrentDraftText(draftData: Record<string, unknown>, fields: DecisionField[]): string | undefined {
+  private buildCurrentDraftText(
+    draftData: Record<string, unknown>,
+    fields: DecisionField[],
+  ): string | undefined {
     const lines = fields
       .map((field) => {
         const value = draftData[field.id];
-        if (typeof value !== 'string') {
+        if (typeof value !== "string") {
           return null;
         }
 
@@ -259,7 +293,7 @@ export class DraftGenerationService {
       })
       .filter((line): line is string => line !== null);
 
-    return lines.length > 0 ? lines.join('\n') : undefined;
+    return lines.length > 0 ? lines.join("\n") : undefined;
   }
 
   private async fetchFieldChunks(meetingId: string, decisionContextId: string, fieldId: string) {
@@ -279,7 +313,10 @@ export class DraftGenerationService {
     });
   }
 
-  private async fetchDraftSupplementaryContent(meetingId: string, decisionContextId: string): Promise<SupplementaryContent[]> {
+  private async fetchDraftSupplementaryContent(
+    meetingId: string,
+    decisionContextId: string,
+  ): Promise<SupplementaryContent[]> {
     const meetingTag = `meeting:${meetingId}`;
     const decisionTag = `decision:${decisionContextId}`;
 
@@ -319,12 +356,19 @@ export class DraftGenerationService {
     return [...itemsById.values()];
   }
 
-  private getChunkWeight(contexts: string[], fieldTag: string, decisionTag: string, meetingTag: string): number {
+  private getChunkWeight(
+    contexts: string[],
+    fieldTag: string,
+    decisionTag: string,
+    meetingTag: string,
+  ): number {
     if (contexts.includes(fieldTag)) {
       return 0;
     }
 
-    if (contexts.some((context) => context === decisionTag || context.startsWith(`${decisionTag}:`))) {
+    if (
+      contexts.some((context) => context === decisionTag || context.startsWith(`${decisionTag}:`))
+    ) {
       return 1;
     }
 

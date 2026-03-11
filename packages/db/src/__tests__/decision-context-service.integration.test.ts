@@ -3,20 +3,21 @@
  * Tests against real database
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DecisionContextService } from '@repo/core';
-import { DrizzleDecisionContextRepository } from '@repo/db';
-import { DrizzleMeetingRepository } from '@repo/db';
-import { DrizzleFlaggedDecisionRepository } from '@repo/db';
-import { db } from '@repo/db';
-import { decisionContexts } from '@repo/db';
-import { eq, sql } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { DecisionContextService } from "@repo/core";
+import { DrizzleDecisionContextRepository } from "@repo/db";
+import { DrizzleMeetingRepository } from "@repo/db";
+import { DrizzleFlaggedDecisionRepository } from "@repo/db";
+import { db } from "@repo/db";
+import { decisionContexts } from "@repo/db";
+import { eq, sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 // Use test database
-process.env.DATABASE_URL = 'postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test';
+process.env.DATABASE_URL =
+  "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test";
 
-describe('DecisionContextService Integration', () => {
+describe("DecisionContextService Integration", () => {
   let service: DecisionContextService;
   let meetingRepo: DrizzleMeetingRepository;
   let flaggedDecisionRepo: DrizzleFlaggedDecisionRepository;
@@ -29,20 +30,20 @@ describe('DecisionContextService Integration', () => {
     service = new DecisionContextService(repository);
     meetingRepo = new DrizzleMeetingRepository();
     flaggedDecisionRepo = new DrizzleFlaggedDecisionRepository();
-    
+
     // Create test meeting
     const meeting = await meetingRepo.create({
-      title: 'Test Meeting',
-      date: '2026-02-28',
-      participants: ['Alice', 'Bob'],
+      title: "Test Meeting",
+      date: "2026-02-28",
+      participants: ["Alice", "Bob"],
     });
     testMeetingId = meeting.id;
 
     // Create test flagged decision
     const flaggedDecision = await flaggedDecisionRepo.create({
       meetingId: testMeetingId,
-      suggestedTitle: 'Test Decision',
-      contextSummary: 'Test context',
+      suggestedTitle: "Test Decision",
+      contextSummary: "Test context",
       confidence: 0.8,
       chunkIds: [randomUUID()],
       priority: 0,
@@ -60,17 +61,15 @@ describe('DecisionContextService Integration', () => {
 
   afterEach(async () => {
     // Clean up test data
-    await db
-      .delete(decisionContexts)
-      .where(eq(decisionContexts.meetingId, testMeetingId));
+    await db.delete(decisionContexts).where(eq(decisionContexts.meetingId, testMeetingId));
   });
 
-  describe('createContext', () => {
-    it('should create a context in the database', async () => {
+  describe("createContext", () => {
+    it("should create a context in the database", async () => {
       const data = {
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Decision Context',
+        title: "Test Decision Context",
         templateId: testTemplateId,
       };
 
@@ -78,99 +77,103 @@ describe('DecisionContextService Integration', () => {
 
       expect(result).toBeDefined();
       expect(result.id).toBeDefined();
-      expect(result.status).toBe('drafting');
-      
+      expect(result.status).toBe("drafting");
+
       // Verify it's in the database
-      const found = await db.select().from(decisionContexts)
+      const found = await db
+        .select()
+        .from(decisionContexts)
         .where(eq(decisionContexts.id, result.id))
         .limit(1);
       expect(found).toHaveLength(1);
-      expect(found[0]!.title).toBe('Test Decision Context');
+      expect(found[0]!.title).toBe("Test Decision Context");
     });
 
-    it('should create context with initial draft data', async () => {
+    it("should create context with initial draft data", async () => {
       const data = {
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
-        draftData: { field1: 'value1', field2: 'value2' },
+        draftData: { field1: "value1", field2: "value2" },
       };
 
       const result = await service.createContext(data);
 
-      expect(result.draftData).toEqual({ field1: 'value1', field2: 'value2' });
+      expect(result.draftData).toEqual({ field1: "value1", field2: "value2" });
     });
   });
 
-  describe('updateDraftData', () => {
-    it('should update draft data in the database', async () => {
+  describe("updateDraftData", () => {
+    it("should update draft data in the database", async () => {
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
-        draftData: { field1: 'original' },
+        draftData: { field1: "original" },
       });
 
-      const result = await service.updateDraftData(context.id, { field1: 'updated' });
+      const result = await service.updateDraftData(context.id, { field1: "updated" });
 
       expect(result).toBeDefined();
-      expect(result!.draftData).toEqual({ field1: 'updated' });
-      
+      expect(result!.draftData).toEqual({ field1: "updated" });
+
       // Verify in database
-      const found = await db.select().from(decisionContexts)
+      const found = await db
+        .select()
+        .from(decisionContexts)
         .where(eq(decisionContexts.id, context.id))
         .limit(1);
-      expect(found[0]!.draftData).toEqual({ field1: 'updated' });
+      expect(found[0]!.draftData).toEqual({ field1: "updated" });
     });
 
-    it('should not update locked fields', async () => {
+    it("should not update locked fields", async () => {
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
-        draftData: { field1: 'original', field2: 'value2' },
+        draftData: { field1: "original", field2: "value2" },
       });
 
-      await service.lockField(context.id, 'field1');
-      const result = await service.updateDraftData(context.id, { 
-        field1: 'updated', 
-        field2: 'new value' 
+      await service.lockField(context.id, "field1");
+      const result = await service.updateDraftData(context.id, {
+        field1: "updated",
+        field2: "new value",
       });
 
       expect(result).toBeDefined();
-      expect(result!.draftData).toEqual({ 
-        field1: 'original', // Should not change
-        field2: 'new value' // Should change
+      expect(result!.draftData).toEqual({
+        field1: "original", // Should not change
+        field2: "new value", // Should change
       });
     });
   });
 
-  describe('field locking', () => {
-    it('should lock and unlock fields', async () => {
+  describe("field locking", () => {
+    it("should lock and unlock fields", async () => {
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
       // Lock field
-      const locked = await service.lockField(context.id, 'field1');
-      expect(locked!.lockedFields).toContain('field1');
+      const locked = await service.lockField(context.id, "field1");
+      expect(locked!.lockedFields).toContain("field1");
 
       // Unlock field
-      const unlocked = await service.unlockField(context.id, 'field1');
-      expect(unlocked!.lockedFields).not.toContain('field1');
+      const unlocked = await service.unlockField(context.id, "field1");
+      expect(unlocked!.lockedFields).not.toContain("field1");
     });
 
-    it('should set active field', async () => {
+    it("should set active field", async () => {
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -189,70 +192,70 @@ describe('DecisionContextService Integration', () => {
     });
   });
 
-  describe('status transitions', () => {
-    it('should transition through statuses', async () => {
+  describe("status transitions", () => {
+    it("should transition through statuses", async () => {
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
-        draftData: { field1: 'value1', field2: 'value2' },
+        draftData: { field1: "value1", field2: "value2" },
       });
 
       // Initial status
-      expect(context.status).toBe('drafting');
+      expect(context.status).toBe("drafting");
 
       // Submit for review
       const reviewing = await service.submitForReview(context.id);
-      expect(reviewing!.status).toBe('reviewing');
+      expect(reviewing!.status).toBe("reviewing");
 
       // Approve and lock
       const locked = await service.approveAndLock(context.id);
-      expect(locked!.status).toBe('locked');
-      expect(locked!.lockedFields).toContain('field1');
-      expect(locked!.lockedFields).toContain('field2');
+      expect(locked!.status).toBe("locked");
+      expect(locked!.lockedFields).toContain("field1");
+      expect(locked!.lockedFields).toContain("field2");
     });
 
-    it('should throw error for invalid transitions', async () => {
+    it("should throw error for invalid transitions", async () => {
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
       // Can't approve from drafting
-      await expect(
-        service.approveAndLock(context.id)
-      ).rejects.toThrow('Can only approve contexts that are in reviewing status');
+      await expect(service.approveAndLock(context.id)).rejects.toThrow(
+        "Can only approve contexts that are in reviewing status",
+      );
 
       // Can't submit twice
       await service.submitForReview(context.id);
-      await expect(
-        service.submitForReview(context.id)
-      ).rejects.toThrow('Can only submit contexts that are in drafting status');
+      await expect(service.submitForReview(context.id)).rejects.toThrow(
+        "Can only submit contexts that are in drafting status",
+      );
     });
 
-    it('should reopen for editing', async () => {
+    it("should reopen for editing", async () => {
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
       await service.submitForReview(context.id);
       const reopened = await service.reopenForEditing(context.id);
-      expect(reopened!.status).toBe('drafting');
+      expect(reopened!.status).toBe("drafting");
     });
   });
 
-  describe('queries', () => {
-    it('should get context by flagged decision', async () => {
+  describe("queries", () => {
+    it("should get context by flagged decision", async () => {
       const created = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Context',
+        title: "Test Context",
         templateId: testTemplateId,
       });
 
@@ -260,19 +263,19 @@ describe('DecisionContextService Integration', () => {
       expect(found).toEqual(created);
     });
 
-    it('should get all contexts for meeting', async () => {
+    it("should get all contexts for meeting", async () => {
       await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Context 1',
+        title: "Context 1",
         templateId: testTemplateId,
       });
 
       // Create another flagged decision and context
       const flaggedDecision2 = await flaggedDecisionRepo.create({
         meetingId: testMeetingId,
-        suggestedTitle: 'Decision 2',
-        contextSummary: 'Context 2',
+        suggestedTitle: "Decision 2",
+        contextSummary: "Context 2",
         confidence: 0.8,
         chunkIds: [randomUUID()],
         priority: 0,
@@ -281,7 +284,7 @@ describe('DecisionContextService Integration', () => {
       await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: flaggedDecision2.id,
-        title: 'Context 2',
+        title: "Context 2",
         templateId: testTemplateId,
       });
 

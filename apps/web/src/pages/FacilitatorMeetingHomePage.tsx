@@ -1,103 +1,207 @@
-import { useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, FileText, BookOpen } from 'lucide-react';
-import { MEETINGS, OPEN_CONTEXTS } from '@/lib/mock-data';
-import { MeetingAgendaPlanner } from '@/components/shared/MeetingAgendaPlanner';
+import { useState, useEffect, useCallback } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowRight, AlertCircle } from "lucide-react";
+import { MainHeader } from "@/components/shared/MainHeader";
+import { AgendaItemAddWidget } from "@/components/shared/AgendaItemAddWidget";
+import { AgendaList } from "@/components/shared/AgendaList";
 import {
   MeetingAttendeesPanel,
   type MeetingAttendeeEvent,
   type MeetingAttendeePresence,
-} from '@/components/shared/MeetingAttendeesPanel';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Panel } from '@/components/ui/Panel';
+} from "@/components/shared/MeetingAttendeesPanel";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Panel } from "@/components/ui/Panel";
+import {
+  createDecisionContext,
+  createFlaggedDecision,
+  getMeeting,
+  uploadTranscript,
+  updateFlaggedDecision,
+  updateMeeting,
+} from "@/api/endpoints";
+import { buildAgendaItems } from "@/api/adapters";
+import type { Meeting } from "@/api/types";
+import { useMeetingAgenda } from "@/hooks/useMeetingAgenda";
+import { useTemplates } from "@/hooks/useTemplates";
 
-type SetupDraftState = {
-  setupDraft?: {
-    meetingTitle?: string;
-    meetingDate?: string;
-    participants?: string[];
-    initialCandidates?: string[];
-  };
-};
+function toDateTimeLocalInputValue(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hour = String(parsed.getHours()).padStart(2, "0");
+  const minute = String(parsed.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
 
 export function FacilitatorMeetingHomePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const setupDraft = (location.state as SetupDraftState | null)?.setupDraft;
 
-  const [meetingTitle, setMeetingTitle] = useState(setupDraft?.meetingTitle ?? 'New Meeting');
-  const [meetingDate, setMeetingDate] = useState(
-    setupDraft?.meetingDate ?? new Date().toISOString().slice(0, 10),
-  );
+  const [meeting, setMeeting] = useState<Meeting | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [draftAgendaItemTitle, setDraftAgendaItemTitle] = useState('');
-  const [manualAgendaItems, setManualAgendaItems] = useState<string[]>([]);
-  const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
-  const [manualTranscriptTitle, setManualTranscriptTitle] = useState('');
-  const [manualBackgroundTitle, setManualBackgroundTitle] = useState('');
+  // Editable meeting fields (initialised from API on load)
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingDate, setMeetingDate] = useState("");
+
   const [manualTranscripts, setManualTranscripts] = useState<string[]>([]);
-  const [manualBackgroundDocs, setManualBackgroundDocs] = useState<string[]>([]);
+  const [transcriptText, setTranscriptText] = useState("");
+  const [uploadingTranscript, setUploadingTranscript] = useState(false);
+  const [transcriptUploadError, setTranscriptUploadError] = useState<string | null>(null);
 
-  const selectedOpenContexts = OPEN_CONTEXTS.filter((ctx) => selectedContextIds.includes(ctx.id));
-  const activeMeeting = MEETINGS.find((meeting) => meeting.id === id) ?? null;
-  const initialAttendees = setupDraft?.participants ?? activeMeeting?.participants ?? [];
-  const [attendees, setAttendees] = useState<MeetingAttendeePresence[]>(
-    initialAttendees.map((name) => ({
-      name,
-      status: 'present',
-      updatedAt: 'meeting start',
-    })),
-  );
-  const [attendeeEvents, setAttendeeEvents] = useState<MeetingAttendeeEvent[]>(
-    initialAttendees.map((name, index) => ({
-      id: `home-attendee-start-${index}`,
-      attendeeName: name,
-      action: 'entered',
-      at: 'meeting start',
-    })),
-  );
+  const [attendees, setAttendees] = useState<MeetingAttendeePresence[]>([]);
+  const [attendeeEvents, setAttendeeEvents] = useState<MeetingAttendeeEvent[]>([]);
+  const [endingMeeting, setEndingMeeting] = useState(false);
+  const [agendaAddError, setAgendaAddError] = useState<string | null>(null);
+  const [addingAgendaItem, setAddingAgendaItem] = useState(false);
 
-  function addManualAgendaItem() {
-    const next = draftAgendaItemTitle.trim();
-    if (!next) return;
-    if (manualAgendaItems.some((item) => item.toLowerCase() === next.toLowerCase())) {
-      setDraftAgendaItemTitle('');
+  const { decisions, refresh: refreshAgenda } = useMeetingAgenda(id ?? "");
+  const { templates } = useTemplates();
+  const isMeetingCompleted = meeting?.status === "completed";
+
+  // Load meeting from API on mount
+  const load = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await getMeeting(id);
+      setMeeting(data);
+      setMeetingTitle(data.title);
+      setMeetingDate(toDateTimeLocalInputValue(data.date));
+      setAttendees(
+        data.participants.map((name) => ({
+          name,
+          status: "present" as const,
+          updatedAt: "meeting start",
+        })),
+      );
+      setAttendeeEvents(
+        data.participants.map((name, index) => ({
+          id: `home-attendee-start-${index}`,
+          attendeeName: name,
+          action: "entered" as const,
+          at: "meeting start",
+        })),
+      );
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load meeting");
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Save title/date on blur
+  async function handleTitleBlur() {
+    if (isMeetingCompleted) {
+      setMeetingTitle(meeting?.title ?? meetingTitle);
       return;
     }
-    setManualAgendaItems((prev) => [...prev, next]);
-    setDraftAgendaItemTitle('');
+    if (!id || !meetingTitle.trim() || meetingTitle === meeting?.title) return;
+    try {
+      const updated = await updateMeeting(id, { title: meetingTitle.trim() });
+      setMeeting(updated);
+    } catch {
+      // revert on error
+      setMeetingTitle(meeting?.title ?? meetingTitle);
+    }
   }
 
-  function removeManualAgendaItem(value: string) {
-    setManualAgendaItems((prev) => prev.filter((item) => item !== value));
+  async function handleDateBlur() {
+    if (isMeetingCompleted) {
+      setMeetingDate(toDateTimeLocalInputValue(meeting?.date ?? meetingDate));
+      return;
+    }
+    if (!id || !meetingDate) return;
+    const nextIso = new Date(meetingDate).toISOString();
+    if (nextIso === meeting?.date) return;
+    try {
+      const updated = await updateMeeting(id, { date: nextIso });
+      setMeeting(updated);
+      setMeetingDate(toDateTimeLocalInputValue(updated.date));
+    } catch {
+      setMeetingDate(toDateTimeLocalInputValue(meeting?.date ?? meetingDate));
+    }
   }
 
-  function moveManualAgendaItem(value: string, direction: 'up' | 'down') {
-    setManualAgendaItems((prev) => {
-      const idx = prev.indexOf(value);
-      if (idx === -1) return prev;
-      const target = direction === 'up' ? idx - 1 : idx + 1;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[target]] = [next[target]!, next[idx]!];
-      return next;
-    });
+  async function handleAddAgendaItem(title: string) {
+    if (!id) return;
+    setAgendaAddError(null);
+    setAddingAgendaItem(true);
+
+    const template = templates.find((candidate) => candidate.isDefault) ?? templates[0];
+    if (!template) {
+      setAgendaAddError("No template available. Seed templates first.");
+      setAddingAgendaItem(false);
+      return;
+    }
+
+    const acceptedDecisions = decisions
+      .filter((decision) => decision.status === "accepted")
+      .sort((a, b) => a.priority - b.priority);
+    const nextPriority =
+      acceptedDecisions.length > 0
+        ? Math.max(...acceptedDecisions.map((decision) => decision.priority)) + 1
+        : 0;
+
+    try {
+      const flagged = await createFlaggedDecision(id, {
+        suggestedTitle: title,
+        contextSummary: "Added from meeting home.",
+        confidence: 1,
+        chunkIds: [],
+        priority: nextPriority,
+      });
+
+      await updateFlaggedDecision(flagged.id, {
+        status: "accepted",
+        priority: nextPriority,
+      });
+
+      await createDecisionContext({
+        meetingId: id,
+        flaggedDecisionId: flagged.id,
+        title,
+        templateId: template.id,
+      });
+
+      await refreshAgenda();
+    } catch (err) {
+      setAgendaAddError(err instanceof Error ? err.message : "Failed to add agenda item");
+    } finally {
+      setAddingAgendaItem(false);
+    }
   }
 
-  function addManualTranscript() {
-    const next = manualTranscriptTitle.trim();
-    if (!next) return;
-    setManualTranscripts((prev) => [...prev, next]);
-    setManualTranscriptTitle('');
+  async function handleUploadTranscriptText(content: string, sourceLabel: string) {
+    if (!id || !content.trim()) return;
+    setTranscriptUploadError(null);
+    setUploadingTranscript(true);
+    try {
+      const response = await uploadTranscript(id, {
+        content,
+        format: "txt",
+        chunkStrategy: "fixed",
+      });
+      setManualTranscripts((prev) => [
+        `${sourceLabel} (${response.chunks.length} chunks)`,
+        ...prev,
+      ]);
+      setTranscriptText("");
+    } catch (err) {
+      setTranscriptUploadError(err instanceof Error ? err.message : "Failed to upload transcript");
+    } finally {
+      setUploadingTranscript(false);
+    }
   }
 
-  function addManualBackgroundDoc() {
-    const next = manualBackgroundTitle.trim();
-    if (!next) return;
-    setManualBackgroundDocs((prev) => [...prev, next]);
-    setManualBackgroundTitle('');
+  async function handleTranscriptFileSelected(file: File | null) {
+    if (!file) return;
+    const text = await file.text();
+    await handleUploadTranscriptText(text, file.name);
   }
 
   function toggleAttendeeStatus(name: string) {
@@ -106,19 +210,18 @@ export function FacilitatorMeetingHomePage() {
     setAttendees((prev) =>
       prev.map((attendee) => {
         if (attendee.name !== name) return attendee;
-        const nextStatus = attendee.status === 'present' ? 'left' : 'present';
-        const updatedAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const nextStatus = attendee.status === "present" ? "left" : "present";
+        const updatedAt = new Date().toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
         nextEvent = {
-          id: `home-attendee-event-${Date.now()}-${name.replace(/\s+/g, '-').toLowerCase()}`,
+          id: `home-attendee-event-${Date.now()}-${name.replace(/\s+/g, "-").toLowerCase()}`,
           attendeeName: name,
-          action: nextStatus === 'present' ? 'entered' : 'left',
+          action: nextStatus === "present" ? "entered" : "left",
           at: updatedAt,
         };
-        return {
-          ...attendee,
-          status: nextStatus,
-          updatedAt,
-        };
+        return { ...attendee, status: nextStatus, updatedAt };
       }),
     );
 
@@ -131,71 +234,99 @@ export function FacilitatorMeetingHomePage() {
   function addAttendee(name: string) {
     const normalized = name.trim();
     if (!normalized) return false;
-
-    const exists = attendees.some((attendee) => attendee.name.toLowerCase() === normalized.toLowerCase());
+    const exists = attendees.some(
+      (attendee) => attendee.name.toLowerCase() === normalized.toLowerCase(),
+    );
     if (exists) return false;
 
-    const updatedAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    setAttendees((prev) => [...prev, { name: normalized, status: 'present', updatedAt }]);
-    setAttendeeEvents((prev) => [
-      {
-        id: `home-attendee-event-${Date.now()}-${normalized.replace(/\s+/g, '-').toLowerCase()}`,
-        attendeeName: normalized,
-        action: 'entered' as const,
-        at: updatedAt,
-      },
-      ...prev,
-    ].slice(0, 12));
-
+    const updatedAt = new Date().toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    setAttendees((prev) => [...prev, { name: normalized, status: "present", updatedAt }]);
+    setAttendeeEvents((prev) =>
+      [
+        {
+          id: `home-attendee-event-${Date.now()}-${normalized.replace(/\s+/g, "-").toLowerCase()}`,
+          attendeeName: normalized,
+          action: "entered" as const,
+          at: updatedAt,
+        },
+        ...prev,
+      ].slice(0, 12),
+    );
     return true;
+  }
+
+  async function handleEndMeeting() {
+    if (!id || !meeting || meeting.status === "completed" || endingMeeting) return;
+    const confirmed = window.confirm("End this meeting? This marks it as completed.");
+    if (!confirmed) return;
+
+    setEndingMeeting(true);
+    try {
+      const updated = await updateMeeting(id, { status: "completed" });
+      setMeeting(updated);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to end meeting");
+    } finally {
+      setEndingMeeting(false);
+    }
   }
 
   return (
     <div className="density-facilitator min-h-screen bg-base">
-      <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-fac-title text-text-primary">{meetingTitle}</h1>
-          <p className="text-fac-meta text-text-secondary mt-0.5">
-            Meeting home — no active decision context yet
-          </p>
+      <MainHeader
+        title={meetingTitle || "Meeting"}
+        titleTo={id ? `/meetings/${id}/facilitator/home` : undefined}
+        subtitle="Meeting home"
+        meta={meeting?.date ? new Date(meeting.date).toLocaleString("en-GB") : undefined}
+        status={
+          meeting?.status
+            ? {
+                label: meeting.status === "completed" ? "Completed" : "Active",
+                tone: meeting.status === "completed" ? "completed" : "active",
+              }
+            : undefined
+        }
+        navItems={[{ label: "Meetings", to: "/" }, { label: id ?? "meeting" }]}
+        actions={
+          id ? (
+            <>
+              <Button
+                onClick={() => void handleEndMeeting()}
+                variant="danger"
+                disabled={meeting?.status === "completed" || endingMeeting}
+              >
+                {meeting?.status === "completed"
+                  ? "Meeting ended"
+                  : endingMeeting
+                    ? "Ending…"
+                    : "End meeting"}
+              </Button>
+              <Link
+                to={`/meetings/${id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-2 rounded border border-border text-fac-meta text-text-muted hover:text-text-primary transition-colors"
+              >
+                Shared screen
+              </Link>
+              <Button onClick={() => navigate(`/meetings/${id}/facilitator`)} variant="primary">
+                Open facilitator workspace
+                <ArrowRight size={13} />
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
+
+      {loadError && (
+        <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-card border border-danger/30 bg-danger-dim text-danger text-fac-meta">
+          <AlertCircle size={15} className="shrink-0" />
+          <span>{loadError}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/meetings/mtg-1"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center px-3 py-2 rounded border border-border text-fac-meta text-text-muted hover:text-text-primary transition-colors"
-          >
-            Shared screen
-          </Link>
-          <Button
-            onClick={() =>
-              navigate('/meetings/mtg-1/facilitator', {
-                state: {
-                  setupDraft: {
-                    meetingTitle,
-                    meetingDate,
-                    participants: attendees.map((attendee) => attendee.name),
-                    initialCandidates: manualAgendaItems,
-                    initialAgenda: {
-                      openContexts: selectedOpenContexts.map((ctx) => ({
-                        id: ctx.id,
-                        title: ctx.title,
-                        sourceMeetingTitle: ctx.sourceMeetingTitle,
-                        sourceMeetingDate: ctx.sourceMeetingDate,
-                      })),
-                    },
-                  },
-                },
-              })
-            }
-            variant="primary"
-          >
-            Open facilitator workspace
-            <ArrowRight size={13} />
-          </Button>
-        </div>
-      </header>
+      )}
 
       <main className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Panel title="Meeting details" className="flex flex-col gap-3">
@@ -203,81 +334,90 @@ export function FacilitatorMeetingHomePage() {
             type="text"
             value={meetingTitle}
             onChange={(e) => setMeetingTitle(e.target.value)}
+            onBlur={() => void handleTitleBlur()}
+            placeholder="Meeting title"
             className="w-full"
+            disabled={isMeetingCompleted}
           />
           <Input
-            type="date"
+            type="datetime-local"
             value={meetingDate}
             onChange={(e) => setMeetingDate(e.target.value)}
-            className="w-48"
+            onBlur={() => void handleDateBlur()}
+            className="w-64"
+            disabled={isMeetingCompleted}
           />
           <p className="text-fac-meta text-text-muted">
             Manage attendance in the shared attendee panel below.
           </p>
         </Panel>
 
-        <MeetingAgendaPlanner
-          manualAgendaItems={manualAgendaItems}
-          draftManualAgendaItem={draftAgendaItemTitle}
-          onDraftManualAgendaItemChange={setDraftAgendaItemTitle}
-          onAddManualAgendaItem={addManualAgendaItem}
-          onRemoveManualAgendaItem={removeManualAgendaItem}
-          onMoveManualAgendaItem={moveManualAgendaItem}
-          selectedContextIds={selectedContextIds}
-          onSelectedContextIdsChange={setSelectedContextIds}
-          contexts={OPEN_CONTEXTS}
-          currentMeeting={{ title: meetingTitle, date: meetingDate }}
-        />
+        <Panel title="Decision agenda" className="flex flex-col gap-3">
+          <AgendaItemAddWidget
+            onAdd={handleAddAgendaItem}
+            loading={addingAgendaItem}
+            error={agendaAddError}
+            disabled={meeting?.status === "completed"}
+          />
+          {buildAgendaItems(decisions).length === 0 ? (
+            <p className="text-fac-meta text-text-muted">
+              No agenda items yet. Add one to persist it to facilitator workspace.
+            </p>
+          ) : (
+            <AgendaList items={buildAgendaItems(decisions)} />
+          )}
+        </Panel>
 
-        <Panel title="Meeting materials" className="flex flex-col gap-3">
+        <Panel title="Meeting transcript" className="flex flex-col gap-3">
           <p className="text-fac-meta text-text-muted">
-            Add manual transcripts or background documents for this meeting.
+            Upload or paste transcript text. This is persisted via the API and available in
+            facilitator transcript workflows.
           </p>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Input
-              type="text"
-              value={manualTranscriptTitle}
-              onChange={(e) => setManualTranscriptTitle(e.target.value)}
-              placeholder="Add transcript note..."
-              inputSize="sm"
+              type="file"
+              accept=".txt,.md,.vtt,.srt"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                void handleTranscriptFileSelected(file);
+                e.currentTarget.value = "";
+              }}
               className="flex-1"
+              disabled={uploadingTranscript || meeting?.status === "completed"}
             />
+          </div>
+          <textarea
+            value={transcriptText}
+            onChange={(e) => setTranscriptText(e.target.value)}
+            rows={6}
+            placeholder="Paste transcript text..."
+            className="w-full p-3 rounded border border-border bg-overlay text-fac-meta text-text-primary resize-y focus:outline-none focus:border-accent placeholder:text-text-muted"
+            disabled={uploadingTranscript || meeting?.status === "completed"}
+          />
+          <div className="flex items-center justify-between">
+            <p className="text-fac-meta text-text-muted">
+              Plain text is supported now. Background docs are hidden until API support lands.
+            </p>
             <Button
-              onClick={addManualTranscript}
-              disabled={!manualTranscriptTitle.trim()}
-              variant="outline-accent"
+              onClick={() => void handleUploadTranscriptText(transcriptText, "Pasted transcript")}
+              disabled={
+                !transcriptText.trim() || uploadingTranscript || meeting?.status === "completed"
+              }
+              variant="primary"
               size="sm"
             >
-              <FileText size={13} />
-              Add
+              {uploadingTranscript ? "Uploading…" : "Upload pasted transcript"}
             </Button>
           </div>
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              value={manualBackgroundTitle}
-              onChange={(e) => setManualBackgroundTitle(e.target.value)}
-              placeholder="Add background document..."
-              inputSize="sm"
-              className="flex-1"
-            />
-            <Button
-              onClick={addManualBackgroundDoc}
-              disabled={!manualBackgroundTitle.trim()}
-              variant="outline-accent"
-              size="sm"
-            >
-              <BookOpen size={13} />
-              Add
-            </Button>
-          </div>
-          {(manualTranscripts.length > 0 || manualBackgroundDocs.length > 0) && (
+          {transcriptUploadError && (
+            <p className="text-fac-meta text-danger">{transcriptUploadError}</p>
+          )}
+          {manualTranscripts.length > 0 && (
             <div className="rounded border border-border bg-overlay/40 p-3">
               {manualTranscripts.map((item) => (
-                <p key={`tr-${item}`} className="text-fac-meta text-text-primary">• Transcript: {item}</p>
-              ))}
-              {manualBackgroundDocs.map((item) => (
-                <p key={`bg-${item}`} className="text-fac-meta text-text-primary">• Background: {item}</p>
+                <p key={`tr-${item}`} className="text-fac-meta text-text-primary">
+                  • Uploaded: {item}
+                </p>
               ))}
             </div>
           )}
@@ -293,11 +433,10 @@ export function FacilitatorMeetingHomePage() {
             onToggleAttendee={toggleAttendeeStatus}
             onAddAttendee={addAttendee}
           />
-          {activeMeeting?.status === 'closed' ? (
+          {meeting?.status === "completed" ? (
             <div className="rounded border border-border bg-overlay/40 p-3">
               <p className="text-fac-meta text-text-secondary">Meeting outcomes</p>
-              <p className="text-fac-meta text-text-primary mt-1">• Decisions made: 3</p>
-              <p className="text-fac-meta text-text-primary">• Decisions deferred: 1</p>
+              <p className="text-fac-meta text-text-primary mt-1">Meeting closed.</p>
             </div>
           ) : (
             <div className="rounded border border-border bg-overlay/40 p-3">
@@ -307,7 +446,6 @@ export function FacilitatorMeetingHomePage() {
             </div>
           )}
         </Panel>
-
       </main>
     </div>
   );

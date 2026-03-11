@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MeetingService } from '../meeting-service';
-import { IMeetingRepository } from '../../interfaces/i-meeting-repository';
-import { CreateMeeting, Meeting } from '@repo/schema';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MeetingService } from "../meeting-service";
+import { IMeetingRepository } from "../../interfaces/i-meeting-repository";
+import { CreateMeeting, Meeting } from "@repo/schema";
 
-describe('MeetingService', () => {
+describe("MeetingService", () => {
   let service: MeetingService;
   let mockRepo: IMeetingRepository;
 
@@ -18,20 +18,20 @@ describe('MeetingService', () => {
     service = new MeetingService(mockRepo);
   });
 
-  describe('create', () => {
-    it('should create a meeting with valid data', async () => {
+  describe("create", () => {
+    it("should create a meeting with valid data", async () => {
       // Arrange
       const createData: CreateMeeting = {
-        title: 'Test Meeting',
-        date: '2026-02-27T10:00:00Z',
-        participants: ['Alice', 'Bob'],
+        title: "Test Meeting",
+        date: "2026-02-27T10:00:00Z",
+        participants: ["Alice", "Bob"],
       };
 
       const expectedMeeting: Meeting = {
-        id: '550e8400-e29b-41d4-a716-446655440000',
+        id: "550e8400-e29b-41d4-a716-446655440000",
         ...createData,
-        status: 'active',
-        createdAt: new Date('2026-02-27T10:00:00Z'),
+        status: "active",
+        createdAt: new Date("2026-02-27T10:00:00Z"),
       };
 
       vi.mocked(mockRepo.create).mockResolvedValue(expectedMeeting);
@@ -45,23 +45,23 @@ describe('MeetingService', () => {
       expect(result.id).toBeDefined();
     });
 
-    it('should throw error if title is empty', async () => {
+    it("should throw error if title is empty", async () => {
       // Arrange
       const createData = {
-        title: '',
-        date: '2026-02-27T10:00:00Z',
-        participants: ['Alice'],
+        title: "",
+        date: "2026-02-27T10:00:00Z",
+        participants: ["Alice"],
       };
 
       // Act & Assert
       await expect(service.create(createData)).rejects.toThrow();
     });
 
-    it('should throw error if no participants', async () => {
+    it("should throw error if no participants", async () => {
       // Arrange
       const createData = {
-        title: 'Test Meeting',
-        date: '2026-02-27T10:00:00Z',
+        title: "Test Meeting",
+        date: "2026-02-27T10:00:00Z",
         participants: [],
       };
 
@@ -70,16 +70,16 @@ describe('MeetingService', () => {
     });
   });
 
-  describe('findById', () => {
-    it('should return a meeting if found', async () => {
+  describe("findById", () => {
+    it("should return a meeting if found", async () => {
       // Arrange
-      const meetingId = '550e8400-e29b-41d4-a716-446655440000';
+      const meetingId = "550e8400-e29b-41d4-a716-446655440000";
       const expectedMeeting: Meeting = {
         id: meetingId,
-        title: 'Test Meeting',
-        date: '2026-02-27T10:00:00Z',
-        participants: ['Alice'],
-        status: 'active',
+        title: "Test Meeting",
+        date: "2026-02-27T10:00:00Z",
+        participants: ["Alice"],
+        status: "active",
         createdAt: new Date(),
       };
 
@@ -93,9 +93,9 @@ describe('MeetingService', () => {
       expect(result).toEqual(expectedMeeting);
     });
 
-    it('should return null if meeting not found', async () => {
+    it("should return null if meeting not found", async () => {
       // Arrange
-      const meetingId = 'non-existent-id';
+      const meetingId = "non-existent-id";
       vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
       // Act
@@ -107,24 +107,24 @@ describe('MeetingService', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('should return all meetings', async () => {
+  describe("findAll", () => {
+    it("should return all meetings", async () => {
       // Arrange
       const expectedMeetings: Meeting[] = [
         {
-          id: '1',
-          title: 'Meeting 1',
-          date: '2026-02-27T10:00:00Z',
-          participants: ['Alice'],
-          status: 'active',
+          id: "1",
+          title: "Meeting 1",
+          date: "2026-02-27T10:00:00Z",
+          participants: ["Alice"],
+          status: "active",
           createdAt: new Date(),
         },
         {
-          id: '2',
-          title: 'Meeting 2',
-          date: '2026-02-28T10:00:00Z',
-          participants: ['Bob'],
-          status: 'completed',
+          id: "2",
+          title: "Meeting 2",
+          date: "2026-02-28T10:00:00Z",
+          participants: ["Bob"],
+          status: "completed",
           createdAt: new Date(),
         },
       ];
@@ -140,16 +140,16 @@ describe('MeetingService', () => {
     });
   });
 
-  describe('updateStatus', () => {
-    it('should update meeting status', async () => {
+  describe("updateStatus", () => {
+    it("should update meeting status", async () => {
       // Arrange
-      const meetingId = '550e8400-e29b-41d4-a716-446655440000';
-      const status = 'completed' as const;
+      const meetingId = "550e8400-e29b-41d4-a716-446655440000";
+      const status = "completed" as const;
       const expectedMeeting: Meeting = {
         id: meetingId,
-        title: 'Test Meeting',
-        date: '2026-02-27T10:00:00Z',
-        participants: ['Alice'],
+        title: "Test Meeting",
+        date: "2026-02-27T10:00:00Z",
+        participants: ["Alice"],
         status,
         createdAt: new Date(),
       };

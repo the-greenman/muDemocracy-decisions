@@ -1,6 +1,6 @@
-import { CheckCircle2, Circle, Clock, PlayCircle } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import type { AgendaItemStatus } from '@/lib/mock-data';
+import { CheckCircle2, Circle, Clock, PlayCircle } from "lucide-react";
+import { cn } from "@/lib/cn";
+import type { AgendaItemStatus } from "@/lib/mock-data";
 
 interface AgendaItemProps {
   title: string;
@@ -19,13 +19,20 @@ const STATUS_ICON: Record<AgendaItemStatus, React.ReactNode> = {
   deferred: <Clock size={18} className="text-text-muted shrink-0" />,
 };
 
-export function AgendaItem({ title, status, position, isActive, onClick, actions }: AgendaItemProps) {
+export function AgendaItem({
+  title,
+  status,
+  position,
+  isActive,
+  onClick,
+  actions,
+}: AgendaItemProps) {
   const interactive = !!onClick;
 
   const rowClass = cn(
-    'flex items-center gap-3 px-4 py-3 rounded-card border transition-colors',
-    isActive ? 'border-accent/40 bg-accent-dim/30' : 'border-transparent hover:border-border',
-    interactive ? 'cursor-pointer' : '',
+    "flex items-center gap-3 px-4 py-3 rounded-card border transition-colors",
+    isActive ? "border-accent/40 bg-accent-dim/30" : "border-transparent hover:border-border",
+    interactive ? "cursor-pointer" : "",
   );
 
   const content = (
@@ -34,7 +41,7 @@ export function AgendaItem({ title, status, position, isActive, onClick, actions
       {STATUS_ICON[status]}
       <span
         className={`text-fac-field flex-1 min-w-0 truncate ${
-          isActive ? 'text-text-primary font-medium' : 'text-text-secondary'
+          isActive ? "text-text-primary font-medium" : "text-text-secondary"
         }`}
       >
         {title}

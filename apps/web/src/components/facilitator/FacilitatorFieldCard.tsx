@@ -1,6 +1,6 @@
-import { Lock, Unlock, RefreshCw, Maximize2, Paperclip } from 'lucide-react';
-import { FieldCard } from '@/components/shared/FieldCard';
-import type { Field } from '@/lib/mock-data';
+import { Lock, Unlock, RefreshCw, Maximize2, Paperclip } from "lucide-react";
+import { FieldCard } from "@/components/shared/FieldCard";
+import type { Field } from "@/lib/mock-data";
 
 interface FacilitatorFieldCardProps {
   field: Field;
@@ -25,7 +25,7 @@ export function FacilitatorFieldCard({
 
       {/* Control strip */}
       <div className="flex items-center gap-1 px-4 py-1.5 border-x border-b border-border rounded-b-card bg-surface/50">
-        {field.status === 'locked' ? (
+        {field.status === "locked" ? (
           <IconButton
             icon={<Unlock size={14} />}
             label="Unlock field"
@@ -38,7 +38,7 @@ export function FacilitatorFieldCard({
             label="Lock field"
             onClick={() => onLock?.(field.id)}
             className="text-text-muted hover:text-settled"
-            disabled={!field.value || field.status === 'generating'}
+            disabled={!field.value || field.status === "generating"}
           />
         )}
         <IconButton
@@ -46,7 +46,7 @@ export function FacilitatorFieldCard({
           label="Regenerate field"
           onClick={() => onRegenerate?.(field.id)}
           className="text-text-muted hover:text-accent"
-          disabled={field.status === 'locked' || field.status === 'generating'}
+          disabled={field.status === "locked" || field.status === "generating"}
         />
         <IconButton
           icon={<Maximize2 size={14} />}
@@ -60,7 +60,7 @@ export function FacilitatorFieldCard({
         {supplementaryCount > 0 && (
           <span
             className="flex items-center gap-1 ml-1 text-fac-meta text-accent/70"
-            title={`${supplementaryCount} supplementary item${supplementaryCount !== 1 ? 's' : ''}`}
+            title={`${supplementaryCount} supplementary item${supplementaryCount !== 1 ? "s" : ""}`}
           >
             <Paperclip size={12} />
             {supplementaryCount}
@@ -89,7 +89,7 @@ interface IconButtonProps {
   disabled?: boolean;
 }
 
-function IconButton({ icon, label, onClick, className = '', disabled }: IconButtonProps) {
+function IconButton({ icon, label, onClick, className = "", disabled }: IconButtonProps) {
   return (
     <button
       aria-label={label}

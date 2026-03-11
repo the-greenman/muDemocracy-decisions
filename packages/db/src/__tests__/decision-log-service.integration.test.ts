@@ -2,18 +2,29 @@
  * Integration tests for Decision Log Service
  */
 
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
-import { DecisionLogService } from '@repo/core';
-import { DrizzleDecisionLogRepository } from '../repositories/decision-log-repository';
-import { DrizzleDecisionContextRepository } from '../repositories/decision-context-repository';
-import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository } from '../repositories/decision-template-repository';
-import { DrizzleChunkRelevanceRepository } from '../repositories/chunk-relevance-repository';
-import { db, client } from '../client';
-import { decisionLogs, decisionContexts, meetings, flaggedDecisions, decisionTemplates, decisionFields, templateFieldAssignments } from '../schema';
-import { eq } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
+import { DecisionLogService } from "@repo/core";
+import { DrizzleDecisionLogRepository } from "../repositories/decision-log-repository";
+import { DrizzleDecisionContextRepository } from "../repositories/decision-context-repository";
+import {
+  DrizzleDecisionTemplateRepository,
+  DrizzleTemplateFieldAssignmentRepository,
+} from "../repositories/decision-template-repository";
+import { DrizzleChunkRelevanceRepository } from "../repositories/chunk-relevance-repository";
+import { db, client } from "../client";
+import {
+  decisionLogs,
+  decisionContexts,
+  meetings,
+  flaggedDecisions,
+  decisionTemplates,
+  decisionFields,
+  templateFieldAssignments,
+} from "../schema";
+import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
-describe('Decision Log Service Integration Tests', () => {
+describe("Decision Log Service Integration Tests", () => {
   let decisionLogService: DecisionLogService;
   let decisionLogRepository: DrizzleDecisionLogRepository;
   let decisionContextRepository: DrizzleDecisionContextRepository;
@@ -36,11 +47,11 @@ describe('Decision Log Service Integration Tests', () => {
         activeField: null,
         lockedFields: [decisionFieldId, reasonFieldId, impactFieldId],
         draftData: {
-          [decisionFieldId]: 'Approved',
-          [reasonFieldId]: 'Meets all criteria',
-          [impactFieldId]: 'Low',
+          [decisionFieldId]: "Approved",
+          [reasonFieldId]: "Meets all criteria",
+          [impactFieldId]: "Low",
         },
-        status: 'locked',
+        status: "locked",
       })
       .returning();
 
@@ -63,10 +74,10 @@ describe('Decision Log Service Integration Tests', () => {
     const [template] = await db
       .insert(decisionTemplates)
       .values({
-        namespace: 'test',
+        namespace: "test",
         name: `Test Decision Template ${randomUUID()}`,
-        description: 'Template for testing',
-        category: 'standard',
+        description: "Template for testing",
+        category: "standard",
         version: 1,
         isDefault: false,
         isCustom: false,
@@ -78,10 +89,10 @@ describe('Decision Log Service Integration Tests', () => {
     const [meeting] = await db
       .insert(meetings)
       .values({
-        title: 'Test Meeting for Decision Logs',
-        date: new Date('2026-02-28T00:00:00.000Z'),
-        participants: ['Alice', 'Bob'],
-        status: 'active',
+        title: "Test Meeting for Decision Logs",
+        date: new Date("2026-02-28T00:00:00.000Z"),
+        participants: ["Alice", "Bob"],
+        status: "active",
       })
       .returning();
     testMeetingId = meeting!.id;
@@ -91,13 +102,13 @@ describe('Decision Log Service Integration Tests', () => {
       .insert(flaggedDecisions)
       .values({
         meetingId: testMeetingId,
-        suggestedTitle: 'Test Decision',
-        contextSummary: 'Test context',
+        suggestedTitle: "Test Decision",
+        contextSummary: "Test context",
         confidence: 0.9,
         chunkIds: [],
         suggestedTemplateId: null,
         templateConfidence: 0.8,
-        status: 'pending',
+        status: "pending",
       })
       .returning();
     testFlaggedDecisionId = flaggedDecision!.id;
@@ -106,28 +117,28 @@ describe('Decision Log Service Integration Tests', () => {
       .insert(decisionFields)
       .values([
         {
-          namespace: 'test',
+          namespace: "test",
           name: `decision_${randomUUID()}`,
-          description: 'Decision field for testing',
-          category: 'outcome',
-          fieldType: 'text',
-          extractionPrompt: 'Extract the decision',
+          description: "Decision field for testing",
+          category: "outcome",
+          fieldType: "text",
+          extractionPrompt: "Extract the decision",
         },
         {
-          namespace: 'test',
+          namespace: "test",
           name: `reason_${randomUUID()}`,
-          description: 'Reason field for testing',
-          category: 'context',
-          fieldType: 'text',
-          extractionPrompt: 'Extract the reason',
+          description: "Reason field for testing",
+          category: "context",
+          fieldType: "text",
+          extractionPrompt: "Extract the reason",
         },
         {
-          namespace: 'test',
+          namespace: "test",
           name: `impact_${randomUUID()}`,
-          description: 'Impact field for testing',
-          category: 'evaluation',
-          fieldType: 'text',
-          extractionPrompt: 'Extract the impact',
+          description: "Impact field for testing",
+          category: "evaluation",
+          fieldType: "text",
+          extractionPrompt: "Extract the impact",
         },
       ])
       .returning();
@@ -148,16 +159,16 @@ describe('Decision Log Service Integration Tests', () => {
       .values({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
-        title: 'Test Decision Context',
+        title: "Test Decision Context",
         templateId: testTemplateId,
         activeField: null,
         lockedFields: [decisionFieldId, reasonFieldId, impactFieldId],
         draftData: {
-          [decisionFieldId]: 'Approved',
-          [reasonFieldId]: 'Meets all criteria',
-          [impactFieldId]: 'Low',
+          [decisionFieldId]: "Approved",
+          [reasonFieldId]: "Meets all criteria",
+          [impactFieldId]: "Low",
         },
-        status: 'locked',
+        status: "locked",
       })
       .returning();
     testDecisionContextId = decisionContext!.id;
@@ -167,7 +178,9 @@ describe('Decision Log Service Integration Tests', () => {
     // Clean up test data
     await db.delete(decisionLogs).where(eq(decisionLogs.meetingId, testMeetingId));
     await db.delete(decisionContexts).where(eq(decisionContexts.meetingId, testMeetingId));
-    await db.delete(templateFieldAssignments).where(eq(templateFieldAssignments.templateId, testTemplateId));
+    await db
+      .delete(templateFieldAssignments)
+      .where(eq(templateFieldAssignments.templateId, testTemplateId));
     await db.delete(decisionFields).where(eq(decisionFields.id, decisionFieldId));
     await db.delete(decisionFields).where(eq(decisionFields.id, reasonFieldId));
     await db.delete(decisionFields).where(eq(decisionFields.id, impactFieldId));
@@ -182,31 +195,31 @@ describe('Decision Log Service Integration Tests', () => {
     await db.delete(decisionLogs).where(eq(decisionLogs.meetingId, testMeetingId));
     await db
       .update(decisionContexts)
-      .set({ status: 'locked' })
+      .set({ status: "locked" })
       .where(eq(decisionContexts.id, testDecisionContextId));
   });
 
-  describe('logDecision', () => {
-    it('should log a decision successfully', async () => {
+  describe("logDecision", () => {
+    it("should log a decision successfully", async () => {
       // First verify the context exists
       const context = await decisionContextRepository.findById(testDecisionContextId);
       expect(context).toBeDefined();
       expect(context!.meetingId).toBe(testMeetingId);
 
       const result = await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: 'test-user',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "test-user",
+        decisionMethod: { type: "manual" },
       });
 
       expect(result).toBeDefined();
       expect(result!.meetingId).toBe(testMeetingId);
       expect(result!.decisionContextId).toBe(testDecisionContextId);
-      expect(result!.decisionMethod).toEqual({ type: 'manual' });
-      expect(result!.loggedBy).toBe('test-user');
+      expect(result!.decisionMethod).toEqual({ type: "manual" });
+      expect(result!.loggedBy).toBe("test-user");
       expect(result!.fields).toEqual({
-        [decisionFieldId]: 'Approved',
-        [reasonFieldId]: 'Meets all criteria',
-        [impactFieldId]: 'Low',
+        [decisionFieldId]: "Approved",
+        [reasonFieldId]: "Meets all criteria",
+        [impactFieldId]: "Low",
       });
 
       // Verify it's in the database
@@ -215,99 +228,101 @@ describe('Decision Log Service Integration Tests', () => {
         .from(decisionLogs)
         .where(eq(decisionLogs.id, result!.id))
         .limit(1);
-      
+
       expect(found!).toBeDefined();
-      expect(found!.decisionMethod).toEqual({ type: 'manual' });
-      expect(found!.loggedBy).toBe('test-user');
+      expect(found!.decisionMethod).toEqual({ type: "manual" });
+      expect(found!.loggedBy).toBe("test-user");
     });
 
-    it('should not log decision from unlocked context', async () => {
+    it("should not log decision from unlocked context", async () => {
       // Create an unlocked context
       const [unlockedContext] = await db
         .insert(decisionContexts)
         .values({
           meetingId: testMeetingId,
           flaggedDecisionId: testFlaggedDecisionId,
-          title: 'Unlocked Context',
+          title: "Unlocked Context",
           templateId: testTemplateId,
           activeField: null,
           lockedFields: [],
-          draftData: { [decisionFieldId]: 'Pending' },
-          status: 'drafting',
+          draftData: { [decisionFieldId]: "Pending" },
+          status: "drafting",
         })
         .returning();
 
       await expect(
         decisionLogService.logDecision(unlockedContext!.id, {
-          loggedBy: 'test-user',
-          decisionMethod: { type: 'manual' },
-        })
-      ).rejects.toThrow('Decision context must be locked before logging');
+          loggedBy: "test-user",
+          decisionMethod: { type: "manual" },
+        }),
+      ).rejects.toThrow("Decision context must be locked before logging");
 
       // Clean up
       await db.delete(decisionContexts).where(eq(decisionContexts.id, unlockedContext!.id));
     });
 
-    it('should return null for non-existent context', async () => {
-      const result = await decisionLogService.logDecision('00000000-0000-0000-0000-000000000000', {
-        loggedBy: 'test-user',
-        decisionMethod: { type: 'manual' },
+    it("should return null for non-existent context", async () => {
+      const result = await decisionLogService.logDecision("00000000-0000-0000-0000-000000000000", {
+        loggedBy: "test-user",
+        decisionMethod: { type: "manual" },
       });
 
       expect(result).toBeNull();
     });
   });
 
-  describe('getDecisionLog', () => {
-    it('should retrieve a decision log', async () => {
+  describe("getDecisionLog", () => {
+    it("should retrieve a decision log", async () => {
       // First create a decision log
       const created = await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: 'test-user',
-        decisionMethod: { type: 'ai_assisted' },
+        loggedBy: "test-user",
+        decisionMethod: { type: "ai_assisted" },
       });
 
       const retrieved = await decisionLogService.getDecisionLog(created!.id);
 
       expect(retrieved).toBeDefined();
       expect(retrieved!.id).toBe(created!.id);
-      expect(retrieved!.decisionMethod).toEqual({ type: 'ai_assisted' });
+      expect(retrieved!.decisionMethod).toEqual({ type: "ai_assisted" });
     });
 
-    it('should return null for non-existent log', async () => {
-      const result = await decisionLogService.getDecisionLog('00000000-0000-0000-0000-000000000000');
+    it("should return null for non-existent log", async () => {
+      const result = await decisionLogService.getDecisionLog(
+        "00000000-0000-0000-0000-000000000000",
+      );
       expect(result).toBeNull();
     });
   });
 
-  describe('getMeetingDecisionLogs', () => {
-    it('should retrieve all decision logs for a meeting', async () => {
+  describe("getMeetingDecisionLogs", () => {
+    it("should retrieve all decision logs for a meeting", async () => {
       // Create multiple decision logs
       await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: 'user-1',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "user-1",
+        decisionMethod: { type: "manual" },
       });
 
-      const secondContext = await createLockedContext('Test Decision Context 2');
+      const secondContext = await createLockedContext("Test Decision Context 2");
 
       await decisionLogService.logDecision(secondContext.id, {
-        loggedBy: 'user-2',
-        decisionMethod: { type: 'consensus' },
+        loggedBy: "user-2",
+        decisionMethod: { type: "consensus" },
       });
 
       const logs = await decisionLogService.getMeetingDecisionLogs(testMeetingId);
 
       expect(logs).toHaveLength(2);
-      expect(logs[0]!.loggedBy).toBe('user-2'); // Should be ordered by loggedAt desc
-      expect(logs[1]!.loggedBy).toBe('user-1');
+      expect(logs[0]!.loggedBy).toBe("user-2"); // Should be ordered by loggedAt desc
+      expect(logs[1]!.loggedBy).toBe("user-1");
     });
   });
 
-  describe('getDecisionContextLogs', () => {
-    it('should retrieve all logs for a decision context', async () => {
+  describe("getDecisionContextLogs", () => {
+    it("should retrieve all logs for a decision context", async () => {
       // Create a decision log
       await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: 'test-user',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "test-user",
+        decisionMethod: { type: "manual" },
       });
 
       const logs = await decisionLogService.getDecisionContextLogs(testDecisionContextId);
@@ -317,44 +332,44 @@ describe('Decision Log Service Integration Tests', () => {
     });
   });
 
-  describe('getUserDecisionLogs', () => {
-    it('should retrieve all logs by a specific user', async () => {
+  describe("getUserDecisionLogs", () => {
+    it("should retrieve all logs by a specific user", async () => {
       // Create logs by different users
       await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: 'user-1',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "user-1",
+        decisionMethod: { type: "manual" },
       });
 
-      const secondContext = await createLockedContext('User Log Context 2');
+      const secondContext = await createLockedContext("User Log Context 2");
 
       await decisionLogService.logDecision(secondContext.id, {
-        loggedBy: 'user-2',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "user-2",
+        decisionMethod: { type: "manual" },
       });
 
-      const thirdContext = await createLockedContext('User Log Context 3');
+      const thirdContext = await createLockedContext("User Log Context 3");
 
       await decisionLogService.logDecision(thirdContext.id, {
-        loggedBy: 'user-1',
-        decisionMethod: { type: 'ai_assisted' },
+        loggedBy: "user-1",
+        decisionMethod: { type: "ai_assisted" },
       });
 
-      const user1Logs = await decisionLogService.getUserDecisionLogs('user-1');
-      const user2Logs = await decisionLogService.getUserDecisionLogs('user-2');
+      const user1Logs = await decisionLogService.getUserDecisionLogs("user-1");
+      const user2Logs = await decisionLogService.getUserDecisionLogs("user-2");
 
       expect(user1Logs).toHaveLength(2);
-      expect(user1Logs.every(log => log!.loggedBy === 'user-1')).toBe(true);
+      expect(user1Logs.every((log) => log!.loggedBy === "user-1")).toBe(true);
       expect(user2Logs).toHaveLength(1);
-      expect(user2Logs[0]!.loggedBy).toBe('user-2');
+      expect(user2Logs[0]!.loggedBy).toBe("user-2");
     });
   });
 
-  describe('getDecisionLogsByDateRange', () => {
-    it('should retrieve logs within date range', async () => {
+  describe("getDecisionLogsByDateRange", () => {
+    it("should retrieve logs within date range", async () => {
       // Create a decision log
       const created = await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: 'test-user',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "test-user",
+        decisionMethod: { type: "manual" },
       });
 
       // Search for logs around the creation time
@@ -369,33 +384,33 @@ describe('Decision Log Service Integration Tests', () => {
     });
   });
 
-  describe('getMeetingDecisionStats', () => {
-    it('should generate correct statistics', async () => {
+  describe("getMeetingDecisionStats", () => {
+    it("should generate correct statistics", async () => {
       // Create multiple decisions with different methods and users
       await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: 'user-1',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "user-1",
+        decisionMethod: { type: "manual" },
       });
 
-      const secondContext = await createLockedContext('Stats Context 2');
+      const secondContext = await createLockedContext("Stats Context 2");
 
       await decisionLogService.logDecision(secondContext.id, {
-        loggedBy: 'user-2',
-        decisionMethod: { type: 'manual' },
+        loggedBy: "user-2",
+        decisionMethod: { type: "manual" },
       });
 
-      const thirdContext = await createLockedContext('Stats Context 3');
+      const thirdContext = await createLockedContext("Stats Context 3");
 
       await decisionLogService.logDecision(thirdContext.id, {
-        loggedBy: 'user-1',
-        decisionMethod: { type: 'ai_assisted' },
+        loggedBy: "user-1",
+        decisionMethod: { type: "ai_assisted" },
       });
 
-      const fourthContext = await createLockedContext('Stats Context 4');
+      const fourthContext = await createLockedContext("Stats Context 4");
 
       await decisionLogService.logDecision(fourthContext.id, {
-        loggedBy: 'user-3',
-        decisionMethod: { type: 'consensus' },
+        loggedBy: "user-3",
+        decisionMethod: { type: "consensus" },
       });
 
       const stats = await decisionLogService.getMeetingDecisionStats(testMeetingId);
@@ -407,15 +422,15 @@ describe('Decision Log Service Integration Tests', () => {
         consensus: 1,
       });
       expect(stats.decisionsByUser).toEqual({
-        'user-1': 2,
-        'user-2': 1,
-        'user-3': 1,
+        "user-1": 2,
+        "user-2": 1,
+        "user-3": 1,
       });
     });
 
-    it('should return empty stats for no decisions', async () => {
+    it("should return empty stats for no decisions", async () => {
       const stats = await decisionLogService.getMeetingDecisionStats(testMeetingId);
-      
+
       expect(stats.totalDecisions).toBe(0);
       expect(stats.decisionsByMethod).toEqual({});
       expect(stats.decisionsByUser).toEqual({});

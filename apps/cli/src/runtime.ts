@@ -1,6 +1,6 @@
-import chalk from 'chalk';
-import { createInterface } from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
+import chalk from "chalk";
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 
 let verboseEnabled = false;
 
@@ -20,7 +20,11 @@ export function logHttpRequest(method: string, url: string, body?: unknown): voi
   }
 }
 
-export async function logHttpResponse(status: number, url: string, payload?: unknown): Promise<void> {
+export async function logHttpResponse(
+  status: number,
+  url: string,
+  payload?: unknown,
+): Promise<void> {
   if (!verboseEnabled) return;
   process.stderr.write(`${chalk.gray(`[http] response ${status} ${url}`)}\n`);
   if (payload !== undefined) {
@@ -29,7 +33,7 @@ export async function logHttpResponse(status: number, url: string, payload?: unk
 }
 
 export async function confirmAction(message: string): Promise<boolean> {
-  if (process.env.CI === 'true' || process.env.VITEST === 'true') {
+  if (process.env.CI === "true" || process.env.VITEST === "true") {
     return true;
   }
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -38,8 +42,8 @@ export async function confirmAction(message: string): Promise<boolean> {
 
   const rl = createInterface({ input, output });
   try {
-    const answer = await rl.question(`${message} ${chalk.gray('(y/N)')} `);
-    return ['y', 'yes'].includes(answer.trim().toLowerCase());
+    const answer = await rl.question(`${message} ${chalk.gray("(y/N)")} `);
+    return ["y", "yes"].includes(answer.trim().toLowerCase());
   } finally {
     rl.close();
   }
@@ -58,7 +62,10 @@ async function promptLine(message: string): Promise<string | undefined> {
   }
 }
 
-export async function promptRequiredString(message: string, currentValue?: string): Promise<string | undefined> {
+export async function promptRequiredString(
+  message: string,
+  currentValue?: string,
+): Promise<string | undefined> {
   if (currentValue && currentValue.trim().length > 0) {
     return currentValue.trim();
   }
@@ -68,14 +75,20 @@ export async function promptRequiredString(message: string, currentValue?: strin
   return normalized && normalized.length > 0 ? normalized : undefined;
 }
 
-export async function promptRequiredList(message: string, currentValue?: string): Promise<string | undefined> {
+export async function promptRequiredList(
+  message: string,
+  currentValue?: string,
+): Promise<string | undefined> {
   const resolved = await promptRequiredString(message, currentValue);
   if (!resolved) {
     return undefined;
   }
 
-  const values = resolved.split(',').map((value) => value.trim()).filter(Boolean);
-  return values.length > 0 ? values.join(',') : undefined;
+  const values = resolved
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return values.length > 0 ? values.join(",") : undefined;
 }
 
 export async function withSpinner<T>(message: string, task: () => Promise<T>): Promise<T> {
@@ -83,7 +96,7 @@ export async function withSpinner<T>(message: string, task: () => Promise<T>): P
     return task();
   }
 
-  const frames = ['|', '/', '-', '\\'];
+  const frames = ["|", "/", "-", "\\"];
   let index = 0;
   output.write(`${chalk.blue(frames[index])} ${message}`);
   const timer = setInterval(() => {
@@ -94,11 +107,11 @@ export async function withSpinner<T>(message: string, task: () => Promise<T>): P
   try {
     const result = await task();
     clearInterval(timer);
-    output.write(`\r${chalk.green('✓')} ${message}\n`);
+    output.write(`\r${chalk.green("✓")} ${message}\n`);
     return result;
   } catch (error) {
     clearInterval(timer);
-    output.write(`\r${chalk.red('✗')} ${message}\n`);
+    output.write(`\r${chalk.red("✗")} ${message}\n`);
     throw error;
   }
 }

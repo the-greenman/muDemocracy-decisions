@@ -1,6 +1,17 @@
-import { useMemo, useRef, useState } from 'react';
-import { Search, Check, ArrowLeft, Hash, Link as LinkIcon } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Search,
+  Check,
+  ArrowLeft,
+  Hash,
+  Link as LinkIcon,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { getFieldTranscriptChunks, getTranscriptReading, listMeetingChunks } from "@/api/endpoints";
+import type { ReadableTranscriptRow, TranscriptChunk } from "@/api/types";
+import { MainHeader } from "@/components/shared/MainHeader";
 
 type TranscriptRowModel = {
   id: string;
@@ -8,51 +19,60 @@ type TranscriptRowModel = {
   meetingId: string;
   speaker: string | null;
   text: string;
+  chunkIds: string[];
 };
 
-const MEETING_NAMES: Record<string, string> = {
-  'mtg-1': 'Current meeting',
-  'mtg-2': 'Mar 1 review',
-  'mtg-3': 'Feb 20 planning',
-};
+type TranscriptScope = "meeting" | "decision" | "field";
 
-// Prototype: 120 rows across three meetings.
-const MOCK_ROWS: TranscriptRowModel[] = Array.from({ length: 120 }, (_, i) => {
-  const seq = i + 1;
-  const speakers = ['Alice Chen', 'Bob Marsh', 'Priya Nair'];
-  const speaker = seq % 7 === 0 ? null : speakers[i % 3]!;
-  const meetingId = seq <= 80 ? 'mtg-1' : seq <= 105 ? 'mtg-2' : 'mtg-3';
-  const snippets = [
-    "Let's start with the API gateway decision. We've been running on ad-hoc nginx rules for too long.",
-    'I looked at Kong and Traefik last week. Both are solid options.',
-    'What about AWS API Gateway? We\'re already in AWS so there\'s less vendor friction.',
-    'Cost at scale is a concern. And vendor lock-in is real.',
-    'Kong has a great plugin ecosystem. WebSocket support out of the box.',
-    'Traefik is more cloud-native. Better Kubernetes integration and the config is declarative.',
-    'Do we need the plugin ecosystem right now? Traefik might be simpler to operate day-to-day.',
-    'Our team knows Traefik from the staging environment already.',
-    'I\'m comfortable with Traefik. Let\'s go with that.',
-    'All agreed? Going with Traefik for the API gateway.',
-    'We should think about the HA setup. Traefik in active-passive or active-active?',
-    'The operational complexity of active-active is probably not worth it for our scale.',
-    'Agreed. Active-passive with automatic failover is fine.',
-    'What about rate limiting? Do we configure at gateway or service level?',
-    'Gateway level is the right boundary. Services shouldn\'t need to know.',
-  ];
-  return {
-    id: `r${seq}`,
-    seq,
-    meetingId,
-    speaker,
-    text: snippets[i % snippets.length]!,
-  };
-});
+const POLL_INTERVAL_MS = 2500;
+
+function mapReadableRows(rows: ReadableTranscriptRow[]): TranscriptRowModel[] {
+  return rows
+    .map((row) => ({
+      id: row.id,
+      seq: row.sequenceNumber,
+      meetingId: row.meetingId,
+      speaker: row.speaker,
+      text: row.displayText,
+      chunkIds: row.chunkIds,
+    }))
+    .sort((a, b) => a.seq - b.seq);
+}
+
+function mapChunkRows(chunks: TranscriptChunk[]): TranscriptRowModel[] {
+  return chunks
+    .map((chunk) => ({
+      id: `chunk-row-${chunk.id}`,
+      seq: chunk.sequenceNumber,
+      meetingId: chunk.meetingId,
+      speaker: chunk.speaker,
+      text: chunk.text,
+      chunkIds: [chunk.id],
+    }))
+    .sort((a, b) => a.seq - b.seq);
+}
 
 export function TranscriptPage() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const meetingId = id ?? "";
+  const decisionContextId = searchParams.get("decisionContextId") ?? "";
+  const fieldId = searchParams.get("fieldId") ?? "";
+  const defaultScope: TranscriptScope =
+    fieldId && decisionContextId ? "field" : decisionContextId ? "decision" : "meeting";
+
+  const [rows, setRows] = useState<TranscriptRowModel[]>([]);
+  const [assignedChunkIds, setAssignedChunkIds] = useState<string[]>([]);
+  const [scope, setScope] = useState<TranscriptScope>(defaultScope);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState('');
-  const [jumpInput, setJumpInput] = useState('');
+  const [query, setQuery] = useState("");
+  const [jumpInput, setJumpInput] = useState("");
   const [includeRelatedMeetings, setIncludeRelatedMeetings] = useState(false);
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -68,26 +88,118 @@ export function TranscriptPage() {
     touchedIds: new Set<string>(),
   });
 
+  useEffect(() => {
+    setScope(defaultScope);
+  }, [defaultScope]);
+
+  const loadRows = useCallback(
+    async (pollOnly = false) => {
+      if (!meetingId) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+
+      if (pollOnly) setRefreshing(true);
+      else setLoading(true);
+      if (!pollOnly) setError(null);
+
+      try {
+        const reading = await getTranscriptReading(meetingId);
+        let meetingRows: TranscriptRowModel[];
+        if (reading.rows.length > 0) {
+          meetingRows = mapReadableRows(reading.rows);
+        } else {
+          const chunkData = await listMeetingChunks(meetingId);
+          meetingRows = mapChunkRows(chunkData.chunks);
+        }
+
+        setRows(meetingRows);
+
+        if (scope === "field") {
+          if (!decisionContextId || !fieldId) {
+            setAssignedChunkIds([]);
+            setError("Field scope needs a decision context and field.");
+            return;
+          }
+          const fieldChunks = await getFieldTranscriptChunks(decisionContextId, fieldId);
+          setAssignedChunkIds(fieldChunks.chunks.map((chunk) => chunk.id));
+        } else if (scope === "decision") {
+          const chunkData = await listMeetingChunks(meetingId);
+          const decisionTagPrefix = `decision:${decisionContextId}`;
+          const decisionChunks = chunkData.chunks.filter((chunk) =>
+            chunk.contexts.some(
+              (context) =>
+                context === decisionTagPrefix || context.startsWith(`${decisionTagPrefix}:`),
+            ),
+          );
+          setAssignedChunkIds(decisionChunks.map((chunk) => chunk.id));
+        } else {
+          setAssignedChunkIds([]);
+        }
+        setError(null);
+        setLastUpdatedAt(new Date().toISOString());
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load transcript rows");
+        setRows([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [decisionContextId, fieldId, meetingId, scope],
+  );
+
+  useEffect(() => {
+    void loadRows();
+  }, [loadRows]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    const interval = setInterval(() => {
+      void loadRows(true);
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadRows, meetingId]);
+
+  useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const available = new Set(rows.map((row) => row.id));
+      const next = new Set(Array.from(prev).filter((id) => available.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows]);
+
   const scopedRows = useMemo(
-    () =>
-      includeRelatedMeetings
-        ? MOCK_ROWS
-        : MOCK_ROWS.filter((row) => row.meetingId === 'mtg-1'),
-    [includeRelatedMeetings]
+    () => (includeRelatedMeetings ? rows : rows.filter((row) => row.meetingId === meetingId)),
+    [includeRelatedMeetings, meetingId, rows],
   );
 
   const filtered = scopedRows.filter((r) => {
     if (!query) return true;
     const q = query.toLowerCase();
-    const speakerText = r.speaker?.toLowerCase() ?? 'speaker unknown';
+    const speakerText = r.speaker?.toLowerCase() ?? "speaker unknown";
     return r.text.toLowerCase().includes(q) || speakerText.includes(q);
   });
 
-  function toggleRow(id: string) {
+  const assignedChunkIdSet = useMemo(() => new Set(assignedChunkIds), [assignedChunkIds]);
+  const isContextScope = scope === "decision" || scope === "field";
+  const assignedRows = useMemo(
+    () => filtered.filter((row) => row.chunkIds.some((chunkId) => assignedChunkIdSet.has(chunkId))),
+    [assignedChunkIdSet, filtered],
+  );
+  const unassignedRows = useMemo(
+    () =>
+      filtered.filter((row) => row.chunkIds.every((chunkId) => !assignedChunkIdSet.has(chunkId))),
+    [assignedChunkIdSet, filtered],
+  );
+
+  function toggleRow(idToToggle: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(idToToggle)) next.delete(idToToggle);
+      else next.add(idToToggle);
       return next;
     });
   }
@@ -95,15 +207,15 @@ export function TranscriptPage() {
   function handleJump() {
     const n = parseInt(jumpInput, 10);
     if (!n) return;
-    const row = MOCK_ROWS.find((r) => r.seq === n);
+    const row = scopedRows.find((r) => r.seq === n);
     if (!row) return;
     const el = rowRefs.current.get(row.id);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('ring-2', 'ring-accent');
-      setTimeout(() => el.classList.remove('ring-2', 'ring-accent'), 1500);
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-accent");
+      setTimeout(() => el.classList.remove("ring-2", "ring-accent"), 1500);
     }
-    setJumpInput('');
+    setJumpInput("");
   }
 
   function applyRangeSelection(fromIndex: number, toIndex: number, value: boolean) {
@@ -153,20 +265,32 @@ export function TranscriptPage() {
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragState.current.active) return;
     const el = document.elementFromPoint(event.clientX, event.clientY);
-    const rowEl = el?.closest('[data-row-id]') as HTMLDivElement | null;
+    const rowEl = el?.closest("[data-row-id]") as HTMLDivElement | null;
     if (!rowEl?.dataset.rowId) return;
     updateDragSelection(rowEl.dataset.rowId);
   }
 
   function handleConfirm() {
     const rowIds = Array.from(selected);
-    const chunkIds = rowIds.map((rowId) => `chunk-${rowId.slice(1)}`);
+    const selectedRowMap = new Map(filtered.map((row) => [row.id, row]));
+    const chunkIdSet = new Set<string>();
 
-    navigate('/meetings/mtg-1/facilitator', {
+    for (const rowId of rowIds) {
+      const row = selectedRowMap.get(rowId);
+      if (!row) continue;
+      for (const chunkId of row.chunkIds) {
+        chunkIdSet.add(chunkId);
+      }
+    }
+
+    navigate(`/meetings/${meetingId}/facilitator`, {
       state: {
         segmentSelection: {
           rowIds,
-          chunkIds,
+          chunkIds: Array.from(chunkIdSet),
+          decisionContextId: decisionContextId || undefined,
+          fieldId: fieldId || undefined,
+          scope,
         },
       },
     });
@@ -174,35 +298,80 @@ export function TranscriptPage() {
 
   return (
     <div className="density-facilitator min-h-screen bg-base flex flex-col">
+      <MainHeader
+        className="px-4 py-3 shrink-0"
+        navItems={[
+          {
+            label: "Workspace",
+            to: `/meetings/${meetingId}/facilitator`,
+            icon: <ArrowLeft size={13} />,
+          },
+        ]}
+        title="Select transcript segments"
+        subtitle={`${selected.size} row${selected.size !== 1 ? "s" : ""} selected`}
+        actions={
+          <button
+            disabled={selected.size === 0}
+            onClick={handleConfirm}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-fac-meta bg-settled text-base rounded font-medium hover:bg-settled/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Check size={13} />
+            Confirm selection
+          </button>
+        }
+      />
 
-      {/* Header */}
-      <header className="border-b border-border px-4 py-3 flex items-center gap-3 shrink-0">
-        <Link
-          to="/meetings/mtg-1/facilitator"
-          className="flex items-center gap-1.5 text-fac-meta text-text-muted hover:text-text-primary transition-colors"
-        >
-          <ArrowLeft size={14} />
-          Back
-        </Link>
-        <div className="w-px h-4 bg-border" />
-        <span className="text-fac-field text-text-primary font-medium flex-1">
-          Select transcript segments
-        </span>
-        <span className="text-fac-meta text-text-muted">
-          {selected.size} row{selected.size !== 1 ? 's' : ''} selected
-        </span>
-        <button
-          disabled={selected.size === 0}
-          onClick={handleConfirm}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-fac-meta bg-settled text-base rounded font-medium hover:bg-settled/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Check size={13} />
-          Confirm selection
-        </button>
-      </header>
+      {error && (
+        <div className="mx-4 mt-3 flex items-center gap-3 px-4 py-3 rounded-card border border-danger/30 bg-danger-dim text-danger text-fac-meta">
+          <AlertCircle size={15} className="shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={() => void loadRows()}
+            className="flex items-center gap-1.5 text-fac-meta hover:underline"
+          >
+            <RefreshCw size={13} />
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-1 rounded border border-border p-1 bg-surface">
+          <button
+            onClick={() => setScope("meeting")}
+            className={`px-2 py-1 rounded text-fac-meta ${
+              scope === "meeting"
+                ? "bg-accent-dim text-accent"
+                : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            Meeting
+          </button>
+          <button
+            onClick={() => setScope("decision")}
+            disabled={!decisionContextId}
+            className={`px-2 py-1 rounded text-fac-meta ${
+              scope === "decision"
+                ? "bg-accent-dim text-accent"
+                : "text-text-muted hover:text-text-primary"
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            Decision
+          </button>
+          <button
+            onClick={() => setScope("field")}
+            disabled={!decisionContextId || !fieldId}
+            className={`px-2 py-1 rounded text-fac-meta ${
+              scope === "field"
+                ? "bg-accent-dim text-accent"
+                : "text-text-muted hover:text-text-primary"
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            Field
+          </button>
+        </div>
+
         {/* Text search */}
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -223,11 +392,11 @@ export function TranscriptPage() {
           <input
             type="number"
             min={1}
-            max={MOCK_ROWS.length}
+            max={Math.max(scopedRows.length, 1)}
             placeholder="Row…"
             value={jumpInput}
             onChange={(e) => setJumpInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleJump()}
+            onKeyDown={(e) => e.key === "Enter" && handleJump()}
             className="w-16 py-1.5 bg-transparent text-fac-meta text-text-primary focus:outline-none placeholder:text-text-muted"
           />
           <button
@@ -241,7 +410,18 @@ export function TranscriptPage() {
         </div>
 
         <span className="text-fac-meta text-text-muted shrink-0">
-          {filtered.length} / {MOCK_ROWS.length} rows
+          {filtered.length} / {scopedRows.length} rows
+        </span>
+        {isContextScope && (
+          <span className="text-fac-meta text-text-muted shrink-0">
+            {assignedRows.length} linked · {unassignedRows.length} available
+          </span>
+        )}
+        <span className="text-fac-meta text-text-muted shrink-0">
+          {refreshing ? "Updating…" : "Live"}
+          {lastUpdatedAt
+            ? ` · ${new Date(lastUpdatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+            : ""}
         </span>
         <label className="flex items-center gap-2 text-fac-meta text-text-secondary">
           <input
@@ -249,8 +429,9 @@ export function TranscriptPage() {
             checked={includeRelatedMeetings}
             onChange={(e) => setIncludeRelatedMeetings(e.target.checked)}
             className="accent-accent"
+            disabled
           />
-          Include related meetings
+          Include related meetings (planned)
         </label>
       </div>
 
@@ -261,23 +442,93 @@ export function TranscriptPage() {
         onPointerUp={endDragSelection}
         onPointerCancel={endDragSelection}
       >
-        <div className="flex flex-col gap-0.5 max-w-3xl">
-          {filtered.map((row) => (
-            <TranscriptRow
-              key={row.id}
-              row={row}
-              isSelected={selected.has(row.id)}
-              onToggle={() => toggleRow(row.id)}
-              onBeginDrag={() => beginDragSelection(row.id)}
-              meetingLabel={MEETING_NAMES[row.meetingId] ?? row.meetingId}
-              showMeetingLabel={row.meetingId !== 'mtg-1'}
-              rowRef={(el) => {
-                if (el) rowRefs.current.set(row.id, el);
-                else rowRefs.current.delete(row.id);
-              }}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="max-w-3xl flex flex-col gap-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-14 rounded border border-border bg-surface animate-pulse-slow"
+              />
+            ))}
+          </div>
+        ) : isContextScope ? (
+          <div className="flex flex-col gap-4 max-w-3xl">
+            <div>
+              <p className="px-1 pb-1 text-fac-meta text-text-secondary">
+                Already linked to this context
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {assignedRows.map((row) => (
+                  <TranscriptRow
+                    key={row.id}
+                    row={row}
+                    isSelected={selected.has(row.id)}
+                    onToggle={() => toggleRow(row.id)}
+                    onBeginDrag={() => beginDragSelection(row.id)}
+                    showMeetingLabel={row.meetingId !== meetingId}
+                    rowRef={(el) => {
+                      if (el) rowRefs.current.set(row.id, el);
+                      else rowRefs.current.delete(row.id);
+                    }}
+                  />
+                ))}
+                {assignedRows.length === 0 && (
+                  <p className="px-2 py-4 text-fac-meta text-text-muted">
+                    No transcript rows linked yet.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="px-1 pb-1 text-fac-meta text-text-secondary">
+                Other meeting transcript (available to add)
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {unassignedRows.map((row) => (
+                  <TranscriptRow
+                    key={row.id}
+                    row={row}
+                    isSelected={selected.has(row.id)}
+                    onToggle={() => toggleRow(row.id)}
+                    onBeginDrag={() => beginDragSelection(row.id)}
+                    showMeetingLabel={row.meetingId !== meetingId}
+                    rowRef={(el) => {
+                      if (el) rowRefs.current.set(row.id, el);
+                      else rowRefs.current.delete(row.id);
+                    }}
+                  />
+                ))}
+                {unassignedRows.length === 0 && (
+                  <p className="px-2 py-4 text-fac-meta text-text-muted">
+                    No additional rows available in this scope.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-0.5 max-w-3xl">
+            {filtered.map((row) => (
+              <TranscriptRow
+                key={row.id}
+                row={row}
+                isSelected={selected.has(row.id)}
+                onToggle={() => toggleRow(row.id)}
+                onBeginDrag={() => beginDragSelection(row.id)}
+                showMeetingLabel={row.meetingId !== meetingId}
+                rowRef={(el) => {
+                  if (el) rowRefs.current.set(row.id, el);
+                  else rowRefs.current.delete(row.id);
+                }}
+              />
+            ))}
+            {!error && filtered.length === 0 && (
+              <p className="px-2 py-8 text-fac-meta text-text-muted text-center">
+                No transcript rows available for this meeting yet.
+              </p>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
@@ -288,7 +539,6 @@ function TranscriptRow({
   isSelected,
   onToggle,
   onBeginDrag,
-  meetingLabel,
   showMeetingLabel,
   rowRef,
 }: {
@@ -296,7 +546,6 @@ function TranscriptRow({
   isSelected: boolean;
   onToggle: () => void;
   onBeginDrag: () => void;
-  meetingLabel: string;
   showMeetingLabel: boolean;
   rowRef: (el: HTMLDivElement | null) => void;
 }) {
@@ -308,8 +557,8 @@ function TranscriptRow({
       onPointerDown={onBeginDrag}
       className={`flex gap-3 px-3 py-2.5 rounded cursor-pointer select-none transition-colors transition-shadow ${
         isSelected
-          ? 'bg-accent-dim/40 border border-accent/30'
-          : 'hover:bg-surface border border-transparent'
+          ? "bg-accent-dim/40 border border-accent/30"
+          : "hover:bg-surface border border-transparent"
       }`}
     >
       <span className="text-fac-meta text-text-muted w-8 text-right shrink-0 mt-0.5 tabular-nums">
@@ -318,11 +567,11 @@ function TranscriptRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-fac-meta text-text-secondary font-medium mr-2">
-            {row.speaker ?? 'Speaker unknown'}:
+            {row.speaker ?? "Speaker unknown"}:
           </span>
           {showMeetingLabel && (
             <span className="text-[11px] text-text-muted border border-border px-1.5 py-0.5 rounded-badge">
-              {meetingLabel}
+              {row.meetingId}
             </span>
           )}
         </div>

@@ -1,7 +1,7 @@
-import { arrayContains, eq } from 'drizzle-orm';
-import { db } from '../client.js';
-import { supplementaryContent } from '../schema.js';
-import type { SupplementaryContent, CreateSupplementaryContent } from '@repo/schema';
+import { arrayContains, eq } from "drizzle-orm";
+import { db } from "../client.js";
+import { supplementaryContent } from "../schema.js";
+import type { SupplementaryContent, CreateSupplementaryContent } from "@repo/schema";
 
 export class DrizzleSupplementaryContentRepository {
   async create(data: CreateSupplementaryContent): Promise<SupplementaryContent> {
@@ -18,7 +18,7 @@ export class DrizzleSupplementaryContentRepository {
       .returning();
 
     if (!row) {
-      throw new Error('Failed to create supplementary content');
+      throw new Error("Failed to create supplementary content");
     }
 
     return this.toSchema(row);

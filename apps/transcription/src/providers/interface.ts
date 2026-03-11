@@ -14,6 +14,6 @@ export interface TranscriptionResult {
 export interface ITranscriptionProvider {
   transcribe(
     audio: Buffer,
-    options: { filename: string; language?: string }
+    options: { filename: string; language?: string },
   ): Promise<TranscriptionResult>;
 }

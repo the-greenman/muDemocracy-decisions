@@ -1,5 +1,5 @@
 export interface DecisionContextCreatedEvent {
-  type: 'decision-context.created';
+  type: "decision-context.created";
   payload: {
     decisionContextId: string;
     meetingId: string;
@@ -8,7 +8,7 @@ export interface DecisionContextCreatedEvent {
 }
 
 export interface DraftGeneratedEvent {
-  type: 'draft.generated';
+  type: "draft.generated";
   payload: {
     decisionContextId: string;
     meetingId: string;
@@ -16,7 +16,7 @@ export interface DraftGeneratedEvent {
 }
 
 export interface DecisionLoggedEvent {
-  type: 'decision.logged';
+  type: "decision.logged";
   payload: {
     decisionLogId: string;
     decisionContextId: string;
@@ -24,7 +24,4 @@ export interface DecisionLoggedEvent {
   };
 }
 
-export type DecisionEvent =
-  | DecisionContextCreatedEvent
-  | DraftGeneratedEvent
-  | DecisionLoggedEvent;
+export type DecisionEvent = DecisionContextCreatedEvent | DraftGeneratedEvent | DecisionLoggedEvent;

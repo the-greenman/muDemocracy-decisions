@@ -2,16 +2,16 @@
  * Unit tests for DrizzleStreamingBufferRepository
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DrizzleStreamingBufferRepository } from '../../src/repositories/streaming-buffer-repository';
-import { DrizzleRawTranscriptRepository } from '../../src/repositories/raw-transcript-repository';
-import { DrizzleMeetingRepository } from '../../src/repositories/meeting-repository';
-import { db } from '../../src/client';
-import { transcriptChunks, rawTranscripts, meetings } from '../../src/schema';
-import { eq } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { DrizzleStreamingBufferRepository } from "../../src/repositories/streaming-buffer-repository";
+import { DrizzleRawTranscriptRepository } from "../../src/repositories/raw-transcript-repository";
+import { DrizzleMeetingRepository } from "../../src/repositories/meeting-repository";
+import { db } from "../../src/client";
+import { transcriptChunks, rawTranscripts, meetings } from "../../src/schema";
+import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
-describe('DrizzleStreamingBufferRepository', () => {
+describe("DrizzleStreamingBufferRepository", () => {
   let repository: DrizzleStreamingBufferRepository;
   let rawTranscriptRepo: DrizzleRawTranscriptRepository;
   let meetingRepo: DrizzleMeetingRepository;
@@ -25,22 +25,22 @@ describe('DrizzleStreamingBufferRepository', () => {
     const meeting = await meetingRepo.create({
       title: `Streaming Buffer ${randomUUID()}`,
       date: new Date().toISOString(),
-      participants: ['Test User'],
+      participants: ["Test User"],
     });
     testMeetingId = meeting.id;
-    
+
     // Create a raw transcript for testing
     const rawTranscript = await rawTranscriptRepo.create({
       meetingId: testMeetingId,
-      source: 'upload',
-      format: 'txt',
-      content: 'Test transcript for streaming',
+      source: "upload",
+      format: "txt",
+      content: "Test transcript for streaming",
     });
     testRawTranscriptId = rawTranscript.id;
-    
+
     // Clean up any existing test data
     await db.delete(transcriptChunks).where(eq(transcriptChunks.meetingId, testMeetingId));
-    
+
     // Clear any existing buffer
     await repository.clear(testMeetingId);
   });
@@ -53,13 +53,13 @@ describe('DrizzleStreamingBufferRepository', () => {
     await repository.clear(testMeetingId);
   });
 
-  describe('appendEvent', () => {
-    it('should append events to the buffer', async () => {
+  describe("appendEvent", () => {
+    it("should append events to the buffer", async () => {
       const event = {
-        type: 'text' as const,
+        type: "text" as const,
         data: {
-          text: 'Hello world',
-          speaker: 'Alice',
+          text: "Hello world",
+          speaker: "Alice",
           rawTranscriptId: testRawTranscriptId,
         },
       };
@@ -67,19 +67,19 @@ describe('DrizzleStreamingBufferRepository', () => {
       await repository.appendEvent(testMeetingId, event);
 
       const status = await repository.getStatus(testMeetingId);
-      expect(status.status).toBe('active');
+      expect(status.status).toBe("active");
       expect(status.eventCount).toBe(1);
     });
 
-    it('should handle multiple events', async () => {
+    it("should handle multiple events", async () => {
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
-        data: { text: 'First', rawTranscriptId: testRawTranscriptId },
+        type: "text",
+        data: { text: "First", rawTranscriptId: testRawTranscriptId },
       });
 
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
-        data: { text: 'Second', rawTranscriptId: testRawTranscriptId },
+        type: "text",
+        data: { text: "Second", rawTranscriptId: testRawTranscriptId },
       });
 
       const status = await repository.getStatus(testMeetingId);
@@ -87,79 +87,79 @@ describe('DrizzleStreamingBufferRepository', () => {
     });
   });
 
-  describe('getStatus', () => {
-    it('should return idle status for empty buffer', async () => {
+  describe("getStatus", () => {
+    it("should return idle status for empty buffer", async () => {
       const status = await repository.getStatus(testMeetingId);
-      expect(status.status).toBe('idle');
+      expect(status.status).toBe("idle");
       expect(status.eventCount).toBe(0);
     });
 
-    it('should return active status for buffer with events', async () => {
+    it("should return active status for buffer with events", async () => {
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
-        data: { text: 'Test', rawTranscriptId: testRawTranscriptId },
+        type: "text",
+        data: { text: "Test", rawTranscriptId: testRawTranscriptId },
       });
 
       const status = await repository.getStatus(testMeetingId);
-      expect(status.status).toBe('active');
+      expect(status.status).toBe("active");
       expect(status.eventCount).toBe(1);
     });
   });
 
-  describe('flush', () => {
-    it('should create chunks from text events', async () => {
+  describe("flush", () => {
+    it("should create chunks from text events", async () => {
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
+        type: "text",
         data: {
-          text: 'This is a streamed message',
-          speaker: 'Bob',
-          startTime: '2026-03-01T00:02:00Z',
-          endTime: '2026-03-01T00:02:05Z',
+          text: "This is a streamed message",
+          speaker: "Bob",
+          startTime: "2026-03-01T00:02:00Z",
+          endTime: "2026-03-01T00:02:05Z",
           rawTranscriptId: testRawTranscriptId,
-          contexts: ['meeting:' + testMeetingId],
-          topics: ['streaming'],
+          contexts: ["meeting:" + testMeetingId],
+          topics: ["streaming"],
         },
       });
 
       const chunks = await repository.flush(testMeetingId);
 
       expect(chunks).toHaveLength(1);
-      expect(chunks[0]!.text).toBe('This is a streamed message');
-      expect(chunks[0]!.speaker).toBe('Bob');
-      expect(chunks[0]!.startTime).toBe('2026-03-01T00:02:00Z');
-      expect(chunks[0]!.endTime).toBe('2026-03-01T00:02:05Z');
-      expect(chunks[0]!.chunkStrategy).toBe('streaming');
-      expect(chunks[0]!.contexts).toContain('meeting:' + testMeetingId);
-      expect(chunks[0]!.topics).toEqual(['streaming']);
+      expect(chunks[0]!.text).toBe("This is a streamed message");
+      expect(chunks[0]!.speaker).toBe("Bob");
+      expect(chunks[0]!.startTime).toBe("2026-03-01T00:02:00Z");
+      expect(chunks[0]!.endTime).toBe("2026-03-01T00:02:05Z");
+      expect(chunks[0]!.chunkStrategy).toBe("streaming");
+      expect(chunks[0]!.contexts).toContain("meeting:" + testMeetingId);
+      expect(chunks[0]!.topics).toEqual(["streaming"]);
 
       // Buffer should be cleared after flush
       const status = await repository.getStatus(testMeetingId);
-      expect(status.status).toBe('idle');
+      expect(status.status).toBe("idle");
       expect(status.eventCount).toBe(0);
     });
 
-    it('should handle multiple text events', async () => {
+    it("should handle multiple text events", async () => {
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
-        data: { text: 'First message', rawTranscriptId: testRawTranscriptId },
+        type: "text",
+        data: { text: "First message", rawTranscriptId: testRawTranscriptId },
       });
 
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
-        data: { text: 'Second message', rawTranscriptId: testRawTranscriptId },
+        type: "text",
+        data: { text: "Second message", rawTranscriptId: testRawTranscriptId },
       });
 
       const chunks = await repository.flush(testMeetingId);
 
       expect(chunks).toHaveLength(2);
-      expect(chunks[0]!.text).toBe('First message');
-      expect(chunks[1]!.text).toBe('Second message');
+      expect(chunks[0]!.text).toBe("First message");
+      expect(chunks[1]!.text).toBe("Second message");
     });
 
-    it('should create a fallback raw transcript when event rawTranscriptId is missing', async () => {
+    it("should create a fallback raw transcript when event rawTranscriptId is missing", async () => {
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
-        data: { text: 'Message without raw transcript id' },
+        type: "text",
+        data: { text: "Message without raw transcript id" },
       });
 
       const chunks = await repository.flush(testMeetingId);
@@ -172,14 +172,14 @@ describe('DrizzleStreamingBufferRepository', () => {
       const persistedRaw = await rawTranscriptRepo.findById(chunks[0]!.rawTranscriptId);
       expect(persistedRaw).not.toBeNull();
       expect(persistedRaw!.meetingId).toBe(testMeetingId);
-      expect(persistedRaw!.source).toBe('stream');
-      expect(persistedRaw!.content).toContain('Message without raw transcript id');
+      expect(persistedRaw!.source).toBe("stream");
+      expect(persistedRaw!.content).toContain("Message without raw transcript id");
     });
 
-    it('should ignore non-text events', async () => {
+    it("should ignore non-text events", async () => {
       await repository.appendEvent(testMeetingId, {
-        type: 'metadata',
-        data: { some: 'metadata' },
+        type: "metadata",
+        data: { some: "metadata" },
       });
 
       const chunks = await repository.flush(testMeetingId);
@@ -187,23 +187,23 @@ describe('DrizzleStreamingBufferRepository', () => {
       expect(chunks).toHaveLength(0);
     });
 
-    it('should return empty array for empty buffer', async () => {
+    it("should return empty array for empty buffer", async () => {
       const chunks = await repository.flush(testMeetingId);
       expect(chunks).toEqual([]);
     });
   });
 
-  describe('clear', () => {
-    it('should clear the buffer', async () => {
+  describe("clear", () => {
+    it("should clear the buffer", async () => {
       await repository.appendEvent(testMeetingId, {
-        type: 'text',
-        data: { text: 'Test', rawTranscriptId: testRawTranscriptId },
+        type: "text",
+        data: { text: "Test", rawTranscriptId: testRawTranscriptId },
       });
 
       await repository.clear(testMeetingId);
 
       const status = await repository.getStatus(testMeetingId);
-      expect(status.status).toBe('idle');
+      expect(status.status).toBe("idle");
       expect(status.eventCount).toBe(0);
     });
   });

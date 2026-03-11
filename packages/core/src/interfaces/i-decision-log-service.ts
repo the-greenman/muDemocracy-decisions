@@ -2,7 +2,7 @@
  * Interface for Decision Log Service
  */
 
-import type { DecisionLog } from '@repo/schema';
+import type { DecisionLog } from "@repo/schema";
 
 export interface IDecisionLogService {
   /**
@@ -13,7 +13,7 @@ export interface IDecisionLogService {
     options: {
       loggedBy: string;
       decisionMethod: {
-        type: 'consensus' | 'vote' | 'authority' | 'defer' | 'reject' | 'manual' | 'ai_assisted';
+        type: "consensus" | "vote" | "authority" | "defer" | "reject" | "manual" | "ai_assisted";
         details?: string;
       };
       context?: {
@@ -21,7 +21,7 @@ export interface IDecisionLogService {
         requestId?: string;
         clientInfo?: string;
       };
-    }
+    },
   ): Promise<DecisionLog | null>;
 
   /**
@@ -47,10 +47,7 @@ export interface IDecisionLogService {
   /**
    * Gets decision logs within a date range
    */
-  getDecisionLogsByDateRange(
-    startDate: Date,
-    endDate: Date
-  ): Promise<DecisionLog[]>;
+  getDecisionLogsByDateRange(startDate: Date, endDate: Date): Promise<DecisionLog[]>;
 
   /**
    * Gets statistics about decisions for a meeting

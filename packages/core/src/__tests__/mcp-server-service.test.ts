@@ -2,11 +2,11 @@
  * Unit tests for MCP Server Service
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MCPServerService } from '../services/mcp-server-service';
-import type { MCPServer, CreateMCPServer, UpdateMCPServer } from '@repo/core';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { MCPServerService } from "../services/mcp-server-service";
+import type { MCPServer, CreateMCPServer, UpdateMCPServer } from "@repo/core";
 
-describe('MCPServerService', () => {
+describe("MCPServerService", () => {
   let service: MCPServerService;
   let mockRepository: any;
 
@@ -28,24 +28,24 @@ describe('MCPServerService', () => {
     vi.clearAllMocks();
   });
 
-  describe('createServer', () => {
-    it('should create a valid server', async () => {
+  describe("createServer", () => {
+    it("should create a valid server", async () => {
       const data: CreateMCPServer = {
-        name: 'test-server',
-        type: 'stdio',
-        connectionConfig: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
-        status: 'active',
+        name: "test-server",
+        type: "stdio",
+        connectionConfig: { command: "npx", args: ["-y", "@modelcontextprotocol/server-github"] },
+        status: "active",
       };
 
       const expectedServer: MCPServer = {
-        id: '550e8400-e29b-41d4-a716-446655440011',
+        id: "550e8400-e29b-41d4-a716-446655440011",
         name: data.name,
         type: data.type,
         connectionConfig: data.connectionConfig,
         capabilities: undefined,
-        status: 'active',
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        status: "active",
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepository.findByName).mockResolvedValue(null);
@@ -58,86 +58,86 @@ describe('MCPServerService', () => {
       expect(mockRepository.create).toHaveBeenCalledWith(data);
     });
 
-    it('should throw error if server already exists', async () => {
+    it("should throw error if server already exists", async () => {
       const data: CreateMCPServer = {
-        name: 'existing-server',
-        type: 'stdio',
-        connectionConfig: { command: 'test' },
-        status: 'active',
+        name: "existing-server",
+        type: "stdio",
+        connectionConfig: { command: "test" },
+        status: "active",
       };
 
       const existingServer: MCPServer = {
-        id: '550e8400-e29b-41d4-a716-446655440011',
+        id: "550e8400-e29b-41d4-a716-446655440011",
         name: data.name,
         type: data.type,
         connectionConfig: data.connectionConfig,
         capabilities: undefined,
-        status: 'active',
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        status: "active",
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepository.findByName).mockResolvedValue(existingServer);
 
       await expect(service.createServer(data)).rejects.toThrow(
-        "MCP server with name 'existing-server' already exists"
+        "MCP server with name 'existing-server' already exists",
       );
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
-    it('should throw error for invalid server', async () => {
+    it("should throw error for invalid server", async () => {
       const data: CreateMCPServer = {
-        name: '',
-        type: 'invalid' as any,
+        name: "",
+        type: "invalid" as any,
         connectionConfig: null as any,
-        status: 'active',
+        status: "active",
       };
 
       vi.mocked(mockRepository.findByName).mockResolvedValue(null);
 
       await expect(service.createServer(data)).rejects.toThrow(
-        'Invalid server: Name is required, Type must be one of: stdio, http, sse, Connection config is required and must be an object'
+        "Invalid server: Name is required, Type must be one of: stdio, http, sse, Connection config is required and must be an object",
       );
     });
   });
 
-  describe('getServer', () => {
-    it('should return a server by name', async () => {
+  describe("getServer", () => {
+    it("should return a server by name", async () => {
       const server: MCPServer = {
-        id: '550e8400-e29b-41d4-a716-446655440011',
-        name: 'test-server',
-        type: 'stdio',
-        connectionConfig: { command: 'test' },
+        id: "550e8400-e29b-41d4-a716-446655440011",
+        name: "test-server",
+        type: "stdio",
+        connectionConfig: { command: "test" },
         capabilities: undefined,
-        status: 'active',
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        status: "active",
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepository.findByName).mockResolvedValue(server);
 
-      const result = await service.getServer('test-server');
+      const result = await service.getServer("test-server");
 
       expect(result).toEqual(server);
-      expect(mockRepository.findByName).toHaveBeenCalledWith('test-server');
+      expect(mockRepository.findByName).toHaveBeenCalledWith("test-server");
     });
   });
 
-  describe('updateServer', () => {
-    it('should update an existing server', async () => {
+  describe("updateServer", () => {
+    it("should update an existing server", async () => {
       const existingServer: MCPServer = {
-        id: '550e8400-e29b-41d4-a716-446655440011',
-        name: 'test-server',
-        type: 'stdio',
-        connectionConfig: { command: 'test' },
+        id: "550e8400-e29b-41d4-a716-446655440011",
+        name: "test-server",
+        type: "stdio",
+        connectionConfig: { command: "test" },
         capabilities: undefined,
-        status: 'active',
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        status: "active",
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       const updateData: UpdateMCPServer = {
-        status: 'inactive',
+        status: "inactive",
       };
 
       const updatedServer: MCPServer = {
@@ -148,84 +148,84 @@ describe('MCPServerService', () => {
       vi.mocked(mockRepository.findByName).mockResolvedValue(existingServer);
       vi.mocked(mockRepository.update).mockResolvedValue(updatedServer);
 
-      const result = await service.updateServer('test-server', updateData);
+      const result = await service.updateServer("test-server", updateData);
 
       expect(result).toEqual(updatedServer);
-      expect(mockRepository.update).toHaveBeenCalledWith('test-server', updateData);
+      expect(mockRepository.update).toHaveBeenCalledWith("test-server", updateData);
     });
 
-    it('should throw error when trying to change server name', async () => {
+    it("should throw error when trying to change server name", async () => {
       const existingServer: MCPServer = {
-        id: '550e8400-e29b-41d4-a716-446655440011',
-        name: 'test-server',
-        type: 'stdio',
-        connectionConfig: { command: 'test' },
+        id: "550e8400-e29b-41d4-a716-446655440011",
+        name: "test-server",
+        type: "stdio",
+        connectionConfig: { command: "test" },
         capabilities: undefined,
-        status: 'active',
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        status: "active",
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       const updateData: UpdateMCPServer = {
-        name: 'new-name',
+        name: "new-name",
       };
 
       vi.mocked(mockRepository.findByName).mockResolvedValue(existingServer);
 
-      await expect(service.updateServer('test-server', updateData)).rejects.toThrow(
-        'Cannot change MCP server name'
+      await expect(service.updateServer("test-server", updateData)).rejects.toThrow(
+        "Cannot change MCP server name",
       );
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it('should return null for non-existent server', async () => {
+    it("should return null for non-existent server", async () => {
       vi.mocked(mockRepository.findByName).mockResolvedValue(null);
 
-      const result = await service.updateServer('non-existent', { status: 'inactive' });
+      const result = await service.updateServer("non-existent", { status: "inactive" });
 
       expect(result).toBeNull();
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
   });
 
-  describe('updateServerStatus', () => {
-    it('should update server status', async () => {
+  describe("updateServerStatus", () => {
+    it("should update server status", async () => {
       const existingServer: MCPServer = {
-        id: '550e8400-e29b-41d4-a716-446655440011',
-        name: 'test-server',
-        type: 'stdio',
-        connectionConfig: { command: 'test' },
+        id: "550e8400-e29b-41d4-a716-446655440011",
+        name: "test-server",
+        type: "stdio",
+        connectionConfig: { command: "test" },
         capabilities: undefined,
-        status: 'active',
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        status: "active",
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepository.findByName).mockResolvedValue(existingServer);
       vi.mocked(mockRepository.updateStatus).mockResolvedValue(true);
 
-      const result = await service.updateServerStatus('test-server', 'inactive');
+      const result = await service.updateServerStatus("test-server", "inactive");
 
       expect(result).toBe(true);
-      expect(mockRepository.updateStatus).toHaveBeenCalledWith('test-server', 'inactive');
+      expect(mockRepository.updateStatus).toHaveBeenCalledWith("test-server", "inactive");
     });
 
-    it('should return false for non-existent server', async () => {
+    it("should return false for non-existent server", async () => {
       vi.mocked(mockRepository.findByName).mockResolvedValue(null);
 
-      const result = await service.updateServerStatus('non-existent', 'inactive');
+      const result = await service.updateServerStatus("non-existent", "inactive");
 
       expect(result).toBe(false);
       expect(mockRepository.updateStatus).not.toHaveBeenCalled();
     });
   });
 
-  describe('performHealthCheck', () => {
-    it('should return health status of all servers', async () => {
+  describe("performHealthCheck", () => {
+    it("should return health status of all servers", async () => {
       const healthStatus = {
-        'server-1': true,
-        'server-2': false,
-        'server-3': true,
+        "server-1": true,
+        "server-2": false,
+        "server-3": true,
       };
 
       vi.mocked(mockRepository.healthCheck).mockResolvedValue(healthStatus);
@@ -237,19 +237,19 @@ describe('MCPServerService', () => {
     });
   });
 
-  describe('validateServer', () => {
-    it('should validate a correct STDIO server', async () => {
+  describe("validateServer", () => {
+    it("should validate a correct STDIO server", async () => {
       const data: CreateMCPServer = {
-        name: 'github-mcp',
-        type: 'stdio',
+        name: "github-mcp",
+        type: "stdio",
         connectionConfig: {
-          command: 'npx',
-          args: ['-y', '@modelcontextprotocol/server-github']
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-github"],
         },
-        status: 'active',
+        status: "active",
         capabilities: {
-          tools: ['search_code', 'get_file', 'create_issue'],
-          resources: ['repositories', 'issues']
+          tools: ["search_code", "get_file", "create_issue"],
+          resources: ["repositories", "issues"],
         },
       };
 
@@ -259,12 +259,12 @@ describe('MCPServerService', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should validate a correct HTTP server', async () => {
+    it("should validate a correct HTTP server", async () => {
       const data: CreateMCPServer = {
-        name: 'http-server',
-        type: 'http',
-        connectionConfig: { url: 'http://localhost:3000' },
-        status: 'active',
+        name: "http-server",
+        type: "http",
+        connectionConfig: { url: "http://localhost:3000" },
+        status: "active",
       };
 
       const result = await service.validateServer(data);
@@ -273,54 +273,56 @@ describe('MCPServerService', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should return errors for invalid server', async () => {
+    it("should return errors for invalid server", async () => {
       const data: CreateMCPServer = {
-        name: 'invalid name!',
-        type: 'invalid' as any,
+        name: "invalid name!",
+        type: "invalid" as any,
         connectionConfig: null as any,
-        status: 'active',
+        status: "active",
         capabilities: {
-          tools: 'not an array' as any,
-          resources: 'also not an array' as any,
+          tools: "not an array" as any,
+          resources: "also not an array" as any,
         },
       };
 
       const result = await service.validateServer(data);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Name can only contain letters, numbers, hyphens, and underscores');
-      expect(result.errors).toContain('Type must be one of: stdio, http, sse');
-      expect(result.errors).toContain('Connection config is required and must be an object');
-      expect(result.errors).toContain('Capabilities.tools must be an array');
-      expect(result.errors).toContain('Capabilities.resources must be an array');
+      expect(result.errors).toContain(
+        "Name can only contain letters, numbers, hyphens, and underscores",
+      );
+      expect(result.errors).toContain("Type must be one of: stdio, http, sse");
+      expect(result.errors).toContain("Connection config is required and must be an object");
+      expect(result.errors).toContain("Capabilities.tools must be an array");
+      expect(result.errors).toContain("Capabilities.resources must be an array");
     });
 
-    it('should require command for STDIO servers', async () => {
+    it("should require command for STDIO servers", async () => {
       const data: CreateMCPServer = {
-        name: 'stdio-server',
-        type: 'stdio',
-        connectionConfig: { url: 'http://localhost:3000' }, // Wrong config for STDIO
-        status: 'active',
+        name: "stdio-server",
+        type: "stdio",
+        connectionConfig: { url: "http://localhost:3000" }, // Wrong config for STDIO
+        status: "active",
       };
 
       const result = await service.validateServer(data);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('STDIO servers require a command in connection config');
+      expect(result.errors).toContain("STDIO servers require a command in connection config");
     });
 
-    it('should require URL for HTTP servers', async () => {
+    it("should require URL for HTTP servers", async () => {
       const data: CreateMCPServer = {
-        name: 'http-server',
-        type: 'http',
-        connectionConfig: { command: 'node' }, // Wrong config for HTTP
-        status: 'active',
+        name: "http-server",
+        type: "http",
+        connectionConfig: { command: "node" }, // Wrong config for HTTP
+        status: "active",
       };
 
       const result = await service.validateServer(data);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('HTTP servers require a URL in connection config');
+      expect(result.errors).toContain("HTTP servers require a URL in connection config");
     });
   });
 });

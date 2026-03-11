@@ -1,8 +1,16 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
-  X, Lock, Unlock, RotateCcw, History, PlusCircle, Trash2, ChevronDown, ChevronRight,
-} from 'lucide-react';
-import type { Field, FieldVersion, SupplementaryItem } from '@/lib/mock-data';
+  X,
+  Lock,
+  Unlock,
+  RotateCcw,
+  History,
+  PlusCircle,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+import type { Field, FieldVersion, SupplementaryItem } from "@/lib/mock-data";
 
 interface FieldZoomProps {
   field: Field;
@@ -13,8 +21,9 @@ interface FieldZoomProps {
   onLock: (fieldId: string) => void;
   onUnlock: (fieldId: string) => void;
   onGuidanceChange: (fieldId: string, guidance: string) => void;
-  onAddSupplementary: (item: Omit<SupplementaryItem, 'id' | 'createdAt'>) => void;
+  onAddSupplementary: (item: Omit<SupplementaryItem, "id" | "createdAt">) => void;
   onRemoveSupplementary: (id: string) => void;
+  onSelectTranscript?: (fieldId: string) => void;
   meetingId?: string;
   contextId?: string;
 }
@@ -30,19 +39,20 @@ export function FieldZoom({
   onGuidanceChange,
   onAddSupplementary,
   onRemoveSupplementary,
+  onSelectTranscript,
 }: FieldZoomProps) {
   const [editValue, setEditValue] = useState(field.value);
-  const [guidance, setGuidance] = useState(field.guidance ?? '');
+  const [guidance, setGuidance] = useState(field.guidance ?? "");
   const [showHistory, setShowHistory] = useState(false);
   const [showAddEvidence, setShowAddEvidence] = useState(false);
-  const [newLabel, setNewLabel] = useState('');
-  const [newBody, setNewBody] = useState('');
-  const isLocked = field.status === 'locked';
-  const isGenerating = field.status === 'generating';
+  const [newLabel, setNewLabel] = useState("");
+  const [newBody, setNewBody] = useState("");
+  const isLocked = field.status === "locked";
+  const isGenerating = field.status === "generating";
   const isDirty = editValue !== field.value;
 
   const fieldItems = supplementaryItems.filter(
-    (s) => s.scope === 'field' && s.fieldId === field.id
+    (s) => s.scope === "field" && s.fieldId === field.id,
   );
 
   function handleSave() {
@@ -56,13 +66,13 @@ export function FieldZoom({
   function handleAddEvidence() {
     if (!newBody.trim()) return;
     onAddSupplementary({
-      label: newLabel.trim() || 'Supplementary note',
+      label: newLabel.trim() || "Supplementary note",
       body: newBody.trim(),
-      scope: 'field',
+      scope: "field",
       fieldId: field.id,
     });
-    setNewLabel('');
-    setNewBody('');
+    setNewLabel("");
+    setNewBody("");
     setShowAddEvidence(false);
   }
 
@@ -100,6 +110,12 @@ export function FieldZoom({
           ) : (
             <>
               <button
+                onClick={() => onSelectTranscript?.(field.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-fac-meta border border-border text-text-secondary rounded hover:text-text-primary hover:bg-overlay transition-colors"
+              >
+                Select transcript segments
+              </button>
+              <button
                 onClick={() => onRegenerate(field.id)}
                 disabled={isGenerating}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-fac-meta border border-accent/30 text-accent rounded hover:bg-accent-dim transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -130,10 +146,8 @@ export function FieldZoom({
 
       {/* ── Body ───────────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0">
-
         {/* Main edit area */}
         <div className="flex-1 flex flex-col min-w-0 px-8 py-6 gap-5 overflow-y-auto">
-
           {/* Field content */}
           <div className="flex flex-col gap-2">
             <label className="text-fac-label text-text-secondary uppercase tracking-wider">
@@ -159,7 +173,9 @@ export function FieldZoom({
             <div className="flex flex-col gap-2">
               <label className="text-fac-label text-text-secondary uppercase tracking-wider">
                 Guidance for next regeneration
-                <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">(optional — an instruction to the LLM, not content)</span>
+                <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">
+                  (optional — an instruction to the LLM, not content)
+                </span>
               </label>
               <textarea
                 value={guidance}
@@ -183,7 +199,11 @@ export function FieldZoom({
             onBodyChange={setNewBody}
             onAdd={handleAddEvidence}
             onRemove={onRemoveSupplementary}
-            onCancelAdd={() => { setShowAddEvidence(false); setNewLabel(''); setNewBody(''); }}
+            onCancelAdd={() => {
+              setShowAddEvidence(false);
+              setNewLabel("");
+              setNewBody("");
+            }}
           />
         </div>
 
@@ -196,7 +216,11 @@ export function FieldZoom({
             >
               <History size={14} />
               Version history
-              {showHistory ? <ChevronDown size={13} className="ml-auto" /> : <ChevronRight size={13} className="ml-auto" />}
+              {showHistory ? (
+                <ChevronDown size={13} className="ml-auto" />
+              ) : (
+                <ChevronRight size={13} className="ml-auto" />
+              )}
             </button>
             {showHistory && (
               <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
@@ -232,15 +256,25 @@ interface SupplementarySectionProps {
 }
 
 function SupplementarySection({
-  items, showAdd, newLabel, newBody,
-  onToggleAdd, onLabelChange, onBodyChange, onAdd, onRemove, onCancelAdd,
+  items,
+  showAdd,
+  newLabel,
+  newBody,
+  onToggleAdd,
+  onLabelChange,
+  onBodyChange,
+  onAdd,
+  onRemove,
+  onCancelAdd,
 }: SupplementarySectionProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <label className="text-fac-label text-text-secondary uppercase tracking-wider">
           Supplementary evidence
-          <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">(non-transcript text used as source content)</span>
+          <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">
+            (non-transcript text used as source content)
+          </span>
         </label>
         <button
           onClick={onToggleAdd}
@@ -258,7 +292,10 @@ function SupplementarySection({
         </p>
       )}
       {items.map((item) => (
-        <div key={item.id} className="flex flex-col gap-1.5 p-3 rounded-card border border-border bg-surface">
+        <div
+          key={item.id}
+          className="flex flex-col gap-1.5 p-3 rounded-card border border-border bg-surface"
+        >
           <div className="flex items-center justify-between gap-2">
             <span className="text-fac-meta text-text-secondary font-medium">{item.label}</span>
             <div className="flex items-center gap-2">

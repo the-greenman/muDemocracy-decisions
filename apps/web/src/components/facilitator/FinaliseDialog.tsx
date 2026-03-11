@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { CheckSquare, X, UserPlus, Trash2 } from 'lucide-react';
-import { DECISION_METHODS } from '@/lib/mock-data';
-import type { DecisionMethod } from '@/lib/mock-data';
+import { useState } from "react";
+import { CheckSquare, X, UserPlus, Trash2 } from "lucide-react";
+import { DECISION_METHODS } from "@/lib/mock-data";
+import type { DecisionMethod } from "@/lib/mock-data";
 
 interface FinaliseDialogProps {
   participants: string[];
@@ -10,21 +10,21 @@ interface FinaliseDialogProps {
 }
 
 export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDialogProps) {
-  const [method, setMethod] = useState<DecisionMethod>('unanimous_vote');
+  const [method, setMethod] = useState<DecisionMethod>("unanimous_vote");
   const [actors, setActors] = useState<string[]>(participants);
-  const [loggedBy, setLoggedBy] = useState(participants[0] ?? '');
-  const [newActor, setNewActor] = useState('');
+  const [loggedBy, setLoggedBy] = useState(participants[0] ?? "");
+  const [newActor, setNewActor] = useState("");
 
   function addActor() {
     const name = newActor.trim();
     if (!name || actors.includes(name)) return;
     setActors((prev) => [...prev, name]);
-    setNewActor('');
+    setNewActor("");
   }
 
   function removeActor(name: string) {
     setActors((prev) => prev.filter((a) => a !== name));
-    if (loggedBy === name) setLoggedBy('');
+    if (loggedBy === name) setLoggedBy("");
   }
 
   const canConfirm = method && actors.length > 0 && loggedBy.trim();
@@ -35,13 +35,15 @@ export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDi
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <CheckSquare size={16} className="text-settled" />
           <h2 className="text-fac-field text-text-primary font-medium flex-1">Finalise decision</h2>
-          <button onClick={onCancel} className="text-text-muted hover:text-text-primary transition-colors">
+          <button
+            onClick={onCancel}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
             <X size={16} />
           </button>
         </div>
 
         <div className="overflow-y-auto p-5 flex flex-col gap-5">
-
           {/* Decision method */}
           <div className="flex flex-col gap-2">
             <label className="text-fac-label text-text-secondary uppercase tracking-wider">
@@ -49,7 +51,10 @@ export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDi
             </label>
             <div className="flex flex-col gap-1.5">
               {DECISION_METHODS.map((m) => (
-                <label key={m.value} className={`flex items-center gap-3 px-3 py-2.5 rounded border cursor-pointer transition-colors ${method === m.value ? 'border-settled/40 bg-settled-dim/20' : 'border-border hover:border-border-strong'}`}>
+                <label
+                  key={m.value}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded border cursor-pointer transition-colors ${method === m.value ? "border-settled/40 bg-settled-dim/20" : "border-border hover:border-border-strong"}`}
+                >
                   <input
                     type="radio"
                     name="method"
@@ -58,7 +63,9 @@ export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDi
                     onChange={() => setMethod(m.value)}
                     className="accent-settled"
                   />
-                  <span className={`text-fac-field ${method === m.value ? 'text-text-primary' : 'text-text-secondary'}`}>
+                  <span
+                    className={`text-fac-field ${method === m.value ? "text-text-primary" : "text-text-secondary"}`}
+                  >
                     {m.label}
                   </span>
                 </label>
@@ -73,7 +80,10 @@ export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDi
             </label>
             <div className="flex flex-col gap-1">
               {actors.map((actor) => (
-                <div key={actor} className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-overlay/30">
+                <div
+                  key={actor}
+                  className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-overlay/30"
+                >
                   <span className="text-fac-field text-text-primary flex-1">{actor}</span>
                   <button
                     onClick={() => removeActor(actor)}
@@ -91,7 +101,7 @@ export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDi
                 placeholder="Add actor…"
                 value={newActor}
                 onChange={(e) => setNewActor(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addActor()}
+                onKeyDown={(e) => e.key === "Enter" && addActor()}
                 className="flex-1 px-3 py-1.5 rounded border border-border bg-overlay text-fac-meta text-text-primary focus:outline-none focus:border-accent placeholder:text-text-muted"
               />
               <button
@@ -117,7 +127,9 @@ export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDi
             >
               <option value="">Select…</option>
               {actors.map((a) => (
-                <option key={a} value={a}>{a}</option>
+                <option key={a} value={a}>
+                  {a}
+                </option>
               ))}
             </select>
           </div>

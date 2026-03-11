@@ -3,11 +3,14 @@
  * Populates the database with the 6 core decision templates
  */
 
-import { DrizzleDecisionTemplateRepository, DrizzleTemplateFieldAssignmentRepository } from '../repositories/decision-template-repository';
-import { prepareTemplatesForSeeding } from '../seed-data/decision-templates';
+import {
+  DrizzleDecisionTemplateRepository,
+  DrizzleTemplateFieldAssignmentRepository,
+} from "../repositories/decision-template-repository";
+import { prepareTemplatesForSeeding } from "../seed-data/decision-templates";
 
 async function seedDecisionTemplates(): Promise<void> {
-  console.log('Starting to seed decision templates...');
+  console.log("Starting to seed decision templates...");
 
   const templateRepo = new DrizzleDecisionTemplateRepository();
   const fieldAssignmentRepo = new DrizzleTemplateFieldAssignmentRepository();
@@ -50,7 +53,7 @@ async function seedDecisionTemplates(): Promise<void> {
     if (createdTemplates.length > 0) {
       const [defaultTemplate] = createdTemplates;
       if (!defaultTemplate) {
-        throw new Error('Expected a default template to be available');
+        throw new Error("Expected a default template to be available");
       }
 
       await templateRepo.setDefault(defaultTemplate.id);
@@ -59,7 +62,7 @@ async function seedDecisionTemplates(): Promise<void> {
 
     console.log(`Successfully seeded ${createdTemplates.length} decision templates!`);
   } catch (error) {
-    console.error('Error seeding decision templates:', error);
+    console.error("Error seeding decision templates:", error);
     throw error;
   }
 }
@@ -68,11 +71,11 @@ async function seedDecisionTemplates(): Promise<void> {
 if (require.main === module) {
   seedDecisionTemplates()
     .then(() => {
-      console.log('Seeding completed successfully!');
+      console.log("Seeding completed successfully!");
       process.exit(0);
     })
     .catch((error) => {
-      console.error('Seeding failed:', error);
+      console.error("Seeding failed:", error);
       process.exit(1);
     });
 }

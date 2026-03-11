@@ -2,8 +2,8 @@
  * Correlation ID and context management for async operations
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
-import type { LogContext } from './types';
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { LogContext } from "./types";
 
 interface CorrelationContext extends LogContext {
   correlationId: string;
@@ -14,17 +14,14 @@ const contextStorage = new AsyncLocalStorage<CorrelationContext>();
 /**
  * Runs a function within a correlation context
  */
-export function withContext<T>(
-  context: Partial<CorrelationContext>,
-  fn: () => T
-): T {
+export function withContext<T>(context: Partial<CorrelationContext>, fn: () => T): T {
   const current = contextStorage.getStore() || {};
   const mergedContext: CorrelationContext = {
     correlationId: generateCorrelationId(),
     ...current,
     ...context,
   };
-  
+
   return contextStorage.run(mergedContext, fn);
 }
 
@@ -45,15 +42,12 @@ export function getCorrelationId(): string | undefined {
 /**
  * Adds context to the existing correlation context
  */
-export function addContext<T>(
-  additionalContext: Partial<LogContext>,
-  fn: () => T
-): T {
+export function addContext<T>(additionalContext: Partial<LogContext>, fn: () => T): T {
   const current = contextStorage.getStore();
   if (!current) {
     return withContext(additionalContext, fn);
   }
-  
+
   const merged = { ...current, ...additionalContext };
   return contextStorage.run(merged, fn);
 }
@@ -70,17 +64,17 @@ function generateCorrelationId(): string {
  */
 export function correlationMiddleware() {
   return (req: any, res: any, next: any) => {
-    const correlationId = req.headers['x-correlation-id'] || generateCorrelationId();
+    const correlationId = req.headers["x-correlation-id"] || generateCorrelationId();
     req.correlationId = correlationId;
-    res.setHeader('x-correlation-id', correlationId);
-    
+    res.setHeader("x-correlation-id", correlationId);
+
     withContext(
-      { 
+      {
         correlationId,
         requestId: req.id,
         operation: `${req.method} ${req.path}`,
       },
-      next
+      next,
     );
   };
 }

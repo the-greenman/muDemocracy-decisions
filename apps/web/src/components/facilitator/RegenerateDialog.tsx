@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { RefreshCw, X } from 'lucide-react';
+import { useState } from "react";
+import { RefreshCw, X } from "lucide-react";
 
 interface RegenerateDialogProps {
   unlockedCount: number;
@@ -8,28 +8,36 @@ interface RegenerateDialogProps {
 }
 
 export function RegenerateDialog({ unlockedCount, onConfirm, onCancel }: RegenerateDialogProps) {
-  const [focus, setFocus] = useState('');
+  const [focus, setFocus] = useState("");
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md bg-surface border border-border rounded-card shadow-xl flex flex-col">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <RefreshCw size={16} className="text-accent" />
-          <h2 className="text-fac-field text-text-primary font-medium flex-1">Regenerate all unlocked fields</h2>
-          <button onClick={onCancel} className="text-text-muted hover:text-text-primary transition-colors">
+          <h2 className="text-fac-field text-text-primary font-medium flex-1">
+            Regenerate all unlocked fields
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
             <X size={16} />
           </button>
         </div>
 
         <div className="p-5 flex flex-col gap-4">
           <p className="text-fac-meta text-text-secondary">
-            {unlockedCount} unlocked field{unlockedCount !== 1 ? 's' : ''} will be regenerated using all tagged transcript segments and supplementary content.
+            {unlockedCount} unlocked field{unlockedCount !== 1 ? "s" : ""} will be regenerated using
+            all tagged transcript segments and supplementary content.
           </p>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-fac-label text-text-secondary uppercase tracking-wider">
               Focus for this pass
-              <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">(optional)</span>
+              <span className="ml-2 text-text-muted normal-case tracking-normal font-normal">
+                (optional)
+              </span>
             </label>
             <textarea
               value={focus}
@@ -40,7 +48,8 @@ export function RegenerateDialog({ unlockedCount, onConfirm, onCancel }: Regener
               autoFocus
             />
             <p className="text-fac-meta text-text-muted">
-              This instruction applies across all unlocked fields for this regeneration only — it is not saved.
+              This instruction applies across all unlocked fields for this regeneration only — it is
+              not saved.
             </p>
           </div>
         </div>

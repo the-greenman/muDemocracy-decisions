@@ -1,28 +1,30 @@
-import { z } from '@hono/zod-openapi';
-export { z } from '@hono/zod-openapi';
+import { z } from "@hono/zod-openapi";
+export { z } from "@hono/zod-openapi";
 
 // ============================================================================
 // MEETING SCHEMAS
 // ============================================================================
 
-export const MeetingSchema = z.object({
-  id: z.string().uuid(),
-  title: z.string().min(1, 'Title is required'),
-  date: z.string().datetime({ offset: true }),
-  participants: z.array(z.string()).min(1, 'At least one participant is required'),
-  status: z.enum(['active', 'completed']).default('active'),
-  createdAt: z.string().datetime({ offset: true }),
-}).openapi('Meeting', {
-  description: 'A meeting entity',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440000',
-    title: 'Test Meeting',
-    date: '2026-02-27T10:00:00Z',
-    participants: ['Alice', 'Bob'],
-    status: 'active',
-    createdAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const MeetingSchema = z
+  .object({
+    id: z.string().uuid(),
+    title: z.string().min(1, "Title is required"),
+    date: z.string().datetime({ offset: true }),
+    participants: z.array(z.string()).min(1, "At least one participant is required"),
+    status: z.enum(["active", "completed"]).default("active"),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("Meeting", {
+    description: "A meeting entity",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      title: "Test Meeting",
+      date: "2026-02-27T10:00:00Z",
+      participants: ["Alice", "Bob"],
+      status: "active",
+      createdAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type Meeting = z.infer<typeof MeetingSchema>;
 
@@ -47,28 +49,30 @@ export type UpdateMeeting = z.infer<typeof UpdateMeetingSchema>;
 // TRANSCRIPT SCHEMAS
 // ============================================================================
 
-export const RawTranscriptSchema = z.object({
-  id: z.string().uuid(),
-  meetingId: z.string().uuid(),
-  source: z.enum(['upload', 'stream', 'import']),
-  format: z.enum(['json', 'txt', 'vtt', 'srt']),
-  content: z.string(),
-  metadata: z.record(z.any()).optional(),
-  uploadedAt: z.string().datetime({ offset: true }),
-  uploadedBy: z.string().optional(),
-}).openapi('RawTranscript', {
-  description: 'Raw transcript uploaded to a meeting',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440001',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    source: 'upload',
-    format: 'txt',
-    content: 'Meeting transcript text...',
-    metadata: { fileName: 'meeting.txt' },
-    uploadedAt: '2026-02-27T10:00:00Z',
-    uploadedBy: 'Alice',
-  },
-});
+export const RawTranscriptSchema = z
+  .object({
+    id: z.string().uuid(),
+    meetingId: z.string().uuid(),
+    source: z.enum(["upload", "stream", "import"]),
+    format: z.enum(["json", "txt", "vtt", "srt"]),
+    content: z.string(),
+    metadata: z.record(z.any()).optional(),
+    uploadedAt: z.string().datetime({ offset: true }),
+    uploadedBy: z.string().optional(),
+  })
+  .openapi("RawTranscript", {
+    description: "Raw transcript uploaded to a meeting",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      source: "upload",
+      format: "txt",
+      content: "Meeting transcript text...",
+      metadata: { fileName: "meeting.txt" },
+      uploadedAt: "2026-02-27T10:00:00Z",
+      uploadedBy: "Alice",
+    },
+  });
 
 export type RawTranscript = z.infer<typeof RawTranscriptSchema>;
 
@@ -83,73 +87,78 @@ export const CreateRawTranscriptSchema = RawTranscriptSchema.pick({
 
 export type CreateRawTranscript = z.infer<typeof CreateRawTranscriptSchema>;
 
-export const ReadableTranscriptRowSchema = z.object({
-  id: z.string(),
-  meetingId: z.string().uuid(),
-  rawTranscriptId: z.string().uuid(),
-  rawTranscriptUploadedAt: z.string().datetime({ offset: true }),
-  rawTranscriptFormat: z.enum(['json', 'txt', 'vtt', 'srt']),
-  sequenceNumber: z.number().int().positive(),
-  displayText: z.string(),
-  chunkIds: z.array(z.string().uuid()).default([]),
-  speaker: z.string().optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  sourceMetadata: z.record(z.unknown()).optional(),
-}).openapi('ReadableTranscriptRow', {
-  description: 'A readable transcript row derived from normalized preprocessing output for human review and selection',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440100:1',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    rawTranscriptId: '550e8400-e29b-41d4-a716-446655440001',
-    rawTranscriptUploadedAt: '2026-02-27T10:00:00Z',
-    rawTranscriptFormat: 'txt',
-    sequenceNumber: 1,
-    displayText: 'We should keep the system simple and evolve it over time.',
-    chunkIds: ['550e8400-e29b-41d4-a716-446655440002'],
-    speaker: 'Alice',
-    startTime: '00:08:29',
-    endTime: '00:08:35',
-    sourceMetadata: { sourceBlockIndex: 0 },
-  },
-});
+export const ReadableTranscriptRowSchema = z
+  .object({
+    id: z.string(),
+    meetingId: z.string().uuid(),
+    rawTranscriptId: z.string().uuid(),
+    rawTranscriptUploadedAt: z.string().datetime({ offset: true }),
+    rawTranscriptFormat: z.enum(["json", "txt", "vtt", "srt"]),
+    sequenceNumber: z.number().int().positive(),
+    displayText: z.string(),
+    chunkIds: z.array(z.string().uuid()).default([]),
+    speaker: z.string().optional(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    sourceMetadata: z.record(z.unknown()).optional(),
+  })
+  .openapi("ReadableTranscriptRow", {
+    description:
+      "A readable transcript row derived from normalized preprocessing output for human review and selection",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440100:1",
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      rawTranscriptId: "550e8400-e29b-41d4-a716-446655440001",
+      rawTranscriptUploadedAt: "2026-02-27T10:00:00Z",
+      rawTranscriptFormat: "txt",
+      sequenceNumber: 1,
+      displayText: "We should keep the system simple and evolve it over time.",
+      chunkIds: ["550e8400-e29b-41d4-a716-446655440002"],
+      speaker: "Alice",
+      startTime: "00:08:29",
+      endTime: "00:08:35",
+      sourceMetadata: { sourceBlockIndex: 0 },
+    },
+  });
 
 export type ReadableTranscriptRow = z.infer<typeof ReadableTranscriptRowSchema>;
 
-export const TranscriptChunkSchema = z.object({
-  id: z.string().uuid(),
-  meetingId: z.string().uuid(),
-  rawTranscriptId: z.string().uuid(),
-  sequenceNumber: z.number().int().nonnegative(),
-  text: z.string(),
-  speaker: z.string().optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  chunkStrategy: z.enum(['fixed', 'semantic', 'speaker', 'streaming']),
-  tokenCount: z.number().int().optional(),
-  wordCount: z.number().int().optional(),
-  contexts: z.array(z.string()).default([]),
-  topics: z.array(z.string()).optional(),
-  createdAt: z.string().datetime({ offset: true }),
-}).openapi('TranscriptChunk', {
-  description: 'A chunk of transcript with context tags',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440002',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    rawTranscriptId: '550e8400-e29b-41d4-a716-446655440001',
-    sequenceNumber: 0,
-    text: 'We need to decide on the architecture.',
-    speaker: 'Alice',
-    startTime: '00:05:00',
-    endTime: '00:05:10',
-    chunkStrategy: 'semantic',
-    tokenCount: 10,
-    wordCount: 7,
-    contexts: ['meeting:550e8400-e29b-41d4-a716-446655440000'],
-    topics: ['architecture'],
-    createdAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const TranscriptChunkSchema = z
+  .object({
+    id: z.string().uuid(),
+    meetingId: z.string().uuid(),
+    rawTranscriptId: z.string().uuid(),
+    sequenceNumber: z.number().int().nonnegative(),
+    text: z.string(),
+    speaker: z.string().optional(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    chunkStrategy: z.enum(["fixed", "semantic", "speaker", "streaming"]),
+    tokenCount: z.number().int().optional(),
+    wordCount: z.number().int().optional(),
+    contexts: z.array(z.string()).default([]),
+    topics: z.array(z.string()).optional(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("TranscriptChunk", {
+    description: "A chunk of transcript with context tags",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      rawTranscriptId: "550e8400-e29b-41d4-a716-446655440001",
+      sequenceNumber: 0,
+      text: "We need to decide on the architecture.",
+      speaker: "Alice",
+      startTime: "00:05:00",
+      endTime: "00:05:10",
+      chunkStrategy: "semantic",
+      tokenCount: 10,
+      wordCount: 7,
+      contexts: ["meeting:550e8400-e29b-41d4-a716-446655440000"],
+      topics: ["architecture"],
+      createdAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type TranscriptChunk = z.infer<typeof TranscriptChunkSchema>;
 
@@ -170,150 +179,165 @@ export const CreateTranscriptChunkSchema = TranscriptChunkSchema.pick({
 
 export type CreateTranscriptChunk = z.infer<typeof CreateTranscriptChunkSchema>;
 
-export const StreamTranscriptEventSchema = z.object({
-  text: z.string().min(1),
-  speaker: z.string().optional(),
-  timestamp: z.string().optional(),
-  sequenceNumber: z.number().int().positive().optional(),
-  contexts: z.array(z.string().min(1)).optional(),
-}).openapi('StreamTranscriptEvent', {
-  description: 'A streaming transcript text event submitted during an active meeting',
-  example: {
-    text: 'We decided to defer the vendor selection',
-    speaker: 'Alice',
-    timestamp: '00:12:33',
-    contexts: ['custom:note'],
-  },
-});
+export const StreamTranscriptEventSchema = z
+  .object({
+    text: z.string().min(1),
+    speaker: z.string().optional(),
+    timestamp: z.string().optional(),
+    sequenceNumber: z.number().int().positive().optional(),
+    contexts: z.array(z.string().min(1)).optional(),
+  })
+  .openapi("StreamTranscriptEvent", {
+    description: "A streaming transcript text event submitted during an active meeting",
+    example: {
+      text: "We decided to defer the vendor selection",
+      speaker: "Alice",
+      timestamp: "00:12:33",
+      contexts: ["custom:note"],
+    },
+  });
 
-export const StreamTranscriptResponseSchema = z.object({
-  buffering: z.boolean(),
-  bufferSize: z.number().int().min(0),
-  chunkId: z.string().uuid().optional(),
-  appliedContexts: z.array(z.string()),
-}).openapi('StreamTranscriptResponse', {
-  description: 'Acknowledgement that a streaming transcript event was buffered',
-  example: {
-    buffering: true,
-    bufferSize: 2,
-    appliedContexts: ['meeting:550e8400-e29b-41d4-a716-446655440000'],
-  },
-});
+export const StreamTranscriptResponseSchema = z
+  .object({
+    buffering: z.boolean(),
+    bufferSize: z.number().int().min(0),
+    chunkId: z.string().uuid().optional(),
+    appliedContexts: z.array(z.string()),
+  })
+  .openapi("StreamTranscriptResponse", {
+    description: "Acknowledgement that a streaming transcript event was buffered",
+    example: {
+      buffering: true,
+      bufferSize: 2,
+      appliedContexts: ["meeting:550e8400-e29b-41d4-a716-446655440000"],
+    },
+  });
 
-export const StreamStatusResponseSchema = z.object({
-  status: z.enum(['active', 'idle', 'flushing']),
-  eventCount: z.number().int().min(0),
-}).openapi('StreamStatusResponse', {
-  description: 'Current streaming buffer status for a meeting',
-  example: {
-    status: 'active',
-    eventCount: 3,
-  },
-});
+export const StreamStatusResponseSchema = z
+  .object({
+    status: z.enum(["active", "idle", "flushing"]),
+    eventCount: z.number().int().min(0),
+  })
+  .openapi("StreamStatusResponse", {
+    description: "Current streaming buffer status for a meeting",
+    example: {
+      status: "active",
+      eventCount: 3,
+    },
+  });
 
-export const StreamFlushResponseSchema = z.object({
-  chunks: z.array(TranscriptChunkSchema),
-}).openapi('StreamFlushResponse', {
-  description: 'Transcript chunks created by flushing the streaming buffer',
-});
+export const StreamFlushResponseSchema = z
+  .object({
+    chunks: z.array(TranscriptChunkSchema),
+  })
+  .openapi("StreamFlushResponse", {
+    description: "Transcript chunks created by flushing the streaming buffer",
+  });
 
-export const AssignTranscriptChunksRequestSchema = z.object({
-  chunkIds: z.array(z.string().uuid()).min(1),
-}).openapi('AssignTranscriptChunksRequest', {
-  description: 'Chunk IDs to tag with transcript context derived from the route scope',
-  example: {
-    chunkIds: [
-      '550e8400-e29b-41d4-a716-446655440002',
-      '550e8400-e29b-41d4-a716-446655440003',
-    ],
-  },
-});
+export const AssignTranscriptChunksRequestSchema = z
+  .object({
+    chunkIds: z.array(z.string().uuid()).min(1),
+  })
+  .openapi("AssignTranscriptChunksRequest", {
+    description: "Chunk IDs to tag with transcript context derived from the route scope",
+    example: {
+      chunkIds: ["550e8400-e29b-41d4-a716-446655440002", "550e8400-e29b-41d4-a716-446655440003"],
+    },
+  });
 
 export type AssignTranscriptChunksRequest = z.infer<typeof AssignTranscriptChunksRequestSchema>;
 
-export const AssignTranscriptChunksResponseSchema = z.object({
-  chunks: z.array(TranscriptChunkSchema),
-}).openapi('AssignTranscriptChunksResponse', {
-  description: 'Transcript chunks after assigning context tags',
-});
+export const AssignTranscriptChunksResponseSchema = z
+  .object({
+    chunks: z.array(TranscriptChunkSchema),
+  })
+  .openapi("AssignTranscriptChunksResponse", {
+    description: "Transcript chunks after assigning context tags",
+  });
 
 export type AssignTranscriptChunksResponse = z.infer<typeof AssignTranscriptChunksResponseSchema>;
 
-export const ApiStatusLlmSchema = z.object({
-  mode: z.enum(['mock', 'real']),
-  provider: z.string(),
-  model: z.string(),
-}).openapi('ApiStatusLlm', {
-  description: 'Safe LLM runtime configuration currently active in the API process',
-  example: {
-    mode: 'real',
-    provider: 'anthropic',
-    model: 'claude-opus-4-5',
-  },
-});
-
-export const ApiStatusSchema = z.object({
-  status: z.literal('ok'),
-  timestamp: z.string().datetime({ offset: true }),
-  nodeEnv: z.string(),
-  databaseConfigured: z.boolean(),
-  llm: ApiStatusLlmSchema,
-}).openapi('ApiStatus', {
-  description: 'Safe runtime diagnostics for the API process',
-  example: {
-    status: 'ok',
-    timestamp: '2026-03-10T22:30:00Z',
-    nodeEnv: 'development',
-    databaseConfigured: true,
-    llm: {
-      mode: 'real',
-      provider: 'anthropic',
-      model: 'claude-opus-4-5',
+export const ApiStatusLlmSchema = z
+  .object({
+    mode: z.enum(["mock", "real"]),
+    provider: z.string(),
+    model: z.string(),
+  })
+  .openapi("ApiStatusLlm", {
+    description: "Safe LLM runtime configuration currently active in the API process",
+    example: {
+      mode: "real",
+      provider: "anthropic",
+      model: "claude-opus-4-5",
     },
-  },
-});
+  });
+
+export const ApiStatusSchema = z
+  .object({
+    status: z.literal("ok"),
+    timestamp: z.string().datetime({ offset: true }),
+    nodeEnv: z.string(),
+    databaseConfigured: z.boolean(),
+    llm: ApiStatusLlmSchema,
+  })
+  .openapi("ApiStatus", {
+    description: "Safe runtime diagnostics for the API process",
+    example: {
+      status: "ok",
+      timestamp: "2026-03-10T22:30:00Z",
+      nodeEnv: "development",
+      databaseConfigured: true,
+      llm: {
+        mode: "real",
+        provider: "anthropic",
+        model: "claude-opus-4-5",
+      },
+    },
+  });
 
 // ============================================================================
 // SUPPLEMENTARY CONTENT SCHEMAS
 // ============================================================================
 
-export const SupplementaryContentSchema = z.object({
-  id: z.string().uuid(),
-  meetingId: z.string().uuid(),
-  label: z.string().optional(),
-  body: z.string().min(1, 'Body is required'),
-  sourceType: z.string().default('manual'),
-  contexts: z.array(z.string()).default([]),
-  createdBy: z.string().optional(),
-  createdAt: z.string().datetime({ offset: true }),
-}).openapi('SupplementaryContent', {
-  description: 'Supplementary evidence attached to a meeting, decision context, or field scope',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440003',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    label: 'Options comparison table',
-    body: 'Option 1: cloud-native stack (£45k). Option 2: patch existing service (£8k).',
-    sourceType: 'manual',
-    contexts: ['decision:550e8400-e29b-41d4-a716-446655440004:options'],
-    createdBy: 'Alice',
-    createdAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const SupplementaryContentSchema = z
+  .object({
+    id: z.string().uuid(),
+    meetingId: z.string().uuid(),
+    label: z.string().optional(),
+    body: z.string().min(1, "Body is required"),
+    sourceType: z.string().default("manual"),
+    contexts: z.array(z.string()).default([]),
+    createdBy: z.string().optional(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("SupplementaryContent", {
+    description: "Supplementary evidence attached to a meeting, decision context, or field scope",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440003",
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      label: "Options comparison table",
+      body: "Option 1: cloud-native stack (£45k). Option 2: patch existing service (£8k).",
+      sourceType: "manual",
+      contexts: ["decision:550e8400-e29b-41d4-a716-446655440004:options"],
+      createdBy: "Alice",
+      createdAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type SupplementaryContent = z.infer<typeof SupplementaryContentSchema>;
 
 export const CreateSupplementaryContentSchema = SupplementaryContentSchema.omit({
   id: true,
   createdAt: true,
-}).openapi('CreateSupplementaryContent', {
-  description: 'Schema for creating supplementary evidence',
+}).openapi("CreateSupplementaryContent", {
+  description: "Schema for creating supplementary evidence",
   example: {
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    label: 'Options comparison table',
-    body: 'Option 1: cloud-native stack (£45k). Option 2: patch existing service (£8k).',
-    sourceType: 'manual',
-    contexts: ['decision:550e8400-e29b-41d4-a716-446655440004:options'],
-    createdBy: 'Alice',
+    meetingId: "550e8400-e29b-41d4-a716-446655440000",
+    label: "Options comparison table",
+    body: "Option 1: cloud-native stack (£45k). Option 2: patch existing service (£8k).",
+    sourceType: "manual",
+    contexts: ["decision:550e8400-e29b-41d4-a716-446655440004:options"],
+    createdBy: "Alice",
   },
 });
 
@@ -323,26 +347,28 @@ export type CreateSupplementaryContent = z.infer<typeof CreateSupplementaryConte
 // CHUNK RELEVANCE SCHEMAS
 // ============================================================================
 
-export const ChunkRelevanceSchema = z.object({
-  id: z.string().uuid(),
-  chunkId: z.string().uuid(),
-  decisionContextId: z.string().uuid(),
-  fieldId: z.string().uuid(),
-  relevance: z.number().min(0).max(1),
-  taggedBy: z.enum(['llm', 'rule', 'manual']),
-  taggedAt: z.string().datetime({ offset: true }),
-}).openapi('ChunkRelevance', {
-  description: 'Relevance score of a chunk to a decision field',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440003',
-    chunkId: '550e8400-e29b-41d4-a716-446655440002',
-    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
-    fieldId: '550e8400-e29b-41d4-a716-446655440005',
-    relevance: 0.95,
-    taggedBy: 'llm',
-    taggedAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const ChunkRelevanceSchema = z
+  .object({
+    id: z.string().uuid(),
+    chunkId: z.string().uuid(),
+    decisionContextId: z.string().uuid(),
+    fieldId: z.string().uuid(),
+    relevance: z.number().min(0).max(1),
+    taggedBy: z.enum(["llm", "rule", "manual"]),
+    taggedAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("ChunkRelevance", {
+    description: "Relevance score of a chunk to a decision field",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440003",
+      chunkId: "550e8400-e29b-41d4-a716-446655440002",
+      decisionContextId: "550e8400-e29b-41d4-a716-446655440004",
+      fieldId: "550e8400-e29b-41d4-a716-446655440005",
+      relevance: 0.95,
+      taggedBy: "llm",
+      taggedAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type ChunkRelevance = z.infer<typeof ChunkRelevanceSchema>;
 
@@ -350,32 +376,34 @@ export type ChunkRelevance = z.infer<typeof ChunkRelevanceSchema>;
 // DECISION CONTEXT WINDOW SCHEMAS
 // ============================================================================
 
-export const DecisionContextWindowSchema = z.object({
-  id: z.string().uuid(),
-  decisionContextId: z.string().uuid(),
-  chunkIds: z.array(z.string().uuid()),
-  selectionStrategy: z.enum(['all', 'relevant', 'recent', 'weighted']),
-  totalTokens: z.number().int(),
-  totalChunks: z.number().int(),
-  relevanceScores: z.record(z.number()).optional(),
-  usedFor: z.enum(['draft', 'regenerate', 'field-specific']),
-  createdAt: z.string().datetime({ offset: true }),
-  updatedAt: z.string().datetime({ offset: true }),
-}).openapi('DecisionContextWindow', {
-  description: 'A window of transcript chunks selected for decision context',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440006',
-    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
-    chunkIds: ['550e8400-e29b-41d4-a716-446655440002'],
-    selectionStrategy: 'relevant',
-    totalTokens: 500,
-    totalChunks: 1,
-    relevanceScores: { '550e8400-e29b-41d4-a716-446655440002': 0.95 },
-    usedFor: 'draft',
-    createdAt: '2026-02-27T10:00:00Z',
-    updatedAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const DecisionContextWindowSchema = z
+  .object({
+    id: z.string().uuid(),
+    decisionContextId: z.string().uuid(),
+    chunkIds: z.array(z.string().uuid()),
+    selectionStrategy: z.enum(["all", "relevant", "recent", "weighted"]),
+    totalTokens: z.number().int(),
+    totalChunks: z.number().int(),
+    relevanceScores: z.record(z.number()).optional(),
+    usedFor: z.enum(["draft", "regenerate", "field-specific"]),
+    createdAt: z.string().datetime({ offset: true }),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("DecisionContextWindow", {
+    description: "A window of transcript chunks selected for decision context",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440006",
+      decisionContextId: "550e8400-e29b-41d4-a716-446655440004",
+      chunkIds: ["550e8400-e29b-41d4-a716-446655440002"],
+      selectionStrategy: "relevant",
+      totalTokens: 500,
+      totalChunks: 1,
+      relevanceScores: { "550e8400-e29b-41d4-a716-446655440002": 0.95 },
+      usedFor: "draft",
+      createdAt: "2026-02-27T10:00:00Z",
+      updatedAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type DecisionContextWindow = z.infer<typeof DecisionContextWindowSchema>;
 
@@ -383,63 +411,69 @@ export type DecisionContextWindow = z.infer<typeof DecisionContextWindowSchema>;
 // FLAGGED DECISION SCHEMAS
 // ============================================================================
 
-export const FlaggedDecisionSchema = z.object({
-  id: z.string().uuid(),
-  meetingId: z.string().uuid(),
-  suggestedTitle: z.string(),
-  contextSummary: z.string(),
-  confidence: z.number().min(0).max(1),
-  chunkIds: z.array(z.string().uuid()),
-  suggestedTemplateId: z.string().uuid().optional(),
-  templateConfidence: z.number().min(0).max(1).optional(),
-  status: z.enum(['pending', 'accepted', 'rejected', 'dismissed']).default('pending'),
-  priority: z.number().int().default(0),
-  createdAt: z.string().datetime({ offset: true }),
-  updatedAt: z.string().datetime({ offset: true }),
-}).openapi('FlaggedDecision', {
-  description: 'A decision flagged for attention in a meeting',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440007',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    suggestedTitle: 'Architecture Decision',
-    contextSummary: 'Team discussed microservices vs monolith',
-    confidence: 0.89,
-    chunkIds: ['550e8400-e29b-41d4-a716-446655440002'],
-    suggestedTemplateId: '550e8400-e29b-41d4-a716-446655440008',
-    templateConfidence: 0.92,
-    status: 'pending',
-    priority: 1,
-    createdAt: '2026-02-27T10:00:00Z',
-    updatedAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const FlaggedDecisionSchema = z
+  .object({
+    id: z.string().uuid(),
+    meetingId: z.string().uuid(),
+    suggestedTitle: z.string(),
+    contextSummary: z.string(),
+    confidence: z.number().min(0).max(1),
+    chunkIds: z.array(z.string().uuid()),
+    suggestedTemplateId: z.string().uuid().optional(),
+    templateConfidence: z.number().min(0).max(1).optional(),
+    status: z.enum(["pending", "accepted", "rejected", "dismissed"]).default("pending"),
+    priority: z.number().int().default(0),
+    createdAt: z.string().datetime({ offset: true }),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("FlaggedDecision", {
+    description: "A decision flagged for attention in a meeting",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440007",
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      suggestedTitle: "Architecture Decision",
+      contextSummary: "Team discussed microservices vs monolith",
+      confidence: 0.89,
+      chunkIds: ["550e8400-e29b-41d4-a716-446655440002"],
+      suggestedTemplateId: "550e8400-e29b-41d4-a716-446655440008",
+      templateConfidence: 0.92,
+      status: "pending",
+      priority: 1,
+      createdAt: "2026-02-27T10:00:00Z",
+      updatedAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type FlaggedDecision = z.infer<typeof FlaggedDecisionSchema>;
-export type CreateFlaggedDecision = Omit<FlaggedDecision, 'id' | 'status' | 'createdAt' | 'updatedAt'>;
+export type CreateFlaggedDecision = Omit<
+  FlaggedDecision,
+  "id" | "status" | "createdAt" | "updatedAt"
+>;
 
 export const FlaggedDecisionListItemSchema = FlaggedDecisionSchema.extend({
   contextId: z.string().uuid().nullable(),
-  contextStatus: z.enum(['drafting', 'reviewing', 'locked', 'logged']).nullable(),
+  contextStatus: z.enum(["drafting", "reviewing", "locked", "logged"]).nullable(),
   hasDraft: z.boolean(),
   draftFieldCount: z.number().int().min(0),
   versionCount: z.number().int().min(0),
-}).openapi('FlaggedDecisionListItem', {
-  description: 'A flagged decision enriched with decision-context and draft summary for meeting queue views',
+}).openapi("FlaggedDecisionListItem", {
+  description:
+    "A flagged decision enriched with decision-context and draft summary for meeting queue views",
   example: {
-    id: '550e8400-e29b-41d4-a716-446655440007',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    suggestedTitle: 'Architecture Decision',
-    contextSummary: 'Team discussed microservices vs monolith',
+    id: "550e8400-e29b-41d4-a716-446655440007",
+    meetingId: "550e8400-e29b-41d4-a716-446655440000",
+    suggestedTitle: "Architecture Decision",
+    contextSummary: "Team discussed microservices vs monolith",
     confidence: 0.89,
-    chunkIds: ['550e8400-e29b-41d4-a716-446655440002'],
-    suggestedTemplateId: '550e8400-e29b-41d4-a716-446655440008',
+    chunkIds: ["550e8400-e29b-41d4-a716-446655440002"],
+    suggestedTemplateId: "550e8400-e29b-41d4-a716-446655440008",
     templateConfidence: 0.92,
-    status: 'accepted',
+    status: "accepted",
     priority: 1,
-    createdAt: '2026-02-27T10:00:00Z',
-    updatedAt: '2026-02-27T10:05:00Z',
-    contextId: '550e8400-e29b-41d4-a716-446655440004',
-    contextStatus: 'drafting',
+    createdAt: "2026-02-27T10:00:00Z",
+    updatedAt: "2026-02-27T10:05:00Z",
+    contextId: "550e8400-e29b-41d4-a716-446655440004",
+    contextStatus: "drafting",
     hasDraft: true,
     draftFieldCount: 3,
     versionCount: 1,
@@ -460,56 +494,61 @@ export const DraftVersionSchema = z.object({
 
 export type DraftVersion = z.infer<typeof DraftVersionSchema>;
 
-export const DecisionContextSchema = z.object({
-  id: z.string().uuid(),
-  meetingId: z.string().uuid(),
-  flaggedDecisionId: z.string().uuid(),
-  title: z.string(),
-  templateId: z.string().uuid(),
-  activeField: z.string().uuid().optional(),
-  lockedFields: z.array(z.string()).default([]),
-  draftData: z.record(z.any()).optional(),
-  draftVersions: z.array(DraftVersionSchema).default([]),
-  status: z.enum(['drafting', 'reviewing', 'locked', 'logged']).default('drafting'),
-  createdAt: z.string().datetime({ offset: true }),
-  updatedAt: z.string().datetime({ offset: true }),
-}).openapi('DecisionContext', {
-  description: 'Working context for drafting a decision',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440004',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    flaggedDecisionId: '550e8400-e29b-41d4-a716-446655440007',
-    title: 'Architecture Decision',
-    templateId: '550e8400-e29b-41d4-a716-446655440008',
-    activeField: '550e8400-e29b-41d4-a716-446655440005',
-    lockedFields: ['decision_statement'],
-    draftData: { decision_statement: 'We will use microservices' },
-    draftVersions: [
-      {
-        version: 1,
-        draftData: { decision_statement: 'We will use a modular monolith' },
-        savedAt: '2026-02-27T09:45:00Z',
-      },
-    ],
-    status: 'drafting',
-    createdAt: '2026-02-27T10:00:00Z',
-    updatedAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const DecisionContextSchema = z
+  .object({
+    id: z.string().uuid(),
+    meetingId: z.string().uuid(),
+    flaggedDecisionId: z.string().uuid(),
+    title: z.string(),
+    templateId: z.string().uuid(),
+    activeField: z.string().uuid().optional(),
+    lockedFields: z.array(z.string()).default([]),
+    draftData: z.record(z.any()).optional(),
+    draftVersions: z.array(DraftVersionSchema).default([]),
+    status: z.enum(["drafting", "reviewing", "locked", "logged"]).default("drafting"),
+    createdAt: z.string().datetime({ offset: true }),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("DecisionContext", {
+    description: "Working context for drafting a decision",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440004",
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      flaggedDecisionId: "550e8400-e29b-41d4-a716-446655440007",
+      title: "Architecture Decision",
+      templateId: "550e8400-e29b-41d4-a716-446655440008",
+      activeField: "550e8400-e29b-41d4-a716-446655440005",
+      lockedFields: ["decision_statement"],
+      draftData: { decision_statement: "We will use microservices" },
+      draftVersions: [
+        {
+          version: 1,
+          draftData: { decision_statement: "We will use a modular monolith" },
+          savedAt: "2026-02-27T09:45:00Z",
+        },
+      ],
+      status: "drafting",
+      createdAt: "2026-02-27T10:00:00Z",
+      updatedAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type DecisionContext = z.infer<typeof DecisionContextSchema>;
 
 // For creation, omit auto-generated fields and defaults
-export type CreateDecisionContext = Omit<DecisionContext,
-  'id' | 'status' | 'lockedFields' | 'draftVersions' | 'createdAt' | 'updatedAt'
+export type CreateDecisionContext = Omit<
+  DecisionContext,
+  "id" | "status" | "lockedFields" | "draftVersions" | "createdAt" | "updatedAt"
 >;
 
-export const UpdateDecisionContextSchema = z.object({
-  title: z.string().min(1).optional(),
-}).openapi('UpdateDecisionContextRequest', {
-  description: 'Fields that can be updated on an existing decision context',
-  example: { title: 'Updated decision title' },
-});
+export const UpdateDecisionContextSchema = z
+  .object({
+    title: z.string().min(1).optional(),
+  })
+  .openapi("UpdateDecisionContextRequest", {
+    description: "Fields that can be updated on an existing decision context",
+    example: { title: "Updated decision title" },
+  });
 
 export type UpdateDecisionContext = z.infer<typeof UpdateDecisionContextSchema>;
 
@@ -517,83 +556,87 @@ export type UpdateDecisionContext = z.infer<typeof UpdateDecisionContextSchema>;
 // DECISION LOG SCHEMAS
 // ============================================================================
 
-export const DecisionLogSchema = z.object({
-  id: z.string().uuid(),
-  meetingId: z.string().uuid(),
-  decisionContextId: z.string().uuid(),
-  templateId: z.string().uuid(),
-  templateVersion: z.number().int(),
-  fields: z.record(z.any()),
-  decisionMethod: z.object({
-    type: z.enum(['consensus', 'vote', 'authority', 'defer', 'reject', 'manual', 'ai_assisted']),
-    details: z.string().optional(),
-  }),
-  sourceChunkIds: z.array(z.string().uuid()),
-  loggedAt: z.string().datetime({ offset: true }),
-  loggedBy: z.string(),
-}).openapi('DecisionLog', {
-  description: 'Immutable record of a logged decision',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440009',
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
-    templateId: '550e8400-e29b-41d4-a716-446655440008',
-    templateVersion: 1,
-    fields: { decision_statement: 'We will use microservices' },
-    decisionMethod: { type: 'consensus', details: '5 for, 2 against' },
-    sourceChunkIds: ['550e8400-e29b-41d4-a716-446655440002'],
-    loggedAt: '2026-02-27T10:00:00Z',
-    loggedBy: 'Alice',
-  },
-});
+export const DecisionLogSchema = z
+  .object({
+    id: z.string().uuid(),
+    meetingId: z.string().uuid(),
+    decisionContextId: z.string().uuid(),
+    templateId: z.string().uuid(),
+    templateVersion: z.number().int(),
+    fields: z.record(z.any()),
+    decisionMethod: z.object({
+      type: z.enum(["consensus", "vote", "authority", "defer", "reject", "manual", "ai_assisted"]),
+      details: z.string().optional(),
+    }),
+    sourceChunkIds: z.array(z.string().uuid()),
+    loggedAt: z.string().datetime({ offset: true }),
+    loggedBy: z.string(),
+  })
+  .openapi("DecisionLog", {
+    description: "Immutable record of a logged decision",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440009",
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      decisionContextId: "550e8400-e29b-41d4-a716-446655440004",
+      templateId: "550e8400-e29b-41d4-a716-446655440008",
+      templateVersion: 1,
+      fields: { decision_statement: "We will use microservices" },
+      decisionMethod: { type: "consensus", details: "5 for, 2 against" },
+      sourceChunkIds: ["550e8400-e29b-41d4-a716-446655440002"],
+      loggedAt: "2026-02-27T10:00:00Z",
+      loggedBy: "Alice",
+    },
+  });
 
 export type DecisionLog = z.infer<typeof DecisionLogSchema>;
 
-export type CreateDecisionLog = Omit<DecisionLog, 'id' | 'loggedAt'>;
+export type CreateDecisionLog = Omit<DecisionLog, "id" | "loggedAt">;
 
 // ============================================================================
 // DECISION FIELD SCHEMAS
 // ============================================================================
 
 export const ValidationRuleSchema = z.object({
-  type: z.enum(['required', 'minLength', 'maxLength', 'pattern', 'enum']),
+  type: z.enum(["required", "minLength", "maxLength", "pattern", "enum"]),
   value: z.union([z.string(), z.number(), z.array(z.string())]).optional(),
   message: z.string().optional(),
 });
 
-export const DecisionFieldSchema = z.object({
-  id: z.string().uuid(),
-  namespace: z.string().default('core'),
-  name: z.string(),
-  description: z.string(),
-  category: z.enum(['context', 'evaluation', 'outcome', 'metadata']),
-  extractionPrompt: z.string(),
-  fieldType: z.enum(['text', 'textarea', 'select', 'multiselect', 'number', 'date', 'url']),
-  placeholder: z.string().optional(),
-  validationRules: z.array(ValidationRuleSchema).optional(),
-  version: z.number().int().default(1),
-  isCustom: z.boolean().default(false),
-  createdAt: z.string().datetime({ offset: true }),
-}).openapi('DecisionField', {
-  description: 'A field definition for decision templates',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440005',
-    namespace: 'core',
-    name: 'decision_statement',
-    description: 'The core decision being made',
-    category: 'outcome',
-    extractionPrompt: 'Extract the main decision statement from the discussion',
-    fieldType: 'textarea',
-    placeholder: 'Enter the decision statement...',
-    validationRules: [
-      { type: 'required', message: 'Decision statement is required' },
-      { type: 'minLength', value: 10, message: 'Decision must be at least 10 characters' },
-    ],
-    version: 1,
-    isCustom: false,
-    createdAt: '2024-01-15T10:30:00Z',
-  },
-});
+export const DecisionFieldSchema = z
+  .object({
+    id: z.string().uuid(),
+    namespace: z.string().default("core"),
+    name: z.string(),
+    description: z.string(),
+    category: z.enum(["context", "evaluation", "outcome", "metadata"]),
+    extractionPrompt: z.string(),
+    fieldType: z.enum(["text", "textarea", "select", "multiselect", "number", "date", "url"]),
+    placeholder: z.string().optional(),
+    validationRules: z.array(ValidationRuleSchema).optional(),
+    version: z.number().int().default(1),
+    isCustom: z.boolean().default(false),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("DecisionField", {
+    description: "A field definition for decision templates",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440005",
+      namespace: "core",
+      name: "decision_statement",
+      description: "The core decision being made",
+      category: "outcome",
+      extractionPrompt: "Extract the main decision statement from the discussion",
+      fieldType: "textarea",
+      placeholder: "Enter the decision statement...",
+      validationRules: [
+        { type: "required", message: "Decision statement is required" },
+        { type: "minLength", value: 10, message: "Decision must be at least 10 characters" },
+      ],
+      version: 1,
+      isCustom: false,
+      createdAt: "2024-01-15T10:30:00Z",
+    },
+  });
 
 export type DecisionField = z.infer<typeof DecisionFieldSchema>;
 
@@ -602,19 +645,19 @@ export const CreateDecisionFieldSchema = DecisionFieldSchema.omit({
   version: true,
   isCustom: true,
   createdAt: true,
-}).openapi('CreateDecisionField', {
-  description: 'Schema for creating a new decision field',
+}).openapi("CreateDecisionField", {
+  description: "Schema for creating a new decision field",
   example: {
-    namespace: 'core',
-    name: 'decision_statement',
-    description: 'The core decision being made',
-    category: 'outcome',
-    extractionPrompt: 'Extract the main decision statement from the discussion',
-    fieldType: 'textarea',
-    placeholder: 'Enter the decision statement...',
+    namespace: "core",
+    name: "decision_statement",
+    description: "The core decision being made",
+    category: "outcome",
+    extractionPrompt: "Extract the main decision statement from the discussion",
+    fieldType: "textarea",
+    placeholder: "Enter the decision statement...",
     validationRules: [
-      { type: 'required', message: 'Decision statement is required' },
-      { type: 'minLength', value: 10, message: 'Decision must be at least 10 characters' },
+      { type: "required", message: "Decision statement is required" },
+      { type: "minLength", value: 10, message: "Decision must be at least 10 characters" },
     ],
   },
 });
@@ -625,90 +668,101 @@ export type CreateDecisionField = z.infer<typeof CreateDecisionFieldSchema>;
 // DECISION TEMPLATE SCHEMAS
 // ============================================================================
 
-export const TemplateFieldAssignmentSchema = z.object({
-  id: z.string().uuid().optional(),
-  templateId: z.string().uuid().optional(),
-  fieldId: z.string().uuid(),
-  order: z.number().int().nonnegative(),
-  required: z.boolean().default(true),
-}).openapi('TemplateFieldAssignment', {
-  description: 'Assignment of a field to a template',
-  example: {
-    fieldId: '550e8400-e29b-41d4-a716-446655440005',
-    order: 0,
-    required: true,
-  },
-});
+export const TemplateFieldAssignmentSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    templateId: z.string().uuid().optional(),
+    fieldId: z.string().uuid(),
+    order: z.number().int().nonnegative(),
+    required: z.boolean().default(true),
+  })
+  .openapi("TemplateFieldAssignment", {
+    description: "Assignment of a field to a template",
+    example: {
+      fieldId: "550e8400-e29b-41d4-a716-446655440005",
+      order: 0,
+      required: true,
+    },
+  });
 
 export type TemplateFieldAssignment = z.infer<typeof TemplateFieldAssignmentSchema>;
 
-export const CreateTemplateFieldAssignmentSchema = TemplateFieldAssignmentSchema.omit({}).openapi('CreateTemplateFieldAssignment', {
-  description: 'Schema for creating a new template field assignment',
-  example: {
-    fieldId: '550e8400-e29b-41d4-a716-446655440005',
-    order: 0,
-    required: true,
+export const CreateTemplateFieldAssignmentSchema = TemplateFieldAssignmentSchema.omit({}).openapi(
+  "CreateTemplateFieldAssignment",
+  {
+    description: "Schema for creating a new template field assignment",
+    example: {
+      fieldId: "550e8400-e29b-41d4-a716-446655440005",
+      order: 0,
+      required: true,
+    },
   },
-});
+);
 
 export type CreateTemplateFieldAssignment = z.infer<typeof CreateTemplateFieldAssignmentSchema>;
 
-export const DecisionTemplateSchema = z.object({
-  id: z.string().uuid(),
-  namespace: z.string().default('core'),
-  name: z.string(),
-  description: z.string(),
-  category: z.enum(['standard', 'technology', 'strategy', 'budget', 'policy', 'proposal']),
-  fields: z.array(TemplateFieldAssignmentSchema),
-  version: z.number().int().default(1),
-  isDefault: z.boolean().default(false),
-  isCustom: z.boolean().default(false),
-  createdAt: z.string().datetime({ offset: true }),
-}).openapi('DecisionTemplate', {
-  description: 'A template for structuring decisions',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440008',
-    namespace: 'core',
-    name: 'Technology Selection',
-    description: 'Template for choosing between technical options',
-    category: 'technology',
-    fields: [
-      {
-        fieldId: '550e8400-e29b-41d4-a716-446655440005',
-        order: 0,
-        required: true,
-      },
-    ],
-    version: 1,
-    isDefault: false,
-    isCustom: false,
-    createdAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const DecisionTemplateSchema = z
+  .object({
+    id: z.string().uuid(),
+    namespace: z.string().default("core"),
+    name: z.string(),
+    description: z.string(),
+    category: z.enum(["standard", "technology", "strategy", "budget", "policy", "proposal"]),
+    fields: z.array(TemplateFieldAssignmentSchema),
+    version: z.number().int().default(1),
+    isDefault: z.boolean().default(false),
+    isCustom: z.boolean().default(false),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("DecisionTemplate", {
+    description: "A template for structuring decisions",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440008",
+      namespace: "core",
+      name: "Technology Selection",
+      description: "Template for choosing between technical options",
+      category: "technology",
+      fields: [
+        {
+          fieldId: "550e8400-e29b-41d4-a716-446655440005",
+          order: 0,
+          required: true,
+        },
+      ],
+      version: 1,
+      isDefault: false,
+      isCustom: false,
+      createdAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 export type DecisionTemplate = z.infer<typeof DecisionTemplateSchema>;
 
-export const GlobalContextSchema = z.object({
-  activeMeetingId: z.string().uuid().optional(),
-  activeDecisionId: z.string().uuid().optional(),
-  activeDecisionContextId: z.string().uuid().optional(),
-  activeField: z.string().optional(),
-  activeMeeting: MeetingSchema.optional(),
-  activeDecision: FlaggedDecisionSchema.optional(),
-  activeDecisionContext: DecisionContextSchema.optional(),
-  activeTemplate: DecisionTemplateSchema.optional(),
-}).openapi('GlobalContext', {
-  description: 'Current globally selected meeting and decision drafting context',
-});
+export const GlobalContextSchema = z
+  .object({
+    activeMeetingId: z.string().uuid().optional(),
+    activeDecisionId: z.string().uuid().optional(),
+    activeDecisionContextId: z.string().uuid().optional(),
+    activeField: z.string().optional(),
+    activeMeeting: MeetingSchema.optional(),
+    activeDecision: FlaggedDecisionSchema.optional(),
+    activeDecisionContext: DecisionContextSchema.optional(),
+    activeTemplate: DecisionTemplateSchema.optional(),
+  })
+  .openapi("GlobalContext", {
+    description: "Current globally selected meeting and decision drafting context",
+  });
 
 export type GlobalContext = z.infer<typeof GlobalContextSchema>;
 
-export const ActiveMeetingsContextSummarySchema = z.object({
-  currentContext: GlobalContextSchema,
-  activeMeetings: z.array(MeetingSchema),
-}).openapi('ActiveMeetingsContextSummary', {
-  description: 'Current global context and all meetings whose meeting-record status is active',
-});
+export const ActiveMeetingsContextSummarySchema = z
+  .object({
+    currentContext: GlobalContextSchema,
+    activeMeetings: z.array(MeetingSchema),
+  })
+  .openapi("ActiveMeetingsContextSummary", {
+    description: "Current global context and all meetings whose meeting-record status is active",
+  });
 
 export type ActiveMeetingsContextSummary = z.infer<typeof ActiveMeetingsContextSummarySchema>;
 
@@ -718,16 +772,16 @@ export const CreateDecisionTemplateSchema = DecisionTemplateSchema.omit({
   isDefault: true,
   isCustom: true,
   createdAt: true,
-}).openapi('CreateDecisionTemplate', {
-  description: 'Schema for creating a new decision template',
+}).openapi("CreateDecisionTemplate", {
+  description: "Schema for creating a new decision template",
   example: {
-    namespace: 'core',
-    name: 'Technology Selection',
-    description: 'Template for choosing between technical options',
-    category: 'technology',
+    namespace: "core",
+    name: "Technology Selection",
+    description: "Template for choosing between technical options",
+    category: "technology",
     fields: [
       {
-        fieldId: '550e8400-e29b-41d4-a716-446655440005',
+        fieldId: "550e8400-e29b-41d4-a716-446655440005",
         order: 0,
         required: true,
       },
@@ -741,30 +795,32 @@ export type CreateDecisionTemplate = z.infer<typeof CreateDecisionTemplateSchema
 // EXPERT TEMPLATE SCHEMAS
 // ============================================================================
 
-export const ExpertTemplateSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  type: z.enum(['technical', 'legal', 'stakeholder', 'custom']),
-  promptTemplate: z.string(),
-  mcpAccess: z.array(z.string()).default([]),
-  outputSchema: z.record(z.any()).optional(),
-  isActive: z.boolean().default(true),
-  createdAt: z.string().datetime({ offset: true }),
-  updatedAt: z.string().datetime({ offset: true }),
-}).openapi('ExpertTemplate', {
-  description: 'Template for domain expert consultations',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440010',
-    name: 'Technical Architecture Review',
-    type: 'technical',
-    promptTemplate: 'You are a technical architect. Review this decision...',
-    mcpAccess: ['github', 'docs'],
-    outputSchema: { suggestions: 'array', concerns: 'array' },
-    isActive: true,
-    createdAt: '2026-02-27T10:00:00Z',
-    updatedAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const ExpertTemplateSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string(),
+    type: z.enum(["technical", "legal", "stakeholder", "custom"]),
+    promptTemplate: z.string(),
+    mcpAccess: z.array(z.string()).default([]),
+    outputSchema: z.record(z.any()).optional(),
+    isActive: z.boolean().default(true),
+    createdAt: z.string().datetime({ offset: true }),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("ExpertTemplate", {
+    description: "Template for domain expert consultations",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440010",
+      name: "Technical Architecture Review",
+      type: "technical",
+      promptTemplate: "You are a technical architect. Review this decision...",
+      mcpAccess: ["github", "docs"],
+      outputSchema: { suggestions: "array", concerns: "array" },
+      isActive: true,
+      createdAt: "2026-02-27T10:00:00Z",
+      updatedAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 // For backward compatibility, add displayName as computed field
 export const ExpertTemplateWithDisplaySchema = ExpertTemplateSchema.transform((data) => ({
@@ -779,31 +835,35 @@ export type ExpertTemplate = z.infer<typeof ExpertTemplateSchema>;
 // MCP SERVER SCHEMAS
 // ============================================================================
 
-export const MCPServerSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  type: z.enum(['stdio', 'http', 'sse']),
-  connectionConfig: z.record(z.any()),
-  capabilities: z.object({
-    tools: z.array(z.string()).optional(),
-    resources: z.array(z.string()).optional(),
-  }).optional(),
-  status: z.enum(['active', 'inactive', 'error']).default('active'),
-  createdAt: z.string().datetime({ offset: true }),
-  updatedAt: z.string().datetime({ offset: true }),
-}).openapi('MCPServer', {
-  description: 'MCP server configuration',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440011',
-    name: 'github-mcp',
-    type: 'stdio',
-    connectionConfig: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
-    capabilities: { tools: ['search_code', 'get_file'] },
-    status: 'active',
-    createdAt: '2026-02-27T10:00:00Z',
-    updatedAt: '2026-02-27T10:00:00Z',
-  },
-});
+export const MCPServerSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string(),
+    type: z.enum(["stdio", "http", "sse"]),
+    connectionConfig: z.record(z.any()),
+    capabilities: z
+      .object({
+        tools: z.array(z.string()).optional(),
+        resources: z.array(z.string()).optional(),
+      })
+      .optional(),
+    status: z.enum(["active", "inactive", "error"]).default("active"),
+    createdAt: z.string().datetime({ offset: true }),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("MCPServer", {
+    description: "MCP server configuration",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440011",
+      name: "github-mcp",
+      type: "stdio",
+      connectionConfig: { command: "npx", args: ["-y", "@modelcontextprotocol/server-github"] },
+      capabilities: { tools: ["search_code", "get_file"] },
+      status: "active",
+      createdAt: "2026-02-27T10:00:00Z",
+      updatedAt: "2026-02-27T10:00:00Z",
+    },
+  });
 
 // For backward compatibility, add description and connection fields
 export const MCPServerWithCompatSchema = MCPServerSchema.transform((data) => ({
@@ -818,36 +878,38 @@ export type MCPServer = z.infer<typeof MCPServerSchema>;
 // EXPERT ADVICE SCHEMAS
 // ============================================================================
 
-export const ExpertAdviceSchema = z.object({
-  id: z.string().uuid(),
-  decisionContextId: z.string().uuid(),
-  expertId: z.string().uuid(),
-  expertName: z.string(),
-  request: z.string(),
-  response: z.object({
-    suggestions: z.array(z.string()),
-    concerns: z.array(z.string()).optional(),
-    questions: z.array(z.string()).optional(),
-  }),
-  mcpToolsUsed: z.array(z.string()).optional(),
-  requestedAt: z.string().datetime({ offset: true }),
-}).openapi('ExpertAdvice', {
-  description: 'Advice from a domain expert for a decision',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440012',
-    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
-    expertId: '550e8400-e29b-41d4-a716-446655440010',
-    expertName: 'Technical Architecture Review',
-    request: 'Review this architecture decision',
-    response: {
-      suggestions: ['Consider service mesh'],
-      concerns: ['Latency concerns with microservices'],
-      questions: ['What is the team size?'],
+export const ExpertAdviceSchema = z
+  .object({
+    id: z.string().uuid(),
+    decisionContextId: z.string().uuid(),
+    expertId: z.string().uuid(),
+    expertName: z.string(),
+    request: z.string(),
+    response: z.object({
+      suggestions: z.array(z.string()),
+      concerns: z.array(z.string()).optional(),
+      questions: z.array(z.string()).optional(),
+    }),
+    mcpToolsUsed: z.array(z.string()).optional(),
+    requestedAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("ExpertAdvice", {
+    description: "Advice from a domain expert for a decision",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440012",
+      decisionContextId: "550e8400-e29b-41d4-a716-446655440004",
+      expertId: "550e8400-e29b-41d4-a716-446655440010",
+      expertName: "Technical Architecture Review",
+      request: "Review this architecture decision",
+      response: {
+        suggestions: ["Consider service mesh"],
+        concerns: ["Latency concerns with microservices"],
+        questions: ["What is the team size?"],
+      },
+      mcpToolsUsed: ["github"],
+      requestedAt: "2026-02-27T10:00:00Z",
     },
-    mcpToolsUsed: ['github'],
-    requestedAt: '2026-02-27T10:00:00Z',
-  },
-});
+  });
 
 // For backward compatibility, map fields to expected names
 export const ExpertAdviceWithCompatSchema = ExpertAdviceSchema.transform((data) => ({
@@ -868,19 +930,22 @@ export const CreateExpertTemplateSchema = ExpertTemplateSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).openapi('CreateExpertTemplate', {
-  description: 'Schema for creating a new expert template',
+}).openapi("CreateExpertTemplate", {
+  description: "Schema for creating a new expert template",
   example: {
-    name: 'Technical Architecture Review',
-    type: 'technical',
-    promptTemplate: 'You are a technical architect...',
-    mcpAccess: ['github', 'docs'],
+    name: "Technical Architecture Review",
+    type: "technical",
+    promptTemplate: "You are a technical architect...",
+    mcpAccess: ["github", "docs"],
   },
 });
 
-export const UpdateExpertTemplateSchema = CreateExpertTemplateSchema.partial().openapi('UpdateExpertTemplate', {
-  description: 'Schema for updating an expert template',
-});
+export const UpdateExpertTemplateSchema = CreateExpertTemplateSchema.partial().openapi(
+  "UpdateExpertTemplate",
+  {
+    description: "Schema for updating an expert template",
+  },
+);
 
 export type CreateExpertTemplate = z.infer<typeof CreateExpertTemplateSchema>;
 export type UpdateExpertTemplate = z.infer<typeof UpdateExpertTemplateSchema>;
@@ -890,19 +955,19 @@ export const CreateMCPServerSchema = MCPServerSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).openapi('CreateMCPServer', {
-  description: 'Schema for creating a new MCP server',
+}).openapi("CreateMCPServer", {
+  description: "Schema for creating a new MCP server",
   example: {
-    name: 'github-mcp',
-    type: 'stdio',
-    connectionConfig: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
-    capabilities: { tools: ['search_code', 'get_file'] },
+    name: "github-mcp",
+    type: "stdio",
+    connectionConfig: { command: "npx", args: ["-y", "@modelcontextprotocol/server-github"] },
+    capabilities: { tools: ["search_code", "get_file"] },
   },
 });
 
 // For backward compatibility, accept connection field instead of connectionConfig
 export const CreateMCPServerWithCompatSchema = CreateMCPServerSchema.transform((data) => {
-  if ('connection' in data && !('connectionConfig' in data)) {
+  if ("connection" in data && !("connectionConfig" in data)) {
     const { connection, ...rest } = data as any;
     return {
       ...rest,
@@ -912,8 +977,8 @@ export const CreateMCPServerWithCompatSchema = CreateMCPServerSchema.transform((
   return data;
 });
 
-export const UpdateMCPServerSchema = CreateMCPServerSchema.partial().openapi('UpdateMCPServer', {
-  description: 'Schema for updating an MCP server',
+export const UpdateMCPServerSchema = CreateMCPServerSchema.partial().openapi("UpdateMCPServer", {
+  description: "Schema for updating an MCP server",
 });
 
 export type CreateMCPServer = z.infer<typeof CreateMCPServerSchema>;
@@ -923,23 +988,23 @@ export type UpdateMCPServer = z.infer<typeof UpdateMCPServerSchema>;
 export const CreateExpertAdviceSchema = ExpertAdviceSchema.omit({
   id: true,
   requestedAt: true,
-}).openapi('CreateExpertAdvice', {
-  description: 'Schema for creating expert advice',
+}).openapi("CreateExpertAdvice", {
+  description: "Schema for creating expert advice",
   example: {
-    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
-    expertId: '550e8400-e29b-41d4-a716-446655440010',
-    expertName: 'Technical Architecture Review',
-    request: 'Review this architecture decision',
+    decisionContextId: "550e8400-e29b-41d4-a716-446655440004",
+    expertId: "550e8400-e29b-41d4-a716-446655440010",
+    expertName: "Technical Architecture Review",
+    request: "Review this architecture decision",
     response: {
-      suggestions: ['Consider service mesh'],
-      concerns: ['Latency concerns'],
+      suggestions: ["Consider service mesh"],
+      concerns: ["Latency concerns"],
     },
   },
 });
 
 // For backward compatibility, accept advice field instead of response
 export const CreateExpertAdviceWithCompatSchema = CreateExpertAdviceSchema.transform((data) => {
-  if ('advice' in data && !('response' in data)) {
+  if ("advice" in data && !("response" in data)) {
     const { advice, ...rest } = data as any;
     return {
       ...rest,
@@ -955,48 +1020,68 @@ export type CreateExpertAdvice = z.infer<typeof CreateExpertAdviceSchema>;
 // LLM INTERACTION SCHEMAS
 // ============================================================================
 
-export const PromptSegmentSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('system'), content: z.string() }),
-  z.object({ type: z.literal('transcript'), speaker: z.string().optional(), text: z.string(), tags: z.array(z.string()) }),
-  z.object({ type: z.literal('supplementary'), label: z.string().optional(), content: z.string(), tags: z.array(z.string()) }),
-  z.object({ type: z.literal('guidance'), fieldId: z.string().optional(), content: z.string(), source: z.enum(['user_text', 'tagged_transcript']) }),
-  z.object({ type: z.literal('template_fields'), fields: z.array(z.object({ id: z.string(), displayName: z.string(), description: z.string() })) }),
+export const PromptSegmentSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("system"), content: z.string() }),
+  z.object({
+    type: z.literal("transcript"),
+    speaker: z.string().optional(),
+    text: z.string(),
+    tags: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal("supplementary"),
+    label: z.string().optional(),
+    content: z.string(),
+    tags: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal("guidance"),
+    fieldId: z.string().optional(),
+    content: z.string(),
+    source: z.enum(["user_text", "tagged_transcript"]),
+  }),
+  z.object({
+    type: z.literal("template_fields"),
+    fields: z.array(z.object({ id: z.string(), displayName: z.string(), description: z.string() })),
+  }),
 ]);
 
 export type PromptSegmentData = z.infer<typeof PromptSegmentSchema>;
 
-export const LLMInteractionSchema = z.object({
-  id: z.string().uuid(),
-  decisionContextId: z.string().uuid(),
-  fieldId: z.string().uuid().nullable(),
-  operation: z.enum(['generate_draft', 'regenerate_field']),
-  promptSegments: z.array(PromptSegmentSchema),
-  promptText: z.string(),
-  responseText: z.string(),
-  parsedResult: z.record(z.string(), z.any()).nullable(),
-  provider: z.string(),
-  model: z.string(),
-  latencyMs: z.number().int(),
-  tokenCount: z.object({ input: z.number().int(), output: z.number().int() }).nullable(),
-  createdAt: z.string().datetime({ offset: true }),
-}).openapi('LLMInteraction', {
-  description: 'A stored record of an LLM API call with full prompt and response',
-  example: {
-    id: '550e8400-e29b-41d4-a716-446655440099',
-    decisionContextId: '550e8400-e29b-41d4-a716-446655440004',
-    fieldId: null,
-    operation: 'generate_draft',
-    promptSegments: [{ type: 'system', content: 'You are an expert...' }],
-    promptText: 'You are an expert...\n\n=== TRANSCRIPT ===\n...',
-    responseText: '{"decision_statement": "Approve cloud migration"}',
-    parsedResult: { decision_statement: 'Approve cloud migration' },
-    provider: 'anthropic',
-    model: 'claude-opus-4-5',
-    latencyMs: 1234,
-    tokenCount: { input: 500, output: 50 },
-    createdAt: '2026-01-01T00:00:00Z',
-  },
-});
+export const LLMInteractionSchema = z
+  .object({
+    id: z.string().uuid(),
+    decisionContextId: z.string().uuid(),
+    fieldId: z.string().uuid().nullable(),
+    operation: z.enum(["generate_draft", "regenerate_field"]),
+    promptSegments: z.array(PromptSegmentSchema),
+    promptText: z.string(),
+    responseText: z.string(),
+    parsedResult: z.record(z.string(), z.any()).nullable(),
+    provider: z.string(),
+    model: z.string(),
+    latencyMs: z.number().int(),
+    tokenCount: z.object({ input: z.number().int(), output: z.number().int() }).nullable(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("LLMInteraction", {
+    description: "A stored record of an LLM API call with full prompt and response",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440099",
+      decisionContextId: "550e8400-e29b-41d4-a716-446655440004",
+      fieldId: null,
+      operation: "generate_draft",
+      promptSegments: [{ type: "system", content: "You are an expert..." }],
+      promptText: "You are an expert...\n\n=== TRANSCRIPT ===\n...",
+      responseText: '{"decision_statement": "Approve cloud migration"}',
+      parsedResult: { decision_statement: "Approve cloud migration" },
+      provider: "anthropic",
+      model: "claude-opus-4-5",
+      latencyMs: 1234,
+      tokenCount: { input: 500, output: 50 },
+      createdAt: "2026-01-01T00:00:00Z",
+    },
+  });
 
 export type LLMInteraction = z.infer<typeof LLMInteractionSchema>;
 
@@ -1004,24 +1089,26 @@ export type LLMInteraction = z.infer<typeof LLMInteractionSchema>;
 // MEETING SUMMARY SCHEMA
 // ============================================================================
 
-export const MeetingSummarySchema = z.object({
-  meetingId: z.string().uuid(),
-  title: z.string(),
-  segmentCount: z.number().int(),
-  decisionCount: z.number().int(),
-  draftCount: z.number().int(),
-  loggedCount: z.number().int(),
-}).openapi('MeetingSummary', {
-  description: 'Aggregate statistics for a meeting',
-  example: {
-    meetingId: '550e8400-e29b-41d4-a716-446655440000',
-    title: 'Q1 Planning',
-    segmentCount: 45,
-    decisionCount: 3,
-    draftCount: 2,
-    loggedCount: 1,
-  },
-});
+export const MeetingSummarySchema = z
+  .object({
+    meetingId: z.string().uuid(),
+    title: z.string(),
+    segmentCount: z.number().int(),
+    decisionCount: z.number().int(),
+    draftCount: z.number().int(),
+    loggedCount: z.number().int(),
+  })
+  .openapi("MeetingSummary", {
+    description: "Aggregate statistics for a meeting",
+    example: {
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      title: "Q1 Planning",
+      segmentCount: 45,
+      decisionCount: 3,
+      draftCount: 2,
+      loggedCount: 1,
+    },
+  });
 
 export type MeetingSummary = z.infer<typeof MeetingSummarySchema>;
 
@@ -1029,11 +1116,13 @@ export type MeetingSummary = z.infer<typeof MeetingSummarySchema>;
 // DECISION CONTEXT LIST SCHEMA
 // ============================================================================
 
-export const DecisionContextListSchema = z.object({
-  contexts: z.array(DecisionContextSchema),
-}).openapi('DecisionContextList', {
-  description: 'List of decision contexts for a meeting',
-});
+export const DecisionContextListSchema = z
+  .object({
+    contexts: z.array(DecisionContextSchema),
+  })
+  .openapi("DecisionContextList", {
+    description: "List of decision contexts for a meeting",
+  });
 
 export type DecisionContextList = z.infer<typeof DecisionContextListSchema>;
 

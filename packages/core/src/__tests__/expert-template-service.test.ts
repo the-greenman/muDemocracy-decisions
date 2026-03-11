@@ -2,16 +2,16 @@
  * Unit tests for Expert Template Service
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ExpertTemplateService } from '../services/expert-template-service';
-import type { 
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { ExpertTemplateService } from "../services/expert-template-service";
+import type {
   IExpertTemplateRepository,
   ExpertTemplate,
   CreateExpertTemplate,
-  UpdateExpertTemplate
-} from '@repo/core';
+  UpdateExpertTemplate,
+} from "@repo/core";
 
-describe('ExpertTemplateService', () => {
+describe("ExpertTemplateService", () => {
   let service: ExpertTemplateService;
   let mockRepository: IExpertTemplateRepository;
 
@@ -32,18 +32,18 @@ describe('ExpertTemplateService', () => {
     vi.clearAllMocks();
   });
 
-  describe('createTemplate', () => {
-    it('should create a valid template', async () => {
+  describe("createTemplate", () => {
+    it("should create a valid template", async () => {
       const data: CreateExpertTemplate = {
-        name: 'Test Expert',
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
-        mcpAccess: ['github'],
+        name: "Test Expert",
+        type: "technical",
+        promptTemplate: "You are a technical expert",
+        mcpAccess: ["github"],
         isActive: true,
       };
 
       const expectedTemplate: ExpertTemplate = {
-        id: '550e8400-e29b-41d4-a716-446655440010',
+        id: "550e8400-e29b-41d4-a716-446655440010",
         name: data.name,
         displayName: data.name,
         description: undefined,
@@ -52,8 +52,8 @@ describe('ExpertTemplateService', () => {
         mcpAccess: data.mcpAccess,
         outputSchema: undefined,
         isActive: true,
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepository.create).mockResolvedValue(expectedTemplate);
@@ -64,64 +64,64 @@ describe('ExpertTemplateService', () => {
       expect(mockRepository.create).toHaveBeenCalledWith(data);
     });
 
-    it('should throw error for invalid template', async () => {
+    it("should throw error for invalid template", async () => {
       const data: CreateExpertTemplate = {
-        name: '',
-        type: 'invalid' as any,
-        promptTemplate: '',
-        mcpAccess: [''],
+        name: "",
+        type: "invalid" as any,
+        promptTemplate: "",
+        mcpAccess: [""],
         isActive: true,
       };
 
       await expect(service.createTemplate(data)).rejects.toThrow(
-        'Invalid template: Name is required, Type must be one of: technical, legal, stakeholder, custom, Prompt template is required, Invalid MCP server name: '
+        "Invalid template: Name is required, Type must be one of: technical, legal, stakeholder, custom, Prompt template is required, Invalid MCP server name: ",
       );
     });
   });
 
-  describe('getTemplate', () => {
-    it('should return a template by ID', async () => {
+  describe("getTemplate", () => {
+    it("should return a template by ID", async () => {
       const template: ExpertTemplate = {
-        id: '550e8400-e29b-41d4-a716-446655440010',
-        name: 'Test Expert',
-        displayName: 'Test Expert',
+        id: "550e8400-e29b-41d4-a716-446655440010",
+        name: "Test Expert",
+        displayName: "Test Expert",
         description: undefined,
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
+        type: "technical",
+        promptTemplate: "You are a technical expert",
         mcpAccess: [],
         outputSchema: undefined,
         isActive: true,
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepository.findById).mockResolvedValue(template);
 
-      const result = await service.getTemplate('550e8400-e29b-41d4-a716-446655440010');
+      const result = await service.getTemplate("550e8400-e29b-41d4-a716-446655440010");
 
       expect(result).toEqual(template);
-      expect(mockRepository.findById).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440010');
+      expect(mockRepository.findById).toHaveBeenCalledWith("550e8400-e29b-41d4-a716-446655440010");
     });
   });
 
-  describe('updateTemplate', () => {
-    it('should update an existing template', async () => {
+  describe("updateTemplate", () => {
+    it("should update an existing template", async () => {
       const existingTemplate: ExpertTemplate = {
-        id: '550e8400-e29b-41d4-a716-446655440010',
-        name: 'Test Expert',
-        displayName: 'Test Expert',
+        id: "550e8400-e29b-41d4-a716-446655440010",
+        name: "Test Expert",
+        displayName: "Test Expert",
         description: undefined,
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
+        type: "technical",
+        promptTemplate: "You are a technical expert",
         mcpAccess: [],
         outputSchema: undefined,
         isActive: true,
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       const updateData: UpdateExpertTemplate = {
-        name: 'Updated Expert',
+        name: "Updated Expert",
         isActive: false,
       };
 
@@ -134,64 +134,70 @@ describe('ExpertTemplateService', () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(existingTemplate);
       vi.mocked(mockRepository.update).mockResolvedValue(updatedTemplate);
 
-      const result = await service.updateTemplate('550e8400-e29b-41d4-a716-446655440010', updateData);
+      const result = await service.updateTemplate(
+        "550e8400-e29b-41d4-a716-446655440010",
+        updateData,
+      );
 
       expect(result).toEqual(updatedTemplate);
-      expect(mockRepository.update).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440010', updateData);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        "550e8400-e29b-41d4-a716-446655440010",
+        updateData,
+      );
     });
 
-    it('should return null for non-existent template', async () => {
+    it("should return null for non-existent template", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(null);
 
-      const result = await service.updateTemplate('non-existent', { name: 'Updated' });
+      const result = await service.updateTemplate("non-existent", { name: "Updated" });
 
       expect(result).toBeNull();
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
   });
 
-  describe('deleteTemplate', () => {
-    it('should delete an existing template', async () => {
+  describe("deleteTemplate", () => {
+    it("should delete an existing template", async () => {
       const existingTemplate: ExpertTemplate = {
-        id: '550e8400-e29b-41d4-a716-446655440010',
-        name: 'Test Expert',
-        displayName: 'Test Expert',
+        id: "550e8400-e29b-41d4-a716-446655440010",
+        name: "Test Expert",
+        displayName: "Test Expert",
         description: undefined,
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
+        type: "technical",
+        promptTemplate: "You are a technical expert",
         mcpAccess: [],
         outputSchema: undefined,
         isActive: true,
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepository.findById).mockResolvedValue(existingTemplate);
       vi.mocked(mockRepository.delete).mockResolvedValue(true);
 
-      const result = await service.deleteTemplate('550e8400-e29b-41d4-a716-446655440010');
+      const result = await service.deleteTemplate("550e8400-e29b-41d4-a716-446655440010");
 
       expect(result).toBe(true);
-      expect(mockRepository.delete).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440010');
+      expect(mockRepository.delete).toHaveBeenCalledWith("550e8400-e29b-41d4-a716-446655440010");
     });
 
-    it('should return false for non-existent template', async () => {
+    it("should return false for non-existent template", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(null);
 
-      const result = await service.deleteTemplate('non-existent');
+      const result = await service.deleteTemplate("non-existent");
 
       expect(result).toBe(false);
       expect(mockRepository.delete).not.toHaveBeenCalled();
     });
   });
 
-  describe('validateTemplate', () => {
-    it('should validate a correct template', async () => {
+  describe("validateTemplate", () => {
+    it("should validate a correct template", async () => {
       const data: CreateExpertTemplate = {
-        name: 'Technical Architect',
-        type: 'technical',
-        promptTemplate: 'You are a technical architect. Review this decision...',
-        mcpAccess: ['github', 'jira'],
+        name: "Technical Architect",
+        type: "technical",
+        promptTemplate: "You are a technical architect. Review this decision...",
+        mcpAccess: ["github", "jira"],
         isActive: true,
       };
 
@@ -201,40 +207,40 @@ describe('ExpertTemplateService', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should return errors for invalid template', async () => {
+    it("should return errors for invalid template", async () => {
       const data: CreateExpertTemplate = {
-        name: '',
-        type: 'invalid' as any,
-        promptTemplate: '',
-        mcpAccess: [''],
-        outputSchema: 'invalid' as any,
+        name: "",
+        type: "invalid" as any,
+        promptTemplate: "",
+        mcpAccess: [""],
+        outputSchema: "invalid" as any,
       };
 
       const result = await service.validateTemplate(data);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Name is required');
-      expect(result.errors).toContain('Type must be one of: technical, legal, stakeholder, custom');
-      expect(result.errors).toContain('Prompt template is required');
-      expect(result.errors).toContain('Invalid MCP server name: ');
-      expect(result.errors).toContain('Output schema must be an object');
+      expect(result.errors).toContain("Name is required");
+      expect(result.errors).toContain("Type must be one of: technical, legal, stakeholder, custom");
+      expect(result.errors).toContain("Prompt template is required");
+      expect(result.errors).toContain("Invalid MCP server name: ");
+      expect(result.errors).toContain("Output schema must be an object");
     });
   });
 
-  describe('createManyTemplates', () => {
-    it('should create multiple valid templates', async () => {
+  describe("createManyTemplates", () => {
+    it("should create multiple valid templates", async () => {
       const templates: CreateExpertTemplate[] = [
         {
-          name: 'Expert 1',
-          type: 'technical',
-          promptTemplate: 'You are expert 1',
+          name: "Expert 1",
+          type: "technical",
+          promptTemplate: "You are expert 1",
           mcpAccess: [],
           isActive: true,
         },
         {
-          name: 'Expert 2',
-          type: 'legal',
-          promptTemplate: 'You are expert 2',
+          name: "Expert 2",
+          type: "legal",
+          promptTemplate: "You are expert 2",
           mcpAccess: [],
           isActive: true,
         },
@@ -250,8 +256,8 @@ describe('ExpertTemplateService', () => {
         mcpAccess: t.mcpAccess,
         outputSchema: undefined,
         isActive: t.isActive,
-        createdAt: '2026-02-27T10:00:00Z',
-        updatedAt: '2026-02-27T10:00:00Z',
+        createdAt: "2026-02-27T10:00:00Z",
+        updatedAt: "2026-02-27T10:00:00Z",
       }));
 
       vi.mocked(mockRepository.createMany).mockResolvedValue(createdTemplates);
@@ -262,26 +268,26 @@ describe('ExpertTemplateService', () => {
       expect(mockRepository.createMany).toHaveBeenCalledWith(templates);
     });
 
-    it('should throw error if any template is invalid', async () => {
+    it("should throw error if any template is invalid", async () => {
       const templates: CreateExpertTemplate[] = [
         {
-          name: 'Expert 1',
-          type: 'technical',
-          promptTemplate: 'You are expert 1',
+          name: "Expert 1",
+          type: "technical",
+          promptTemplate: "You are expert 1",
           mcpAccess: [],
           isActive: true,
         },
         {
-          name: '',
-          type: 'legal',
-          promptTemplate: 'You are expert 2',
+          name: "",
+          type: "legal",
+          promptTemplate: "You are expert 2",
           mcpAccess: [],
           isActive: true,
         },
       ];
 
       await expect(service.createManyTemplates(templates)).rejects.toThrow(
-        'Invalid template : Name is required'
+        "Invalid template : Name is required",
       );
       expect(mockRepository.createMany).not.toHaveBeenCalled();
     });

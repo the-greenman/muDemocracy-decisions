@@ -1,5 +1,5 @@
-import type { TranscriptEvent } from './providers/interface.js';
-import { formatSecondsAsTimestamp } from './time.js';
+import type { TranscriptEvent } from "./providers/interface.js";
+import { formatSecondsAsTimestamp } from "./time.js";
 
 function formatSrtTimestamp(seconds: number): string {
   const totalMs = Math.max(0, Math.floor(seconds * 1000));
@@ -8,10 +8,10 @@ function formatSrtTimestamp(seconds: number): string {
   const secs = Math.floor((totalMs % 60_000) / 1000);
   const millis = totalMs % 1000;
 
-  const hh = String(hours).padStart(2, '0');
-  const mm = String(minutes).padStart(2, '0');
-  const ss = String(secs).padStart(2, '0');
-  const mmm = String(millis).padStart(3, '0');
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(secs).padStart(2, "0");
+  const mmm = String(millis).padStart(3, "0");
   return `${hh}:${mm}:${ss},${mmm}`;
 }
 
@@ -28,7 +28,10 @@ function inferEndTime(event: TranscriptEvent, fallbackSeconds: number): number {
 }
 
 export function formatEventsAsText(events: TranscriptEvent[]): string {
-  return events.map((event) => event.text.trim()).filter(Boolean).join('\n');
+  return events
+    .map((event) => event.text.trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function formatEventsAsSrt(events: TranscriptEvent[]): string {
@@ -46,19 +49,21 @@ export function formatEventsAsSrt(events: TranscriptEvent[]): string {
     lines.push(String(index + 1));
     lines.push(`${formatSrtTimestamp(startSeconds)} --> ${formatSrtTimestamp(endSeconds)}`);
     lines.push(text);
-    lines.push('');
+    lines.push("");
   }
 
-  return lines.join('\n').trimEnd() + '\n';
+  return lines.join("\n").trimEnd() + "\n";
 }
 
 export function formatEventPreviewLine(index: number, event: TranscriptEvent): string {
-  const start = event.startTimeSeconds === undefined
-    ? '??:??:??'
-    : formatSecondsAsTimestamp(event.startTimeSeconds);
-  const end = event.endTimeSeconds === undefined
-    ? '??:??:??'
-    : formatSecondsAsTimestamp(event.endTimeSeconds);
+  const start =
+    event.startTimeSeconds === undefined
+      ? "??:??:??"
+      : formatSecondsAsTimestamp(event.startTimeSeconds);
+  const end =
+    event.endTimeSeconds === undefined
+      ? "??:??:??"
+      : formatSecondsAsTimestamp(event.endTimeSeconds);
 
   return `${index}. [${start} -> ${end}] ${event.text}`;
 }

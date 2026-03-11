@@ -2,19 +2,22 @@
  * Drizzle implementation of IFlaggedDecisionRepository
  */
 
-import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
-import type { FlaggedDecisionSelect } from '../schema.js';
-import { db } from '../client.js';
-import { flaggedDecisions } from '../schema.js';
-import { eq, desc } from 'drizzle-orm';
+import type { FlaggedDecision, CreateFlaggedDecision } from "@repo/schema";
+import type { FlaggedDecisionSelect } from "../schema.js";
+import { db } from "../client.js";
+import { flaggedDecisions } from "../schema.js";
+import { eq, desc } from "drizzle-orm";
 
 // Interface definition to avoid circular dependency
 interface IFlaggedDecisionRepository {
   create(data: CreateFlaggedDecision): Promise<FlaggedDecision>;
   findById(id: string): Promise<FlaggedDecision | null>;
   findByMeetingId(meetingId: string): Promise<FlaggedDecision[]>;
-  update(id: string, data: Partial<Omit<CreateFlaggedDecision, 'meetingId'>>): Promise<FlaggedDecision | null>;
-  updateStatus(id: string, status: FlaggedDecision['status']): Promise<FlaggedDecision | null>;
+  update(
+    id: string,
+    data: Partial<Omit<CreateFlaggedDecision, "meetingId">>,
+  ): Promise<FlaggedDecision | null>;
+  updateStatus(id: string, status: FlaggedDecision["status"]): Promise<FlaggedDecision | null>;
   delete(id: string): Promise<boolean>;
 }
 
@@ -26,13 +29,13 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
         ...data,
         suggestedTemplateId: data.suggestedTemplateId || null,
         templateConfidence: data.templateConfidence || null,
-        status: 'pending',
+        status: "pending",
         priority: data.priority || 0,
       })
       .returning();
 
     if (!row) {
-      throw new Error('Failed to create flagged decision');
+      throw new Error("Failed to create flagged decision");
     }
 
     return this.mapToSchema(row);
@@ -45,14 +48,11 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
       .where(eq(flaggedDecisions.meetingId, meetingId))
       .orderBy(desc(flaggedDecisions.priority), flaggedDecisions.createdAt);
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findById(id: string): Promise<FlaggedDecision | null> {
-    const [row] = await db
-      .select()
-      .from(flaggedDecisions)
-      .where(eq(flaggedDecisions.id, id));
+    const [row] = await db.select().from(flaggedDecisions).where(eq(flaggedDecisions.id, id));
 
     if (!row) {
       return null;
@@ -63,14 +63,14 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
 
   async update(
     id: string,
-    data: Partial<Omit<CreateFlaggedDecision, 'meetingId'>>
+    data: Partial<Omit<CreateFlaggedDecision, "meetingId">>,
   ): Promise<FlaggedDecision | null> {
     const setData: Record<string, unknown> = { ...data, updatedAt: new Date() };
     if (data.suggestedTemplateId !== undefined) {
-      setData['suggestedTemplateId'] = data.suggestedTemplateId || null;
+      setData["suggestedTemplateId"] = data.suggestedTemplateId || null;
     }
     if (data.templateConfidence !== undefined) {
-      setData['templateConfidence'] = data.templateConfidence || null;
+      setData["templateConfidence"] = data.templateConfidence || null;
     }
 
     const [row] = await db
@@ -100,7 +100,10 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
     return this.mapToSchema(row);
   }
 
-  async updateStatus(id: string, status: FlaggedDecision['status']): Promise<FlaggedDecision | null> {
+  async updateStatus(
+    id: string,
+    status: FlaggedDecision["status"],
+  ): Promise<FlaggedDecision | null> {
     const [row] = await db
       .update(flaggedDecisions)
       .set({ status, updatedAt: new Date() })
@@ -115,10 +118,7 @@ export class DrizzleFlaggedDecisionRepository implements IFlaggedDecisionReposit
   }
 
   async delete(id: string): Promise<boolean> {
-    const [row] = await db
-      .delete(flaggedDecisions)
-      .where(eq(flaggedDecisions.id, id))
-      .returning();
+    const [row] = await db.delete(flaggedDecisions).where(eq(flaggedDecisions.id, id)).returning();
 
     return !!row;
   }

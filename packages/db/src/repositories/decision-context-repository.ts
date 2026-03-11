@@ -2,14 +2,12 @@
  * Drizzle implementation of IDecisionContextRepository
  */
 
-import { 
-  decisionContexts
-} from '../schema.js';
-import { db } from '../client.js';
-import { eq, sql } from 'drizzle-orm';
-import { DecisionContext, CreateDecisionContext } from '@repo/schema';
+import { decisionContexts } from "../schema.js";
+import { db } from "../client.js";
+import { eq, sql } from "drizzle-orm";
+import { DecisionContext, CreateDecisionContext } from "@repo/schema";
 
-const FIELD_META_KEY = '__fieldMeta';
+const FIELD_META_KEY = "__fieldMeta";
 
 interface IDecisionContextRepository {
   create(data: CreateDecisionContext): Promise<DecisionContext>;
@@ -21,7 +19,7 @@ interface IDecisionContextRepository {
   unlockField(id: string, fieldId: string): Promise<DecisionContext | null>;
   lockAllFields(id: string): Promise<DecisionContext | null>;
   setActiveField(id: string, fieldId: string | null): Promise<DecisionContext | null>;
-  updateStatus(id: string, status: DecisionContext['status']): Promise<DecisionContext | null>;
+  updateStatus(id: string, status: DecisionContext["status"]): Promise<DecisionContext | null>;
 }
 
 export class DrizzleDecisionContextRepository implements IDecisionContextRepository {
@@ -36,23 +34,20 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
         activeField: data.activeField || null,
         draftData: data.draftData || null,
         draftVersions: [],
-        status: 'drafting',
+        status: "drafting",
         lockedFields: [],
       })
       .returning();
 
     if (!row) {
-      throw new Error('Failed to create decision context');
+      throw new Error("Failed to create decision context");
     }
 
     return this.mapToSchema(row);
   }
 
   async findById(id: string): Promise<DecisionContext | null> {
-    const [row] = await db
-      .select()
-      .from(decisionContexts)
-      .where(eq(decisionContexts.id, id));
+    const [row] = await db.select().from(decisionContexts).where(eq(decisionContexts.id, id));
 
     if (!row) {
       return null;
@@ -68,7 +63,7 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
       .where(eq(decisionContexts.meetingId, meetingId))
       .orderBy(decisionContexts.createdAt);
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByFlaggedDecisionId(flaggedDecisionId: string): Promise<DecisionContext | null> {
@@ -137,7 +132,7 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
       return null;
     }
 
-    const lockedFields = current.lockedFields.filter(id => id !== fieldId);
+    const lockedFields = current.lockedFields.filter((id) => id !== fieldId);
 
     const [row] = await db
       .update(decisionContexts)
@@ -163,8 +158,10 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
     }
 
     // Get all field IDs from draft data
-    const allFields = Object.keys(current.draftData || {}).filter((fieldId) => fieldId !== FIELD_META_KEY);
-    
+    const allFields = Object.keys(current.draftData || {}).filter(
+      (fieldId) => fieldId !== FIELD_META_KEY,
+    );
+
     // Combine with currently locked fields to ensure we don't lose any
     const lockedFields = [...new Set([...current.lockedFields, ...allFields])];
 
@@ -193,11 +190,11 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
         WHERE id = ${id}
         RETURNING *
       `);
-      
+
       if (!rows || rows.length === 0) {
         return null;
       }
-      
+
       return this.mapToSchema(rows[0]);
     } else {
       const [row] = await db
@@ -217,7 +214,10 @@ export class DrizzleDecisionContextRepository implements IDecisionContextReposit
     }
   }
 
-  async updateStatus(id: string, status: DecisionContext['status']): Promise<DecisionContext | null> {
+  async updateStatus(
+    id: string,
+    status: DecisionContext["status"],
+  ): Promise<DecisionContext | null> {
     const [row] = await db
       .update(decisionContexts)
       .set({

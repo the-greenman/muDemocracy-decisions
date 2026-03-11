@@ -2,8 +2,8 @@
  * Service for managing LLM interactions
  */
 
-import { ILLMInteractionRepository } from '../interfaces/i-llm-interaction-repository.js';
-import type { LLMInteraction } from '@repo/schema';
+import { ILLMInteractionRepository } from "../interfaces/i-llm-interaction-repository.js";
+import type { LLMInteraction } from "@repo/schema";
 
 export class LLMInteractionService {
   constructor(private repository: ILLMInteractionRepository) {}
@@ -28,7 +28,7 @@ export class LLMInteractionService {
   async create(data: {
     decisionContextId: string;
     fieldId?: string;
-    operation: 'generate_draft' | 'regenerate_field';
+    operation: "generate_draft" | "regenerate_field";
     promptSegments: any[];
     promptText: string;
     responseText: string;

@@ -3,23 +3,19 @@
  * Tests against real test database
  */
 
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
-import { 
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
+import {
   DrizzleExpertTemplateRepository,
   DrizzleMCPServerRepository,
-  DrizzleExpertAdviceHistoryRepository 
-} from '../repositories/expert-mcp-repository';
-import { db } from '../client';
-import { meetings, flaggedDecisions, decisionContexts, decisionTemplates } from '../schema';
-import { sql } from 'drizzle-orm';
-import type {
-  CreateExpertTemplate,
-  CreateMCPServer,
-  CreateExpertAdvice
-} from '@repo/core';
-import { randomUUID } from 'crypto';
+  DrizzleExpertAdviceHistoryRepository,
+} from "../repositories/expert-mcp-repository";
+import { db } from "../client";
+import { meetings, flaggedDecisions, decisionContexts, decisionTemplates } from "../schema";
+import { sql } from "drizzle-orm";
+import type { CreateExpertTemplate, CreateMCPServer, CreateExpertAdvice } from "@repo/core";
+import { randomUUID } from "crypto";
 
-describe('Expert and MCP Repository Integration Tests', () => {
+describe("Expert and MCP Repository Integration Tests", () => {
   let expertRepo: DrizzleExpertTemplateRepository;
   let mcpRepo: DrizzleMCPServerRepository;
   let adviceRepo: DrizzleExpertAdviceHistoryRepository;
@@ -37,45 +33,57 @@ describe('Expert and MCP Repository Integration Tests', () => {
     await db.execute(sql`DELETE FROM expert_templates`);
     await db.execute(sql`DELETE FROM mcp_servers`);
 
-    const [template] = await db.insert(decisionTemplates).values({
-      namespace: 'test',
-      name: `Expert Advice Template ${randomUUID()}`,
-      description: 'Template for expert advice integration tests',
-      category: 'standard',
-      version: 1,
-      isDefault: false,
-      isCustom: false,
-    }).returning();
+    const [template] = await db
+      .insert(decisionTemplates)
+      .values({
+        namespace: "test",
+        name: `Expert Advice Template ${randomUUID()}`,
+        description: "Template for expert advice integration tests",
+        category: "standard",
+        version: 1,
+        isDefault: false,
+        isCustom: false,
+      })
+      .returning();
 
-    const [meeting] = await db.insert(meetings).values({
-      title: `Expert Advice Meeting ${randomUUID()}`,
-      date: new Date('2026-03-01T00:00:00.000Z'),
-      participants: ['Alice', 'Bob'],
-      status: 'active',
-    }).returning();
+    const [meeting] = await db
+      .insert(meetings)
+      .values({
+        title: `Expert Advice Meeting ${randomUUID()}`,
+        date: new Date("2026-03-01T00:00:00.000Z"),
+        participants: ["Alice", "Bob"],
+        status: "active",
+      })
+      .returning();
 
-    const [flaggedDecision] = await db.insert(flaggedDecisions).values({
-      meetingId: meeting!.id,
-      suggestedTitle: 'Expert advice decision',
-      contextSummary: 'Decision used for expert advice tests',
-      confidence: 0.9,
-      chunkIds: [],
-      priority: 0,
-      status: 'pending',
-      suggestedTemplateId: null,
-      templateConfidence: null,
-    }).returning();
+    const [flaggedDecision] = await db
+      .insert(flaggedDecisions)
+      .values({
+        meetingId: meeting!.id,
+        suggestedTitle: "Expert advice decision",
+        contextSummary: "Decision used for expert advice tests",
+        confidence: 0.9,
+        chunkIds: [],
+        priority: 0,
+        status: "pending",
+        suggestedTemplateId: null,
+        templateConfidence: null,
+      })
+      .returning();
 
-    const [context] = await db.insert(decisionContexts).values({
-      meetingId: meeting!.id,
-      flaggedDecisionId: flaggedDecision!.id,
-      title: 'Expert advice context',
-      templateId: template!.id,
-      activeField: null,
-      lockedFields: [],
-      draftData: {},
-      status: 'drafting',
-    }).returning();
+    const [context] = await db
+      .insert(decisionContexts)
+      .values({
+        meetingId: meeting!.id,
+        flaggedDecisionId: flaggedDecision!.id,
+        title: "Expert advice context",
+        templateId: template!.id,
+        activeField: null,
+        lockedFields: [],
+        draftData: {},
+        status: "drafting",
+      })
+      .returning();
 
     testDecisionContextId = context!.id;
   });
@@ -87,13 +95,13 @@ describe('Expert and MCP Repository Integration Tests', () => {
     await db.execute(sql`DELETE FROM mcp_servers`);
   });
 
-  describe('ExpertTemplateRepository', () => {
-    it('should create and find an expert template', async () => {
+  describe("ExpertTemplateRepository", () => {
+    it("should create and find an expert template", async () => {
       const data: CreateExpertTemplate = {
-        name: 'Test Expert',
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
-        mcpAccess: ['github'],
+        name: "Test Expert",
+        type: "technical",
+        promptTemplate: "You are a technical expert",
+        mcpAccess: ["github"],
         isActive: true,
       };
 
@@ -107,20 +115,20 @@ describe('Expert and MCP Repository Integration Tests', () => {
       expect(found).toEqual(created);
     });
 
-    it('should find all expert templates', async () => {
+    it("should find all expert templates", async () => {
       const data1: CreateExpertTemplate = {
-        name: 'Expert 1',
-        type: 'technical',
-        promptTemplate: 'You are expert 1',
+        name: "Expert 1",
+        type: "technical",
+        promptTemplate: "You are expert 1",
         mcpAccess: [],
         isActive: true,
       };
 
       const data2: CreateExpertTemplate = {
-        name: 'Expert 2',
-        type: 'legal',
-        promptTemplate: 'You are expert 2',
-        mcpAccess: ['docs'],
+        name: "Expert 2",
+        type: "legal",
+        promptTemplate: "You are expert 2",
+        mcpAccess: ["docs"],
         isActive: true,
       };
 
@@ -129,36 +137,36 @@ describe('Expert and MCP Repository Integration Tests', () => {
 
       const all = await expertRepo.findAll();
       expect(all).toHaveLength(2);
-      expect(all.map(e => e.name)).toContain('Expert 1');
-      expect(all.map(e => e.name)).toContain('Expert 2');
+      expect(all.map((e) => e.name)).toContain("Expert 1");
+      expect(all.map((e) => e.name)).toContain("Expert 2");
     });
 
-    it('should update an expert template', async () => {
+    it("should update an expert template", async () => {
       const data: CreateExpertTemplate = {
-        name: 'Test Expert',
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
-        mcpAccess: ['github'],
+        name: "Test Expert",
+        type: "technical",
+        promptTemplate: "You are a technical expert",
+        mcpAccess: ["github"],
         isActive: true,
       };
 
       const created = await expertRepo.create(data);
       const updated = await expertRepo.update(created.id, {
-        name: 'Updated Expert',
+        name: "Updated Expert",
         isActive: false,
       });
 
       expect(updated).toBeDefined();
-      expect(updated!.name).toBe('Updated Expert');
+      expect(updated!.name).toBe("Updated Expert");
       expect(updated!.isActive).toBe(false);
     });
 
-    it('should delete an expert template', async () => {
+    it("should delete an expert template", async () => {
       const data: CreateExpertTemplate = {
-        name: 'Test Expert',
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
-        mcpAccess: ['github'],
+        name: "Test Expert",
+        type: "technical",
+        promptTemplate: "You are a technical expert",
+        mcpAccess: ["github"],
         isActive: true,
       };
 
@@ -172,16 +180,16 @@ describe('Expert and MCP Repository Integration Tests', () => {
     });
   });
 
-  describe('MCPServerRepository', () => {
-    it('should create and find an MCP server', async () => {
+  describe("MCPServerRepository", () => {
+    it("should create and find an MCP server", async () => {
       const data: CreateMCPServer = {
-        name: 'test-server',
-        type: 'stdio',
+        name: "test-server",
+        type: "stdio",
         connectionConfig: {
-          command: 'npx',
-          args: ['-y', '@modelcontextprotocol/server-github']
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-github"],
         },
-        status: 'active',
+        status: "active",
       };
 
       const created = await mcpRepo.create(data);
@@ -190,23 +198,23 @@ describe('Expert and MCP Repository Integration Tests', () => {
       expect(created.name).toBe(data.name);
       expect(created.type).toBe(data.type);
 
-      const found = await mcpRepo.findByName('test-server');
+      const found = await mcpRepo.findByName("test-server");
       expect(found).toEqual(created);
     });
 
-    it('should find all MCP servers', async () => {
+    it("should find all MCP servers", async () => {
       const data1: CreateMCPServer = {
-        name: 'server-1',
-        type: 'stdio',
-        connectionConfig: { command: 'node', args: ['server1.js'] },
-        status: 'active',
+        name: "server-1",
+        type: "stdio",
+        connectionConfig: { command: "node", args: ["server1.js"] },
+        status: "active",
       };
 
       const data2: CreateMCPServer = {
-        name: 'server-2',
-        type: 'http',
-        connectionConfig: { url: 'http://localhost:3001' },
-        status: 'inactive',
+        name: "server-2",
+        type: "http",
+        connectionConfig: { url: "http://localhost:3001" },
+        status: "inactive",
       };
 
       await mcpRepo.create(data1);
@@ -214,35 +222,35 @@ describe('Expert and MCP Repository Integration Tests', () => {
 
       const all = await mcpRepo.findAll();
       expect(all).toHaveLength(2);
-      expect(all.map(s => s.name)).toContain('server-1');
-      expect(all.map(s => s.name)).toContain('server-2');
+      expect(all.map((s) => s.name)).toContain("server-1");
+      expect(all.map((s) => s.name)).toContain("server-2");
     });
 
-    it('should update MCP server status', async () => {
+    it("should update MCP server status", async () => {
       const data: CreateMCPServer = {
-        name: 'test-server',
-        type: 'stdio',
-        connectionConfig: { command: 'test' },
-        status: 'active',
+        name: "test-server",
+        type: "stdio",
+        connectionConfig: { command: "test" },
+        status: "active",
       };
 
       await mcpRepo.create(data);
-      const updated = await mcpRepo.updateStatus('test-server', 'inactive');
+      const updated = await mcpRepo.updateStatus("test-server", "inactive");
 
       expect(updated).toBe(true);
 
-      const server = await mcpRepo.findByName('test-server');
-      expect(server!.status).toBe('inactive');
+      const server = await mcpRepo.findByName("test-server");
+      expect(server!.status).toBe("inactive");
     });
   });
 
-  describe('ExpertAdviceHistoryRepository', () => {
-    it('should create and find expert advice', async () => {
+  describe("ExpertAdviceHistoryRepository", () => {
+    it("should create and find expert advice", async () => {
       // First create an expert template
       const expertData: CreateExpertTemplate = {
-        name: 'Test Expert',
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
+        name: "Test Expert",
+        type: "technical",
+        promptTemplate: "You are a technical expert",
         mcpAccess: [],
         isActive: true,
       };
@@ -252,8 +260,8 @@ describe('Expert and MCP Repository Integration Tests', () => {
         decisionContextId: testDecisionContextId,
         expertId: expert.id,
         expertName: expert.name,
-        response: { suggestions: ['Test suggestion'] },
-        request: 'Test request',
+        response: { suggestions: ["Test suggestion"] },
+        request: "Test request",
       };
 
       const created = await adviceRepo.create(data);
@@ -266,12 +274,12 @@ describe('Expert and MCP Repository Integration Tests', () => {
       expect(found).toEqual(created);
     });
 
-    it('should find advice by decision context ID', async () => {
+    it("should find advice by decision context ID", async () => {
       // Create expert
       const expertData: CreateExpertTemplate = {
-        name: 'Test Expert',
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
+        name: "Test Expert",
+        type: "technical",
+        promptTemplate: "You are a technical expert",
         mcpAccess: [],
         isActive: true,
       };
@@ -284,16 +292,16 @@ describe('Expert and MCP Repository Integration Tests', () => {
         decisionContextId,
         expertId: expert.id,
         expertName: expert.name,
-        response: { suggestions: ['Suggestion 1'] },
-        request: 'Request 1',
+        response: { suggestions: ["Suggestion 1"] },
+        request: "Request 1",
       };
 
       const advice2: CreateExpertAdvice = {
         decisionContextId,
         expertId: expert.id,
         expertName: expert.name,
-        response: { suggestions: ['Suggestion 2'] },
-        request: 'Request 2',
+        response: { suggestions: ["Suggestion 2"] },
+        request: "Request 2",
       };
 
       await adviceRepo.create(advice1);
@@ -303,12 +311,12 @@ describe('Expert and MCP Repository Integration Tests', () => {
       expect(found).toHaveLength(2);
     });
 
-    it('should get advice count by expert', async () => {
+    it("should get advice count by expert", async () => {
       // Create expert
       const expertData: CreateExpertTemplate = {
-        name: 'Test Expert',
-        type: 'technical',
-        promptTemplate: 'You are a technical expert',
+        name: "Test Expert",
+        type: "technical",
+        promptTemplate: "You are a technical expert",
         mcpAccess: [],
         isActive: true,
       };

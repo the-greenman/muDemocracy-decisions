@@ -1,4 +1,4 @@
-import type { ITranscriptionProvider, TranscriptEvent, TranscriptionResult } from './interface.js';
+import type { ITranscriptionProvider, TranscriptEvent, TranscriptionResult } from "./interface.js";
 
 type FetchLike = typeof fetch;
 
@@ -20,7 +20,7 @@ export class OpenAIWhisperProvider implements ITranscriptionProvider {
     private readonly fetchImpl: FetchLike = fetch,
   ) {
     if (!apiKey.trim()) {
-      throw new Error('OPENAI_API_KEY is required for the OpenAI provider');
+      throw new Error("OPENAI_API_KEY is required for the OpenAI provider");
     }
   }
 
@@ -29,16 +29,16 @@ export class OpenAIWhisperProvider implements ITranscriptionProvider {
     options: { filename: string; language?: string },
   ): Promise<TranscriptionResult> {
     const formData = new FormData();
-    formData.append('model', 'whisper-1');
-    formData.append('response_format', 'verbose_json');
-    formData.append('file', new Blob([new Uint8Array(audio)]), options.filename);
+    formData.append("model", "whisper-1");
+    formData.append("response_format", "verbose_json");
+    formData.append("file", new Blob([new Uint8Array(audio)]), options.filename);
 
     if (options.language !== undefined) {
-      formData.append('language', options.language);
+      formData.append("language", options.language);
     }
 
-    const response = await this.fetchImpl('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
+    const response = await this.fetchImpl("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
       },
@@ -63,7 +63,7 @@ export class OpenAIWhisperProvider implements ITranscriptionProvider {
     return segments
       .map((segment, index) => {
         const event: TranscriptEvent = {
-          text: segment.text?.trim() ?? '',
+          text: segment.text?.trim() ?? "",
           sequenceNumber: index + 1,
         };
         if (segment.start !== undefined) {

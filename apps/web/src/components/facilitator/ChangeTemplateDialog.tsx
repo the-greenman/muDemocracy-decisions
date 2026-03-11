@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowRightLeft, Copy, X } from 'lucide-react';
-import { TEMPLATES, getMockFieldsForTemplate, getTemplateFieldDefinitions } from '@/lib/mock-data';
-import type { Field, Template } from '@/lib/mock-data';
-import { Select } from '@/components/ui/Select';
-import { Button } from '@/components/ui/Button';
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRightLeft, Copy, X } from "lucide-react";
+import { TEMPLATES, getMockFieldsForTemplate, getTemplateFieldDefinitions } from "@/lib/mock-data";
+import type { Field, Template } from "@/lib/mock-data";
+import { Select } from "@/components/ui/Select";
+import { Button } from "@/components/ui/Button";
 
 interface ChangeTemplateDialogProps {
   currentTemplateName: string;
@@ -19,7 +19,9 @@ export function ChangeTemplateDialog({
   onCancel,
 }: ChangeTemplateDialogProps) {
   const [templateId, setTemplateId] = useState(
-    TEMPLATES.find((template) => template.name === currentTemplateName)?.id ?? TEMPLATES[0]?.id ?? '',
+    TEMPLATES.find((template) => template.name === currentTemplateName)?.id ??
+      TEMPLATES[0]?.id ??
+      "",
   );
   const [targetValues, setTargetValues] = useState<Record<string, string>>({});
 
@@ -51,7 +53,7 @@ export function ChangeTemplateDialog({
 
     nextFields.forEach((field) => {
       const match = currentFields.find((current) => current.label === field.label);
-      seed[field.label] = match?.value ?? '';
+      seed[field.label] = match?.value ?? "";
     });
 
     setTargetValues(seed);
@@ -70,7 +72,7 @@ export function ChangeTemplateDialog({
 
     const nextFields = getMockFieldsForTemplate(selectedTemplate.name).map((field) => ({
       ...field,
-      value: targetValues[field.label] ?? '',
+      value: targetValues[field.label] ?? "",
     }));
 
     onConfirm(selectedTemplate, nextFields);
@@ -83,34 +85,54 @@ export function ChangeTemplateDialog({
       <div className="w-full max-w-5xl bg-surface border border-border rounded-card shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <ArrowRightLeft size={16} className="text-accent" />
-          <h2 className="text-fac-field text-text-primary font-medium flex-1">Change decision template</h2>
-          <button onClick={onCancel} className="text-text-muted hover:text-text-primary transition-colors">
+          <h2 className="text-fac-field text-text-primary font-medium flex-1">
+            Change decision template
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
             <X size={16} />
           </button>
         </div>
 
         <div className="overflow-y-auto p-5 flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <label className="text-fac-label text-text-secondary uppercase tracking-wider">New template</label>
-            <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="max-w-sm">
+            <label className="text-fac-label text-text-secondary uppercase tracking-wider">
+              New template
+            </label>
+            <Select
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              className="max-w-sm"
+            >
               {TEMPLATES.map((template) => (
-                <option key={template.id} value={template.id}>{template.name}</option>
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
               ))}
             </Select>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <section className="rounded-card border border-danger/25 bg-danger-dim/10 p-3">
-              <h3 className="text-fac-field text-text-primary font-medium">Fields becoming unavailable</h3>
+              <h3 className="text-fac-field text-text-primary font-medium">
+                Fields becoming unavailable
+              </h3>
               <p className="text-fac-meta text-text-muted mt-1">
                 These fields do not exist in the selected template. Copy text you want to preserve.
               </p>
               <div className="mt-3 flex flex-col gap-2 max-h-72 overflow-y-auto">
                 {unavailableFields.length === 0 && (
-                  <p className="text-fac-meta text-text-muted italic">No fields are being removed.</p>
+                  <p className="text-fac-meta text-text-muted italic">
+                    No fields are being removed.
+                  </p>
                 )}
                 {unavailableFields.map((field) => (
-                  <article key={field.id} className="rounded border border-border bg-overlay/50 p-2.5">
+                  <article
+                    key={field.id}
+                    className="rounded border border-border bg-overlay/50 p-2.5"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-fac-meta text-text-primary font-medium">{field.label}</p>
                       <Button
@@ -141,7 +163,7 @@ export function ChangeTemplateDialog({
               </p>
               {addedLabels.length > 0 && (
                 <p className="mt-2 text-fac-meta text-caution">
-                  New fields in this template: {addedLabels.join(', ')}
+                  New fields in this template: {addedLabels.join(", ")}
                 </p>
               )}
               <div className="mt-3 flex flex-col gap-2 max-h-72 overflow-y-auto">
@@ -149,7 +171,7 @@ export function ChangeTemplateDialog({
                   <article key={label} className="rounded border border-border bg-overlay/40 p-2.5">
                     <p className="text-fac-meta text-text-primary font-medium">{label}</p>
                     <textarea
-                      value={targetValues[label] ?? ''}
+                      value={targetValues[label] ?? ""}
                       onChange={(e) => updateTargetValue(label, e.target.value)}
                       rows={3}
                       className="mt-2 w-full p-2 rounded border border-border bg-surface text-fac-meta text-text-primary resize-y focus:outline-none focus:border-accent"
@@ -162,8 +184,12 @@ export function ChangeTemplateDialog({
         </div>
 
         <div className="flex gap-2 justify-end px-5 py-4 border-t border-border">
-          <Button onClick={onCancel} variant="ghost">Cancel</Button>
-          <Button onClick={handleConfirm} variant="primary" disabled={!canConfirm}>Apply template change</Button>
+          <Button onClick={onCancel} variant="ghost">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} variant="primary" disabled={!canConfirm}>
+            Apply template change
+          </Button>
         </div>
       </div>
     </div>

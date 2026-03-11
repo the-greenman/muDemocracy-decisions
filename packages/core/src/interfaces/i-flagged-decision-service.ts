@@ -27,10 +27,10 @@ export interface IFlaggedDecisionService {
     data: {
       suggestedTitle?: string;
       contextSummary?: string;
-      status?: FlaggedDecision['status'];
+      status?: FlaggedDecision["status"];
       priority?: number;
       chunkIds?: string[];
-    }
+    },
   ): Promise<FlaggedDecision | null>;
 
   /**
@@ -43,7 +43,7 @@ export interface IFlaggedDecisionService {
    */
   updateDecisionStatus(
     decisionId: string,
-    status: FlaggedDecision['status']
+    status: FlaggedDecision["status"],
   ): Promise<FlaggedDecision>;
 
   /**
@@ -54,13 +54,10 @@ export interface IFlaggedDecisionService {
   /**
    * Update priorities for multiple decisions
    */
-  prioritizeDecisions(
-    decisionIds: string[],
-    priorities: number[]
-  ): Promise<void>;
+  prioritizeDecisions(decisionIds: string[], priorities: number[]): Promise<void>;
 
   deleteDecision(id: string): Promise<boolean>;
 }
 
 // Import types
-import type { FlaggedDecision, CreateFlaggedDecision } from '@repo/schema';
+import type { FlaggedDecision, CreateFlaggedDecision } from "@repo/schema";

@@ -2,15 +2,13 @@
  * Drizzle implementation of IDecisionLogRepository
  */
 
-import { 
-  decisionLogs
-} from '../schema.js';
-import { db } from '../client.js';
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
-import { DecisionLog } from '@repo/schema';
+import { decisionLogs } from "../schema.js";
+import { db } from "../client.js";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { DecisionLog } from "@repo/schema";
 
 // Type definitions to avoid circular dependency
-type CreateDecisionLog = Omit<DecisionLog, 'id' | 'loggedAt'>;
+type CreateDecisionLog = Omit<DecisionLog, "id" | "loggedAt">;
 
 // Interface definition to avoid circular dependency
 interface IDecisionLogRepository {
@@ -43,11 +41,7 @@ export class DrizzleDecisionLogRepository implements IDecisionLogRepository {
   }
 
   async findById(id: string): Promise<DecisionLog | null> {
-    const [row] = await db
-      .select()
-      .from(decisionLogs)
-      .where(eq(decisionLogs.id, id))
-      .limit(1);
+    const [row] = await db.select().from(decisionLogs).where(eq(decisionLogs.id, id)).limit(1);
 
     if (!row) {
       return null;
@@ -63,7 +57,7 @@ export class DrizzleDecisionLogRepository implements IDecisionLogRepository {
       .where(eq(decisionLogs.meetingId, meetingId))
       .orderBy(desc(decisionLogs.loggedAt));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByDecisionContextId(decisionContextId: string): Promise<DecisionLog[]> {
@@ -73,7 +67,7 @@ export class DrizzleDecisionLogRepository implements IDecisionLogRepository {
       .where(eq(decisionLogs.decisionContextId, decisionContextId))
       .orderBy(desc(decisionLogs.loggedAt));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByLoggedBy(loggedBy: string): Promise<DecisionLog[]> {
@@ -83,22 +77,17 @@ export class DrizzleDecisionLogRepository implements IDecisionLogRepository {
       .where(eq(decisionLogs.loggedBy, loggedBy))
       .orderBy(desc(decisionLogs.loggedAt));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async findByDateRange(startDate: Date, endDate: Date): Promise<DecisionLog[]> {
     const rows = await db
       .select()
       .from(decisionLogs)
-      .where(
-        and(
-          gte(decisionLogs.loggedAt, startDate),
-          lte(decisionLogs.loggedAt, endDate)
-        )
-      )
+      .where(and(gte(decisionLogs.loggedAt, startDate), lte(decisionLogs.loggedAt, endDate)))
       .orderBy(desc(decisionLogs.loggedAt));
 
-    return rows.map(row => this.mapToSchema(row));
+    return rows.map((row) => this.mapToSchema(row));
   }
 
   async countByMeetingId(meetingId: string): Promise<number> {

@@ -3,13 +3,13 @@
  * Manages decision templates and their field assignments
  */
 
-import type { 
+import type {
   DecisionTemplate,
   CreateDecisionTemplate,
   TemplateFieldAssignment,
-  CreateTemplateFieldAssignment
-} from '@repo/schema';
-import type { DecisionTemplateIdentityLookup } from './i-decision-template-repository';
+  CreateTemplateFieldAssignment,
+} from "@repo/schema";
+import type { DecisionTemplateIdentityLookup } from "./i-decision-template-repository";
 
 export interface IDecisionTemplateService {
   // Template CRUD operations
@@ -19,31 +19,44 @@ export interface IDecisionTemplateService {
   getAllTemplates(): Promise<DecisionTemplate[]>;
   getDefaultTemplate(): Promise<DecisionTemplate | null>;
   setDefaultTemplate(id: string): Promise<DecisionTemplate>;
-  updateTemplate(id: string, data: Partial<CreateDecisionTemplate>): Promise<DecisionTemplate | null>;
+  updateTemplate(
+    id: string,
+    data: Partial<CreateDecisionTemplate>,
+  ): Promise<DecisionTemplate | null>;
   deleteTemplate(id: string): Promise<boolean>;
-  
+
   // Template queries
   getTemplatesByCategory(category: string): Promise<DecisionTemplate[]>;
   searchTemplates(query: string): Promise<DecisionTemplate[]>;
   getTemplateCategories(): Promise<string[]>;
-  
+
   // Field assignment operations
-  addFieldToTemplate(templateId: string, assignment: CreateTemplateFieldAssignment): Promise<TemplateFieldAssignment>;
+  addFieldToTemplate(
+    templateId: string,
+    assignment: CreateTemplateFieldAssignment,
+  ): Promise<TemplateFieldAssignment>;
   removeFieldFromTemplate(templateId: string, fieldId: string): Promise<boolean>;
-  updateFieldAssignment(templateId: string, fieldId: string, data: Partial<CreateTemplateFieldAssignment>): Promise<TemplateFieldAssignment | null>;
+  updateFieldAssignment(
+    templateId: string,
+    fieldId: string,
+    data: Partial<CreateTemplateFieldAssignment>,
+  ): Promise<TemplateFieldAssignment | null>;
   getTemplateFields(templateId: string): Promise<TemplateFieldAssignment[]>;
-  reorderTemplateFields(templateId: string, fieldOrders: { fieldId: string; order: number }[]): Promise<void>;
-  
+  reorderTemplateFields(
+    templateId: string,
+    fieldOrders: { fieldId: string; order: number }[],
+  ): Promise<void>;
+
   // Bulk operations
   createTemplateWithFields(
     templateData: CreateDecisionTemplate,
-    fieldAssignments: CreateTemplateFieldAssignment[]
+    fieldAssignments: CreateTemplateFieldAssignment[],
   ): Promise<DecisionTemplate>;
-  
+
   // Validation
   validateTemplateDefinition(template: CreateDecisionTemplate): Promise<boolean>;
   validateFieldAssignments(assignments: CreateTemplateFieldAssignment[]): Promise<boolean>;
-  
+
   // Seeding
   seedTemplates(templates: CreateDecisionTemplate[]): Promise<DecisionTemplate[]>;
 }

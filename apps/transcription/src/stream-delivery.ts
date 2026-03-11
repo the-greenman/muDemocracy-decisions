@@ -1,4 +1,4 @@
-import type { TranscriptEvent } from './providers/interface.js';
+import type { TranscriptEvent } from "./providers/interface.js";
 
 export interface StreamDeliveryConfig {
   maxAttempts: number;
@@ -18,7 +18,7 @@ export class ApiRequestError extends Error {
     public readonly path: string,
   ) {
     super(message);
-    this.name = 'ApiRequestError';
+    this.name = "ApiRequestError";
   }
 }
 
@@ -67,13 +67,15 @@ export async function postEventWithRetry(
         break;
       }
 
-      const delay = config.baseBackoffMs * (2 ** (attempt - 1));
+      const delay = config.baseBackoffMs * 2 ** (attempt - 1);
       await sleep(delay);
     }
   }
 
   const message = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(`Failed to deliver transcript event after ${config.maxAttempts} attempts: ${message}`);
+  throw new Error(
+    `Failed to deliver transcript event after ${config.maxAttempts} attempts: ${message}`,
+  );
 }
 
 /**
