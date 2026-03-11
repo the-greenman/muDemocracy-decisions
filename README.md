@@ -110,10 +110,38 @@ pnpm build
 - Keep declaration ownership explicit: if `tsc` emits declarations for a package, `tsup` should bundle JavaScript only.
 - `pnpm dev` remains sensitive to workspace declaration surfaces under `tsx`; if dev fails while build and type-check pass, inspect package declaration barrel imports before reopening broader tsconfig changes.
 
+### Package declaration rules
+
+- Workspace package API declarations must be emitted from TypeScript source by `tsc`.
+- `tsup` owns JavaScript bundling only and must not be the declaration owner for workspace packages.
+- Checked-in package API `.d.ts` files are not allowed under `packages/**`; the only allowed checked-in `.d.ts` files are explicit ambient declarations such as `apps/web/src/vite-env.d.ts`.
+- App build/dev tsconfigs should resolve workspace packages through normal workspace source/package entrypoints.
+- If an app needs consumer-style declaration validation, use a dedicated `tsconfig.typecheck.json` that resolves package declaration entrypoints separately from the build/dev config.
+- Run `pnpm lint:workspace` after changing package build scripts, tsconfig layering, or declaration output behavior.
+
+### Schema, type, and database change workflow
+
+When a change affects schema, types, or the database, use this order:
+
+1. Update the canonical schema/type definitions in `packages/schema`.
+2. Update `packages/db/src/schema.ts` and any affected DB/runtime code.
+3. Run `pnpm db:generate` to produce committed Drizzle SQL and metadata.
+4. Review the generated migration artifacts in `packages/db/drizzle/`.
+5. Run `pnpm db:migrate` to apply committed migrations.
+6. Run validation:
+
+```bash
+pnpm build
+pnpm type-check
+pnpm lint:workspace
+pnpm --filter @repo/db test
+pnpm db:migrate
+```
+
 ### Running the system
 
 ```bash
-# One command: start postgres, push schema, build/start API, and wait for health
+# One command: start postgres, apply committed migrations, build/start API, and wait for health
 pnpm up:stack
 ```
 
@@ -128,7 +156,10 @@ Useful follow-up commands:
 # Stop compose services
 docker compose down
 
-# Apply schema changes after DB updates
+# Apply committed schema changes
+pnpm db:migrate
+
+# Direct-push current schema to a disposable local DB only
 pnpm db:push
 ```
 
@@ -216,7 +247,7 @@ Equivalent manual flow:
 
 ```bash
 docker compose up -d postgres
-pnpm db:push
+pnpm db:migrate
 docker compose up --build -d api
 ```
 

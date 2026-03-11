@@ -43,6 +43,13 @@
       "when": 1773217513185,
       "tag": "0005_workable_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1773241276879,
+      "tag": "0006_romantic_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }

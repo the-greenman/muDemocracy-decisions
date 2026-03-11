@@ -138,6 +138,36 @@ pnpm test:llm
 
 ## Monorepo Commands
 
+### Package Declaration Ownership
+
+- Workspace package API declarations must be emitted from `.ts` source by `tsc`.
+- `tsup` is responsible for JavaScript bundling only and must not own package declaration output.
+- Checked-in package API `.d.ts` files are not allowed under `packages/**`.
+- Explicit ambient declarations are allowed only where they are environment-specific, such as `apps/web/src/vite-env.d.ts`.
+- App build/dev tsconfigs should resolve workspace packages through normal workspace source or package entrypoints.
+- If an app needs consumer-style declaration validation, keep that in a separate `tsconfig.typecheck.json` instead of reusing the build/dev config.
+
+### Canonical Schema And Database Change Flow
+
+Use this order for any schema, type, or database change:
+
+1. Update the canonical types and schemas in `packages/schema`.
+2. Update `packages/db/src/schema.ts` and any affected repository/runtime code.
+3. Run `pnpm db:generate`.
+4. Review the generated SQL and metadata in `packages/db/drizzle/`.
+5. Run `pnpm db:migrate`.
+6. Run validation:
+
+```bash
+pnpm build
+pnpm type-check
+pnpm lint:workspace
+pnpm --filter @repo/db test
+pnpm db:migrate
+```
+
+`pnpm db:push` is not part of the normal team workflow. Treat it as a disposable local-only escape hatch.
+
 ### Build
 ```bash
 # Build all packages

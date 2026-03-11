@@ -79,7 +79,7 @@ describe('Decision Log Service Integration Tests', () => {
       .insert(meetings)
       .values({
         title: 'Test Meeting for Decision Logs',
-        date: '2026-02-28',
+        date: new Date('2026-02-28T00:00:00.000Z'),
         participants: ['Alice', 'Bob'],
         status: 'active',
       })

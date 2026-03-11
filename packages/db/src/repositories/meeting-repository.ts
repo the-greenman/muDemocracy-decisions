@@ -11,30 +11,29 @@ import { Meeting, CreateMeeting } from '@repo/schema';
 
 const POSTGRES_FOREIGN_KEY_VIOLATION = '23503';
 
-function toMeetingIsoDate(value: string | Date): string {
+function toMeetingIsoDateTime(value: string | Date): string {
   if (value instanceof Date) {
-    return `${value.toISOString().split('T')[0]}T00:00:00Z`;
+    return value.toISOString();
   }
 
-  const datePart = value.split('T')[0];
-  if (!datePart) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
     throw new Error('Invalid stored meeting date');
   }
 
-  return `${datePart}T00:00:00Z`;
+  return parsed.toISOString();
 }
 
 export class DrizzleMeetingRepository {
   async create(data: CreateMeeting): Promise<Meeting> {
-    // Extract date portion from ISO datetime string
-    const datePart = data.date.split('T')[0];
-    if (!datePart) {
+    const meetingDate = new Date(data.date);
+    if (Number.isNaN(meetingDate.getTime())) {
       throw new Error('Invalid date format');
     }
 
     const insertData: MeetingInsert = {
       title: data.title,
-      date: datePart,
+      date: meetingDate,
       participants: data.participants,
       status: 'active',
     };
@@ -61,7 +60,7 @@ export class DrizzleMeetingRepository {
     return result.map(this.mapToMeeting);
   }
 
-  async update(id: string, data: Partial<Pick<CreateMeeting, 'title' | 'participants'>>): Promise<Meeting> {
+  async update(id: string, data: Partial<Pick<CreateMeeting, 'title' | 'date' | 'participants'>>): Promise<Meeting> {
     const updateData: Partial<MeetingInsert> = {};
     
     if (data.title !== undefined) {
@@ -70,6 +69,13 @@ export class DrizzleMeetingRepository {
     
     if (data.participants !== undefined) {
       updateData.participants = data.participants;
+    }
+    if (data.date !== undefined) {
+      const parsedDate = new Date(data.date);
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw new Error('Invalid date format');
+      }
+      updateData.date = parsedDate;
     }
 
     const result = await db
@@ -124,7 +130,7 @@ export class DrizzleMeetingRepository {
     return {
       id: dbMeeting.id,
       title: dbMeeting.title,
-      date: toMeetingIsoDate(dbMeeting.date),
+      date: toMeetingIsoDateTime(dbMeeting.date),
       participants: dbMeeting.participants,
       status: dbMeeting.status,
       createdAt: dbMeeting.createdAt.toISOString(),

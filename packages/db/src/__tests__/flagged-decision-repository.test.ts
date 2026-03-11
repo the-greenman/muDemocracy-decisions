@@ -23,7 +23,7 @@ describe('DrizzleFlaggedDecisionRepository', () => {
     await db.insert(meetings).values({
       id: testMeetingId,
       title: 'Test Meeting',
-      date: '2026-02-27',
+      date: new Date('2026-02-27T00:00:00.000Z'),
       participants: ['Alice', 'Bob'],
       status: 'active',
     });
@@ -210,6 +210,7 @@ describe('DrizzleFlaggedDecisionRepository', () => {
         contextSummary: 'Context',
         confidence: 0.7,
         chunkIds: [randomUUID()],
+        priority: 0,
       });
 
       const result = await repository.updateStatus(created.id, 'accepted');
@@ -230,6 +231,7 @@ describe('DrizzleFlaggedDecisionRepository', () => {
           contextSummary: 'Context',
           confidence: 0.7,
           chunkIds: [randomUUID()],
+          priority: 0,
         });
 
         const result = await repository.updateStatus(created.id, status);

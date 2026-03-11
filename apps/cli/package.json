@@ -14,7 +14,7 @@
     "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
     "start": "dotenv -e ../../.env -- node dist/index.js",
     "test": "vitest run --passWithNoTests",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --project tsconfig.typecheck.json --noEmit"
   },
   "dependencies": {
     "commander": "^11.1.0",

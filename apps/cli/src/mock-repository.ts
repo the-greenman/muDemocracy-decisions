@@ -25,7 +25,7 @@ export class MockMeetingRepository implements IMeetingRepository {
     return Array.from(this.meetings.values());
   }
 
-  async update(id: string, data: Partial<Pick<CreateMeeting, 'title' | 'participants'>>): Promise<Meeting> {
+  async update(id: string, data: Partial<Pick<CreateMeeting, 'title' | 'date' | 'participants'>>): Promise<Meeting> {
     const meeting = this.meetings.get(id);
     if (!meeting) {
       throw new Error('Meeting not found');
@@ -49,5 +49,9 @@ export class MockMeetingRepository implements IMeetingRepository {
     const updated = { ...meeting, status };
     this.meetings.set(id, updated);
     return updated;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return this.meetings.delete(id);
   }
 }

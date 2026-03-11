@@ -468,8 +468,8 @@ All routes use Zod schemas + `@hono/zod-openapi` (auto-generates OpenAPI spec).
 ```bash
 # 1. Infrastructure
 docker-compose up -d postgres
-pnpm db:push
-
+pnpm db:migrate
+ 
 # 2. Unit tests pass
 pnpm test --filter=@repo/core  # includes new draft-generation tests
 
@@ -477,13 +477,17 @@ pnpm test --filter=@repo/core  # includes new draft-generation tests
 pnpm cli meeting create "Q1 Planning" --participants "Alice,Bob"
 pnpm cli transcript upload ./examples/sample-transcript.txt --meeting-id <id>
 pnpm cli decisions flag <meeting-id> --title "Approve cloud migration"
-pnpm cli decision context create --meeting-id <id> --flagged-decision-id <flag-id> --title "Cloud Migration"
-pnpm cli draft generate --guidance "Focus on cost and timeline"
-pnpm cli draft show
-pnpm cli draft lock-field decision_statement
-pnpm cli draft generate   # decision_statement unchanged
-pnpm cli draft export --output cloud-migration-decision.md
-cat cloud-migration-decision.md  # Valid markdown, all fields populated
+pnpm cli decisions flag <meeting-id> --title "Escalate risk controls"
+pnpm cli decisions update <flagged-id> --segments all
+
+pnpm cli draft generate                # version 1
+pnpm cli draft versions                # shows v1
+pnpm cli transcript add --text "Additional context about costs..."
+pnpm cli draft generate                # version 2 (v1 snapshot saved)
+pnpm cli draft versions                # shows v1, v2
+pnpm cli draft rollback 1              # restore v1
+pnpm cli draft show                    # shows v1 content
+pnpm cli draft debug                   # shows both LLM interactions
 
 # 4. Debug observability
 pnpm cli draft debug    # prints prompt segments + response for last generation
@@ -728,11 +732,6 @@ This section defines implementation sequencing for the long-term field-based ver
 - Convert decision-level rollback into orchestration that restores the affected fields rather than reactivating snapshot state in place.
 
 **Phase E — Template transform and context/meeting alignment**
-- Template switching uses visibility state:
-  - preserve all field content
-  - hide non-template fields
-  - exclude hidden fields from export
-  - do not mutate locked fields
 - Treat template change alone as a visibility/state change, not a field-value version event.
 - Only create `template_transform` field versions for values that are actually regenerated or transformed.
 - Add API/CLI affordances for template change modes, e.g. visibility-only vs transform-unlocked-visible-fields.
@@ -747,6 +746,11 @@ This section defines implementation sequencing for the long-term field-based ver
 - API/CLI parity holds for field-version list/show/restore flows.
 - Locked fields reject automated writes from regenerate/template-transform flows.
 - Decision-level rollback behaves as a compatibility wrapper over field restore semantics.
+
+**Validation questions**:
+- Can one context be resumed in a later meeting without cloning field history? ✓ (join table)
+- Can off-meeting edits occur without fabricating meeting ownership? ✓ (context has no required `meetingId` for edits)
+- Can finalization explicitly identify the meeting/event and participant set? ✓ (via `decision_context_meetings.meetingId` + meeting participants)
 
 ---
 
@@ -810,26 +814,351 @@ Lay non-breaking seams that allow subsystem extraction later without changing us
 
 ---
 
+### M2.8 — Decision Tagging and Cross-References (Foundation)
+
+> **Triage: DEFERRED — post-M5 backlog.** Valuable feature, but the core workflow (flag → generate → log → export) does not require tags or relations. Web Phase 5 consumes these APIs; Phase 5 is post-M5. Implement after the core web UI ships.
+
+**Goal**: Give decisions and decision contexts lightweight metadata — tags for topics, teams, committees, and projects — and allow them to reference each other. The initial design must be simple enough to ship now but structured so it can evolve toward a full graph model without a breaking migration.
+
+#### Guiding principle
+
+Avoid a generic graph from the start. A tag table + a typed relation table is sufficient for M4. The schema choices below are designed so that a future graph layer can be placed on top without discarding the existing rows.
+
+---
+
+#### Tagging model
+
+Tags are named, categorised labels that can be attached to both `DecisionContext` and `DecisionLog` records.
+
+**Tag categories (initial)**:
+- `topic` — subject matter (e.g., "infrastructure", "hiring", "security")
+- `team` — team or committee owning or affected by the decision
+- `project` — associated project or initiative
+
+A tag is a first-class entity so it can be renamed, merged, and eventually queried across decisions. Free-text string arrays on the decision rows are explicitly rejected because they cannot be renamed, merged, or traversed efficiently.
+
+**DB schema additions** (`packages/db/src/schema.ts`):
+
+```sql
+-- Canonical tag definitions
+tags (
+  id          uuid PK,
+  namespace   text NOT NULL DEFAULT 'core',
+  name        text NOT NULL,
+  category    tag_category_enum NOT NULL,  -- topic | team | project
+  createdAt   timestamptz
+)
+UNIQUE (namespace, name)
+
+-- Many-to-many: tags on decision contexts (drafts in progress)
+decision_context_tags (
+  contextId   uuid FK → decision_contexts.id,
+  tagId       uuid FK → tags.id,
+  PRIMARY KEY (contextId, tagId)
+)
+
+-- Many-to-many: tags on decision logs (immutable finalized records)
+decision_log_tags (
+  logId       uuid FK → decision_logs.id,
+  tagId       uuid FK → tags.id,
+  PRIMARY KEY (logId, tagId)
+)
+```
+
+Tags on a `DecisionLog` are a snapshot taken at finalization from the context's tag set. They do not update after logging.
+
+**Services**:
+- `TagService` in `packages/core/src/services/tag-service.ts`
+  - `createTag(name, category)` — idempotent by `(namespace, name)`
+  - `addTagToContext(contextId, tagId)`
+  - `removeTagFromContext(contextId, tagId)`
+  - `getTagsForContext(contextId)`
+  - `getTagsForLog(logId)`
+  - `listTags(filter?: { category })` — for autocomplete
+
+Tags are snapshotted onto `DecisionLog` automatically during `DecisionLogService.logDecision`.
+
+**API route file**: `apps/api/src/routes/tags.ts` (new file, registered in `apps/api/src/index.ts`)
+
+**API endpoints**:
+- `GET /api/tags` — list all tags, filterable by `?category=team|topic|project`
+- `POST /api/tags` — body: `{ name, category }` — idempotent create by `(namespace, name)`
+- `GET /api/decision-contexts/:id/tags` — list tags on context
+- `POST /api/decision-contexts/:id/tags` — body: `{ name, category? }` — resolve-or-create tag by name and associate; `category` required only when creating a new tag
+- `DELETE /api/decision-contexts/:id/tags/:tagId` — remove tag from context
+- `GET /api/decisions/:id/tags` — list tags on a logged decision (read-only after finalization)
+
+**CLI commands**:
+
+Top-level `tag` command group (`apps/cli/src/commands/tag.ts`, registered in entry point) for managing the tag library:
+```
+tag list [--category topic|team|project]          — list all tags
+tag create <name> --category <category>           — create a tag
+```
+
+`context tag` nested sub-group on the existing `contextCommand` (operates on the **active** context from `GlobalContextService`, no ID arg required — consistent with `context set-field`):
+```
+context tag add <name> [--category topic|team|project]   — resolve-or-create tag by name and attach to active context
+context tag remove <name>                                 — detach tag from active context by name
+context tag list                                          — list tags on active context
+```
+
+---
+
+#### Cross-reference model
+
+Decisions and contexts sometimes depend on, supersede, or block each other. A typed relation table captures this without requiring a full graph library.
+
+**Initial relation types**:
+- `supersedes` — this decision replaces a prior one
+- `depends_on` — this decision requires another to be logged first
+- `related_to` — informational link, no ordering implied
+- `blocks` — this context must be resolved before another can proceed
+
+**DB schema additions**:
+
+```sql
+-- Typed edges between decisions/contexts
+decision_relations (
+  id            uuid PK,
+  fromType      relation_node_type_enum NOT NULL,  -- decision_context | decision_log
+  fromId        uuid NOT NULL,
+  relationType  decision_relation_type_enum NOT NULL,
+  toType        relation_node_type_enum NOT NULL,
+  toId          uuid NOT NULL,
+  createdAt     timestamptz,
+  createdBy     text
+)
+INDEX on (fromType, fromId)
+INDEX on (toType, toId)
+```
+
+`fromType`/`toType` allow edges between any combination of contexts and logs. This is intentionally the same shape as a generic property graph edge table — a future graph layer can read these rows directly.
+
+**Services**:
+- `DecisionRelationService` in `packages/core/src/services/decision-relation-service.ts`
+  - `addRelation(from, relationType, to, createdBy)` — rejects self-links and duplicate directed edges
+  - `removeRelation(id)`
+  - `getRelationsFrom(nodeType, nodeId)` — outgoing edges
+  - `getRelationsTo(nodeType, nodeId)` — incoming edges
+
+**API route file**: `apps/api/src/routes/decision-relations.ts` (new file, registered in `apps/api/src/index.ts`)
+
+**API endpoints**:
+- `POST /api/decision-relations` — body: `{ fromType, fromId, relationType, toType, toId, createdBy? }`
+- `DELETE /api/decision-relations/:id`
+- `GET /api/decision-contexts/:id/relations` — both outgoing and incoming edges for this context
+- `GET /api/decisions/:id/relations` — both outgoing and incoming edges for this logged decision
+
+**CLI commands**:
+
+`context relation` nested sub-group on the existing `contextCommand` (operates on the **active** context, consistent with other `context` sub-commands):
+```
+context relation add <relationType> <toId> [--to-type context|decision] [--by <user>]
+                                                  — add a relation from active context to another node
+context relation remove <relationId>              — remove a relation by ID
+context relation list                             — list all relations on active context
+```
+
+`decision relation` nested sub-group on the existing `decisionCommand` (mirrors the existing `decision context` nested group pattern, operates by explicit ID):
+```
+decision relation add <fromId> <relationType> <toId> [--from-type context|decision] [--to-type context|decision] [--by <user>]
+decision relation remove <relationId>
+decision relation list <id> [--node-type context|decision]
+```
+
+The `--to-type` / `--from-type` flags default to `decision` (a logged decision) when omitted, since the most common use case is linking two finalized decisions.
+
+---
+
+#### Graph evolution path
+
+The initial schema is graph-compatible by design:
+- `tags` → future: tag hierarchy (`parentId`), tag merges, upstream-tracked tag packages
+- `decision_relations` → future: weighted edges, traversal queries, cycle detection, visualisation
+- No graph library or query language is required now; standard SQL is sufficient for M4 filtering and display
+- When a graph query layer is added (e.g., Apache AGE, or an application-layer BFS), it can consume the existing `decision_relations` rows directly
+
+**Do not** add graph traversal, cycle detection, or weighted edges in M4. Add those only when a concrete feature requires them.
+
+---
+
+### M2.9 — Supplementary Content Store
+
+> **Triage: DEFERRED — post-M5 backlog.** Useful enrichment but not part of the core workflow. LLM draft generation works without it. The web prototype validated the interaction model; implement after the core web UI ships.
+
+**Goal**: Allow facilitators to attach non-transcript text evidence — meeting background, comparison tables, prior documents — to a meeting, decision context, or specific field. This material participates in LLM context retrieval alongside transcript chunks using the same `{scope}:{id}[:{field}]` tagging hierarchy.
+
+**Why here**: The context builder must query both sources from the beginning. Deferring schema creation to M5.1 would require retrofitting retrieval logic that was shipped against transcript-only assumptions. G4 in `docs/ux-workflow-examples.md` identified this as a parallel store, not a secondary feature.
+
+---
+
+#### Schema
+
+**New table** (`packages/db/src/schema.ts`):
+
+```sql
+supplementary_content (
+  id           uuid PRIMARY KEY,
+  meeting_id   uuid NOT NULL REFERENCES meetings(id),
+  label        text,
+  body         text NOT NULL,
+  source_type  text NOT NULL DEFAULT 'manual',
+  contexts     text[] NOT NULL DEFAULT '{}',   -- e.g. ['decision:abc', 'decision:abc:options']
+  created_by   text,
+  created_at   timestamptz NOT NULL DEFAULT NOW()
+)
+CREATE INDEX idx_supcontent_contexts ON supplementary_content USING GIN(contexts);
+```
+
+The `contexts` array holds the same `{scope}:{id}[:{field}]` tags used by transcript chunks. Three tagging levels match the three points of entry:
+
+| Entry point | Tag applied |
+|---|---|
+| Meeting-level background | `meeting:{meetingId}` |
+| Decision workspace | `decision:{contextId}` |
+| Field zoom | `decision:{contextId}:{fieldId}` |
+
+---
+
+#### Service
+
+**New**: `packages/core/src/services/supplementary-content-service.ts`
+
+- `add(meetingId, body, options?: { label?, contexts?, createdBy? }): Promise<SupplementaryContent>`
+- `listByContext(contextTag: string): Promise<SupplementaryContent[]>` — filters by `contexts @> ARRAY[contextTag]` (GIN index query)
+- `remove(id): Promise<void>`
+
+**Context builder extension** (`packages/core/src/services/context-builder.ts` or equivalent):
+
+The prompt builder currently fetches transcript chunks by context tag. It must be extended to also fetch `supplementary_content` rows matching the same tags and include them as a distinct section in the prompt:
+
+```
+=== SUPPLEMENTARY EVIDENCE (options field) ===
+[Options comparison table — added 14:32]
+Option 1: full cloud-native stack (£45k). Option 2: patch existing service (£8k)...
+```
+
+This section is rendered after transcript evidence for the same scope, before any inline guidance.
+
+---
+
+#### API endpoints
+
+**New route file**: `apps/api/src/routes/supplementary-content.ts`
+
+- `POST /api/supplementary-content` — body: `{ meetingId, body, label?, contexts?, createdBy? }`
+- `GET /api/supplementary-content?context={tag}` — list items matching context tag
+- `DELETE /api/supplementary-content/:id`
+
+---
+
+#### CLI commands
+
+```
+supplementary add --meeting-id <id> --body "text" [--label "label"] [--context "decision:abc:options"]
+supplementary list --context "decision:abc"
+supplementary remove <id>
+```
+
+---
+
+#### Web prototype reference
+
+The prototype in `apps/web/` already implements this flow: `FieldZoom.tsx` shows a "Supplementary evidence" section with add/remove controls. `FacilitatorMeetingPage.tsx` holds supplementary state at page level and passes it down. `FacilitatorFieldCard.tsx` shows a count badge via the `supplementaryCount` prop. This prototype was built to validate G4 and serves as the accepted interaction model.
+
+---
+
+#### Validation
+
+```bash
+# Add supplementary evidence at field scope
+curl -X POST http://localhost:3000/api/supplementary-content \
+  -d '{"meetingId":"<id>","body":"Option 1: cloud-native...","label":"Comparison table","contexts":["decision:<ctx-id>:options"]}'
+
+# Retrieve by context tag
+curl "http://localhost:3000/api/supplementary-content?context=decision:<ctx-id>:options"
+
+# Verify it appears in draft generation prompt
+pnpm cli draft debug   # supplementary section visible alongside transcript sections
+
+# Regeneration with supplementary evidence active
+pnpm cli draft regenerate-field options
+# Expected: options field now incorporates the comparison table text
+```
+
+---
+
+### M2.10 — Open Questions Field (Template Library Addition)
+
+**Goal**: Add an `outstanding_issues` field to templates used for decisions that may be deferred mid-meeting. Without a structured place to record the open questions that caused a deferral, that information is lost to the system — it exists only in meeting notes or memory. When the context is resumed in a future meeting, the working group has no structured record of what was unresolved.
+
+**Identified in**: Flow 2, G12 (`docs/ux-workflow-examples.md`).
+
+**Scope**: This is a field library addition, not a schema change. The field is added to the canonical field definitions and assigned to relevant templates. No new table or migration is required beyond the normal seed update.
+
+---
+
+#### New field definition
+
+```
+name:        outstanding_issues
+label:       Outstanding issues / open questions
+description: Unresolved questions, dependencies, or concerns that prevented this decision from being finalised. Used when a decision is deferred — records why and what must be answered before it can proceed.
+type:        text (long-form, markdown)
+required:    false
+prompt:      Summarise any open questions, unresolved dependencies, or concerns raised during discussion that the group could not answer in this session.
+```
+
+#### Templates to receive this field
+
+| Template | Rationale |
+|---|---|
+| Proposal Acceptance | Most commonly deferred; replaces the adjacent but semantically different `stakeholder_concerns` for recording blocking questions |
+| Strategy Decision | Strategic direction frequently deferred pending information |
+| Standard Decision | General-purpose fallback; deferral is common |
+
+Technology Selection, Budget Approval, and Policy Change templates do not receive this field by default — deferral is less common and existing concern/risk fields partially cover the need.
+
+#### Interaction model
+
+The `outstanding_issues` field is shown in field zoom like any other field. During a deferral flow, the facilitator zooms into it and records the open questions before deferring the context. When the context is resumed in a future meeting, this field is immediately visible as a locked or editable starting point for the new session.
+
+The field is not auto-populated by LLM generation — it captures what the group explicitly identified as unresolved. It may be pre-populated by guidance if the facilitator asks for a summary of open points, but is not part of the standard draft generation pass.
+
+---
+
 ### M2 Validation
 
 ```bash
-pnpm cli decisions flag <meeting-id> --title "Decision A" --segments 12-18,22
-pnpm cli decisions flag <meeting-id> --title "Decision B" --segments 16-20
-pnpm cli decisions update <flagged-id> --segments all
+# Per-field workflow
+pnpm cli context set-field options
+pnpm cli transcript add --text "Option 1: full replacement for £45k. Option 2: patch for £8k."
+pnpm cli draft regenerate-field options
+pnpm cli draft regenerate-field options --guidance "Focus on long-term maintenance cost"
+pnpm cli draft debug  # shows field-tagged chunks in guidance section, separate from transcript
+pnpm cli draft edit-field consequences_positive  # manual edit
+pnpm cli draft show  # [MANUALLY EDITED] consequences_positive
 
-pnpm cli draft generate                # version 1
-pnpm cli draft versions                # shows v1
-pnpm cli transcript add --text "Additional context about costs..."
-pnpm cli draft generate                # version 2 (v1 snapshot saved)
-pnpm cli draft versions                # shows v1, v2
-pnpm cli draft rollback 1              # restore v1
-pnpm cli draft show                    # shows v1 content
-pnpm cli draft debug                   # shows both LLM interactions
+# Finalization
+pnpm cli decision log --type consensus --details "5 for, 2 against" \
+     --actors "Alice,Bob,Carol" --logged-by "Alice"
+pnpm cli draft export --output final-decision.md
+cat final-decision.md  # Complete markdown with all fields
 
-# Modular foundation parity checks
+# API test
+curl http://localhost:3000/api/decisions/<id>/export?format=markdown
+
+# Field/template identity checks
+pnpm db:migrate
+pnpm db:seed
+pnpm cli field list
+pnpm cli template list --fields
+
+# Modular foundation seam checks
 pnpm --filter=@repo/core type-check
 pnpm test --filter=@repo/core
-# Existing transcript/draft/context tests pass unchanged against adapter wiring
+# Verify no-op coach hook does not change draft generation outputs
 ```
 
 ### M2 Exit Criteria
@@ -1015,7 +1344,6 @@ decision log --type <consensus|vote|authority|defer|reject|manual|ai_assisted> \
 - `name` is the stable programmatic key within a `namespace` (not the user-facing label).
 - Fields remain the primary semantic definition units.
 - Templates reuse fields by `fieldId` (UUID) and act as versioned compositions over field definitions.
-- Template assignments control composition concerns such as inclusion, order, requiredness, and non-semantic grouping/layout metadata.
 - Templates should not override field-definition meaning, prompt semantics, or validation behavior.
 - Remove `templateFieldAssignments.customLabel` and `customDescription` entirely. If different wording is required, define a different field definition.
 
@@ -1571,7 +1899,7 @@ cat final-decision.md  # Complete markdown with all fields
 curl http://localhost:3000/api/decisions/<id>/export?format=markdown
 
 # Field/template identity checks
-pnpm db:push
+pnpm db:migrate
 pnpm db:seed
 pnpm cli field list
 pnpm cli template list --fields
@@ -1623,7 +1951,7 @@ The old `apps/cli` direct-service-import CLI was replaced with a minimal HTTP cl
 **E2E validation path:**
 ```bash
 pnpm cli meeting create "Q1 Planning" -p "Alice,Bob"
-pnpm cli context set-meeting <meeting-id>
+pnpm cli context set-meeting <id>
 pnpm cli transcript upload -f ./transcript.txt
 pnpm cli decisions flag -t "Approve cloud migration"
 pnpm cli decisions list
@@ -1669,7 +1997,6 @@ Do not use `decision-candidates` routes in M5. All candidate queue API work in M
 **API endpoints** (confirm exist):
 - `GET /api/meetings/:id/flagged-decisions` — list all flagged decisions for a meeting; `?status=pending` for Suggested tab, `?status=accepted` for Agenda tab
 - `GET /api/meetings/:id/decision-contexts` — list all draft contexts with status
-- `GET /api/meetings/:id/summary` — aggregate stats (decision count, draft count, logged count)
 - `GET /api/flagged-decisions/:id/context` — get the `DecisionContext` for a flagged decision (enables web UI "resume" flow)
 - `PATCH /api/meetings/:id` — update meeting metadata/participants during session
 - `PATCH /api/flagged-decisions/:id` — update title/summary/priority/status; use `{ status: 'accepted', priority: n }` to promote to Agenda and set position
@@ -2160,7 +2487,6 @@ open http://localhost:5173  # Decision draft editor, multi-decision switcher
 - ✅ Direct decision context creation available in facilitator view without prior candidate (G2)
 - ✅ Active context title/summary editable in place (G2.1)
 - ✅ Regenerate dialog exposes optional "Focus for this pass" input (G5)
-- ✅ Lightweight "flag for later" action captures a future decision title without changing the active context (G10)
 - ✅ `outstanding_issues` field visible and editable in field zoom for relevant templates (G12, M4.12)
 - ✅ E2E test suite passes
 
@@ -2669,7 +2995,7 @@ pnpm test:llm -- --grep="decision detection mcp"
 
 **Validation**:
 ```bash
-pnpm db:push
+pnpm db:migrate
 pnpm db:seed
 pnpm cli field list
 pnpm cli template list --fields

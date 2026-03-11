@@ -58,7 +58,7 @@ describe('Expert and MCP Service Integration Tests', () => {
 
     const [meeting] = await db.insert(meetings).values({
       title: `Expert Advice Service Meeting ${randomUUID()}`,
-      date: '2026-03-01',
+      date: new Date('2026-03-01T00:00:00.000Z'),
       participants: ['Alice', 'Bob'],
       status: 'active',
     }).returning();

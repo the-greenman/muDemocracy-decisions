@@ -60,7 +60,7 @@
       "dependsOn": ["db:generate"]
     },
     "db:seed": {
-      "dependsOn": ["db:push"],
+      "dependsOn": ["db:migrate"],
       "cache": false
     }
   }

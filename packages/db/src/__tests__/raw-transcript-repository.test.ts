@@ -24,7 +24,7 @@ describe('DrizzleRawTranscriptRepository', () => {
     await db.insert(meetings).values({
       id: testMeetingId,
       title: 'Test Meeting',
-      date: new Date().toISOString(),
+      date: new Date(),
       participants: [],
       status: 'active',
     });
@@ -32,7 +32,7 @@ describe('DrizzleRawTranscriptRepository', () => {
     await db.insert(meetings).values({
       id: otherMeetingId,
       title: 'Other Meeting',
-      date: new Date().toISOString(),
+      date: new Date(),
       participants: [],
       status: 'active',
     });

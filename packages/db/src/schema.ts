@@ -10,7 +10,7 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, date, timestamp, pgEnum, index, integer, jsonb, boolean, real, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, pgEnum, index, integer, jsonb, boolean, real, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // ============================================================================
 // MEETINGS
@@ -40,7 +40,7 @@ export const taggedByEnum = pgEnum('tagged_by', ['llm', 'rule', 'manual']);
 export const meetings = pgTable('meetings', {
   id: uuid('id').primaryKey().defaultRandom(),
   title: text('title').notNull(),
-  date: date('date').notNull(),
+  date: timestamp('date', { withTimezone: true }).notNull(),
   participants: text('participants').array().notNull(),
   status: meetingStatusEnum('status').default('active').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

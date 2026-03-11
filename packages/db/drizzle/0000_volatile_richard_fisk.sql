@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS "decision_contexts" (
 	"title" text NOT NULL,
 	"template_id" uuid NOT NULL,
 	"active_field" uuid,
-	"locked_fields" text[] DEFAULT  NOT NULL,
+	"locked_fields" text[] DEFAULT '{}'::text[] NOT NULL,
 	"draft_data" jsonb,
 	"status" "decision_context_status" DEFAULT 'drafting' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -185,7 +185,7 @@ CREATE TABLE IF NOT EXISTS "expert_templates" (
 	"name" text NOT NULL,
 	"type" "expert_type" NOT NULL,
 	"prompt_template" text NOT NULL,
-	"mcp_access" text[] DEFAULT  NOT NULL,
+	"mcp_access" text[] DEFAULT '{}'::text[] NOT NULL,
 	"output_schema" jsonb,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS "transcript_chunks" (
 	"chunk_strategy" "chunk_strategy" NOT NULL,
 	"token_count" integer,
 	"word_count" integer,
-	"contexts" text[] DEFAULT  NOT NULL,
+	"contexts" text[] DEFAULT '{}'::text[] NOT NULL,
 	"topics" text[],
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );

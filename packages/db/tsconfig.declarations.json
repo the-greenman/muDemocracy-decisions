@@ -5,6 +5,8 @@
     "declaration": true,
     "declarationMap": false,
     "noEmit": false,
+    "composite": false,
+    "incremental": false,
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": ".",

@@ -21,16 +21,16 @@
     }
   },
   "scripts": {
-    "build": "tsup --no-dts && tsc --project tsconfig.declarations.json && mkdir -p dist/repositories dist/scripts dist/seed-data && cp src/index.d.ts dist/index.d.ts && cp src/client.d.ts dist/client.d.ts && cp src/schema.d.ts dist/schema.d.ts && cp src/repositories/*.d.ts dist/repositories/",
+    "build": "tsup --no-dts && tsc --project tsconfig.declarations.json",
     "dev": "tsup --watch --no-dts",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit push:pg",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:migrate": "tsx scripts/migrate.ts",
     "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
     "db:validate": "drizzle-kit check:pg",
     "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run --minWorkers=1 --maxWorkers=1",
-    "type-check": "tsc --project tsconfig.declarations.json && mkdir -p dist/repositories && cp src/index.d.ts dist/index.d.ts && cp src/client.d.ts dist/client.d.ts && cp src/schema.d.ts dist/schema.d.ts && cp src/repositories/*.d.ts dist/repositories/"
+    "type-check": "tsc --project tsconfig.declarations.json"
   },
   "dependencies": {
     "@repo/schema": "workspace:*",

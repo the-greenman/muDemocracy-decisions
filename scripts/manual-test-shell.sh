@@ -53,7 +53,7 @@ build_workspace() {
 run_db_migrations() {
   (
     cd "$ROOT_DIR"
-    DATABASE_URL="$DATABASE_URL" npm exec -w @repo/db tsx scripts/migrate.ts
+    DATABASE_URL="$DATABASE_URL" npm run -w @repo/db db:migrate
   )
 }
 

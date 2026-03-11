@@ -314,7 +314,7 @@ See `docs/PLAN.md` for complete API spec.
 # Setup
 pnpm install
 docker-compose up -d
-pnpm db:push
+pnpm db:migrate
 pnpm db:seed
 
 # Development
@@ -334,10 +334,48 @@ pnpm check:consistency       # Zod ↔ Drizzle ↔ OpenAPI (planned)
 pnpm check:deps              # Circular dependency check (planned)
 
 # Database
-pnpm db:push                 # Push schema changes
+pnpm db:migrate              # Apply committed schema changes
+pnpm db:push                 # Direct-push schema to a disposable local DB only
 pnpm db:seed                 # Seed field library + templates
 pnpm db:studio               # Drizzle Studio UI
 ```
+
+## Build, Declaration, And Database Rules
+
+- Package API declarations must be emitted from TypeScript source by `tsc`.
+- `tsup` owns JavaScript bundling only and must not be the declaration owner for workspace packages.
+- Checked-in package API `.d.ts` files are not allowed under `packages/**`.
+- Ambient `.d.ts` files are allowed only where they are environment-specific, such as `apps/web/src/vite-env.d.ts`.
+- App build/dev tsconfigs should resolve workspace packages through normal workspace entrypoints.
+- If an app needs consumer-style declaration validation, keep that in a dedicated `tsconfig.typecheck.json` instead of reusing the build/dev config.
+- After changing package exports, tsconfig layering, or declaration output behavior, run:
+
+```bash
+pnpm build
+pnpm type-check
+pnpm lint:workspace
+```
+
+## Canonical Schema, Type, And Database Change Flow
+
+When a change affects schema, types, or the database, use this order:
+
+1. Update the canonical schema/type definitions in `packages/schema`.
+2. Update `packages/db/src/schema.ts` and any affected repository/runtime code.
+3. Run `pnpm db:generate`.
+4. Review the generated SQL and metadata in `packages/db/drizzle/`.
+5. Run `pnpm db:migrate`.
+6. Run validation:
+
+```bash
+pnpm build
+pnpm type-check
+pnpm lint:workspace
+pnpm --filter @repo/db test
+pnpm db:migrate
+```
+
+`pnpm db:push` is not part of the normal team workflow. Use it only as a disposable local-only escape hatch.
 
 ## Next Steps
 

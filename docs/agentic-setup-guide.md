@@ -439,7 +439,7 @@ pnpm install
 
 # Start dev environment
 docker-compose up -d
-pnpm db:push
+pnpm db:migrate
 pnpm db:seed
 
 # Run tests

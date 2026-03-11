@@ -1,10 +1,14 @@
-import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname, basename } from "node:path";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { resolve, dirname, basename, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, "..");
+
+const allowedSourceDeclarationFiles = new Set([
+  "apps/web/src/vite-env.d.ts",
+]);
 
 const tsconfigFiles = [
   "apps/api/tsconfig.json",
@@ -35,6 +39,44 @@ const errors = [];
 function readJson(relativePath) {
   const absolutePath = resolve(rootDir, relativePath);
   return JSON.parse(readFileSync(absolutePath, "utf8"));
+}
+
+function collectSourceDeclarationFiles(currentPath, collected = []) {
+  for (const entry of readdirSync(currentPath)) {
+    const absolutePath = resolve(currentPath, entry);
+    const stats = statSync(absolutePath);
+
+    if (stats.isDirectory()) {
+      if (entry === "dist" || entry === "node_modules") {
+        continue;
+      }
+
+      collectSourceDeclarationFiles(absolutePath, collected);
+      continue;
+    }
+
+    if (!entry.endsWith(".d.ts")) {
+      continue;
+    }
+
+    collected.push(relative(rootDir, absolutePath));
+  }
+
+  return collected;
+}
+
+for (const relativePath of collectSourceDeclarationFiles(resolve(rootDir, "apps"))) {
+  if (!allowedSourceDeclarationFiles.has(relativePath)) {
+    errors.push(
+      `${relativePath}: source .d.ts files are only allowed for explicit ambient declarations. Move package API types into .ts source and let tsc emit declarations.`
+    );
+  }
+}
+
+for (const relativePath of collectSourceDeclarationFiles(resolve(rootDir, "packages"))) {
+  errors.push(
+    `${relativePath}: checked-in package API .d.ts files are not allowed. Move the declaration surface into .ts source and let tsc emit dist declarations.`
+  );
 }
 
 for (const relativePath of tsconfigFiles) {
@@ -70,10 +112,17 @@ for (const relativePath of packageJsonFiles) {
     const hasTsup = buildScript.includes("tsup");
     const hasTsc = buildScript.includes("tsc");
     const tsupOwnsDts = buildScript.includes("--dts") || !buildScript.includes("--no-dts");
+    const copiesDeclarations = /(^|\s)(cp|cpy|copyfiles)\s/u.test(buildScript) && buildScript.includes(".d.ts");
 
     if (hasTsup && hasTsc && tsupOwnsDts) {
       errors.push(
         `${relativePath}: build script mixes tsup and tsc without disabling tsup DTS output. Keep a single declaration owner.`
+      );
+    }
+
+    if (copiesDeclarations) {
+      errors.push(
+        `${relativePath}: build script copies .d.ts files into outputs. Package API declarations must be emitted by tsc, not copied from source.`
       );
     }
   }

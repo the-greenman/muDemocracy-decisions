@@ -26,7 +26,7 @@ describe('FlaggedDecisionService Integration Tests', () => {
     await db.insert(meetings).values({
       id: testMeetingId,
       title: 'Integration Test Meeting',
-      date: '2026-02-28',
+      date: new Date('2026-02-28T00:00:00.000Z'),
       participants: ['Alice', 'Bob'],
       status: 'active',
     });

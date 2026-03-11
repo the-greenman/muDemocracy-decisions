@@ -5,9 +5,9 @@
     "composite": false,
     "baseUrl": ".",
     "paths": {
-      "@repo/schema": ["../../packages/schema/src/index.ts"],
-      "@repo/db": ["../../packages/db/src/index.ts"],
-      "@repo/core": ["../../packages/core/src/index.ts"]
+      "@repo/schema": ["../../packages/schema/dist/index.d.ts"],
+      "@repo/core": ["../../packages/core/dist/index.d.ts"],
+      "@repo/db": ["../../packages/db/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],

@@ -18,8 +18,8 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 
-DATABASE_URL="$DEV_DATABASE_URL" npm exec -w @repo/db tsx scripts/migrate.ts
-DATABASE_URL="$TEST_DATABASE_URL" npm exec -w @repo/db tsx scripts/migrate.ts
+DATABASE_URL="$DEV_DATABASE_URL" npm run -w @repo/db db:migrate
+DATABASE_URL="$TEST_DATABASE_URL" npm run -w @repo/db db:migrate
 
 docker compose up --build -d api
 

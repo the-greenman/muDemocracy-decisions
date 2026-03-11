@@ -29,6 +29,7 @@ import {
   createSupplementaryContentService,
   createTemplateFieldAssignmentRepository,
   createTranscriptService,
+  type GuidanceSegment,
   type IMeetingRepository,
   MeetingService,
 } from '@repo/core';
@@ -1089,7 +1090,7 @@ app.openapi(generateDraftRoute, async (c) => {
   try {
     const { id } = c.req.valid('param');
     const data = c.req.valid('json');
-    const guidance: GuidanceSegment[] | undefined = data.guidance?.map((segment: GuidanceSegment) => {
+    const guidance: GuidanceSegment[] | undefined = data.guidance?.map((segment) => {
       if (segment.fieldId !== undefined) {
         return {
           fieldId: segment.fieldId,
@@ -1124,7 +1125,7 @@ app.openapi(regenerateDraftRoute, async (c) => {
   try {
     const { id } = c.req.valid('param');
     const data = c.req.valid('json');
-    const guidance: GuidanceSegment[] | undefined = data.guidance?.map((segment: GuidanceSegment) => {
+    const guidance: GuidanceSegment[] | undefined = data.guidance?.map((segment) => {
       if (segment.fieldId !== undefined) {
         return {
           fieldId: segment.fieldId,
@@ -1280,7 +1281,7 @@ app.openapi(regenerateFieldRoute, async (c) => {
     const { id, fieldId } = c.req.valid('param');
     const resolvedFieldId = await resolveContextFieldId(services, id, fieldId);
     const { guidance } = c.req.valid('json');
-    const normalizedGuidance: GuidanceSegment[] | undefined = guidance?.map((segment: GuidanceSegment) => {
+    const normalizedGuidance: GuidanceSegment[] | undefined = guidance?.map((segment) => {
       if (segment.fieldId === undefined) {
         return {
           content: segment.content,

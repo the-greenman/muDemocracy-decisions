@@ -23,9 +23,9 @@ CREATE TABLE IF NOT EXISTS "llm_interactions" (
 ALTER TABLE "decision_contexts" ALTER COLUMN "locked_fields" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "expert_templates" ALTER COLUMN "mcp_access" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "transcript_chunks" ALTER COLUMN "contexts" DROP DEFAULT;--> statement-breakpoint
-ALTER TABLE "decision_contexts" ADD COLUMN "draft_versions" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
-ALTER TABLE "decision_fields" ADD COLUMN "namespace" text DEFAULT 'core' NOT NULL;--> statement-breakpoint
-ALTER TABLE "decision_templates" ADD COLUMN "namespace" text DEFAULT 'core' NOT NULL;--> statement-breakpoint
+ALTER TABLE "decision_contexts" ADD COLUMN IF NOT EXISTS "draft_versions" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "decision_fields" ADD COLUMN IF NOT EXISTS "namespace" text DEFAULT 'core' NOT NULL;--> statement-breakpoint
+ALTER TABLE "decision_templates" ADD COLUMN IF NOT EXISTS "namespace" text DEFAULT 'core' NOT NULL;--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "llm_interactions_decision_context_idx" ON "llm_interactions" ("decision_context_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "llm_interactions_field_idx" ON "llm_interactions" ("field_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_decision_fields_namespace" ON "decision_fields" ("namespace");--> statement-breakpoint
