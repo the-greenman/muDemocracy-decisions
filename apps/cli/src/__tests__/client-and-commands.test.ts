@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const spawnMock = vi.fn();
+vi.mock('node:child_process', () => ({
+  spawn: spawnMock,
+}));
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
 const stderrWriteSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-const baseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
+const baseUrl = process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? 'http://localhost:3001';
 
 describe('CLI client request shapes', () => {
   beforeEach(() => {
@@ -100,6 +104,7 @@ describe('CLI client request shapes', () => {
 describe('CLI command request shapes', () => {
   beforeEach(() => {
     fetchMock.mockReset();
+    spawnMock.mockReset();
     stderrWriteSpy.mockClear();
   });
 
@@ -420,6 +425,150 @@ describe('CLI command request shapes', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/status`,
+      { method: 'GET' },
+    );
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it('transcript read requests transcript rows for the provided meeting', async () => {
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        rows: [
+          {
+            id: 'row-1',
+            displayText: 'Decision discussed',
+            speaker: 'Alice',
+            startTime: '00:00:01',
+            endTime: '00:00:03',
+          },
+        ],
+      }),
+    });
+
+    const { transcriptCommand } = await import('../commands/transcript.js');
+    await transcriptCommand.parseAsync(
+      ['node', 'transcript', 'read', '--meeting-id', 'meeting-1'],
+      { from: 'node' },
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/api/meetings/meeting-1/transcript-reading`,
+      { method: 'GET' },
+    );
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it('transcript transcribe-file launches the external transcription client', async () => {
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    spawnMock.mockReturnValue({
+      on: (event: string, handler: (code?: number) => void) => {
+        if (event === 'exit') {
+          setTimeout(() => handler(0), 0);
+        }
+      },
+    });
+
+    const { transcriptCommand } = await import('../commands/transcript.js');
+    await transcriptCommand.parseAsync(
+      ['node', 'transcript', 'transcribe-file', 'audio.wav', '--meeting-id', 'meeting-1', '--mode', 'stream', '--chunk-strategy', 'speaker', '--language', 'en'],
+      { from: 'node' },
+    );
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'pnpm',
+      [
+        '--filter',
+        '@repo/transcription',
+        'exec',
+        'tsx',
+        'src/index.ts',
+        'transcribe',
+        expect.stringMatching(/audio\.wav$/),
+        '--meeting-id',
+        'meeting-1',
+        '--api-url',
+        baseUrl,
+        '--mode',
+        'stream',
+        '--chunk-strategy',
+        'speaker',
+        '--language',
+        'en',
+      ],
+      {
+        stdio: 'inherit',
+        env: expect.objectContaining({
+          DECISION_LOGGER_API_URL: baseUrl,
+          API_BASE_URL: baseUrl,
+        }),
+      },
+    );
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it('transcript live --watch launches transcription and polls transcript rows', async () => {
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    spawnMock.mockReturnValue({
+      on: (event: string, handler: (code?: number) => void) => {
+        if (event === 'exit') {
+          setTimeout(() => handler(0), 0);
+        }
+      },
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        rows: [
+          {
+            id: 'row-1',
+            displayText: 'Streaming transcript row',
+            speaker: 'Bob',
+            startTime: '00:00:05',
+            endTime: '00:00:06',
+          },
+        ],
+      }),
+    });
+
+    const { transcriptCommand } = await import('../commands/transcript.js');
+    await transcriptCommand.parseAsync(
+      ['node', 'transcript', 'live', '--meeting-id', 'meeting-1', '--watch', '--interval-ms', '1'],
+      { from: 'node' },
+    );
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'pnpm',
+      [
+        '--filter',
+        '@repo/transcription',
+        'exec',
+        'tsx',
+        'src/index.ts',
+        'live',
+        '--meeting-id',
+        'meeting-1',
+        '--api-url',
+        baseUrl,
+      ],
+      {
+        stdio: 'inherit',
+        env: expect.objectContaining({
+          DECISION_LOGGER_API_URL: baseUrl,
+          API_BASE_URL: baseUrl,
+        }),
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/api/meetings/meeting-1/transcript-reading`,
       { method: 'GET' },
     );
 

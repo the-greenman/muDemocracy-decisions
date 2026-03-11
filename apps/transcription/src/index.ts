@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { resolve } from 'node:path';
+import { applyDecisionLoggerApiUrlOverride } from './config.js';
 import { runBatchTranscription, runLiveTranscription, runLocalTranscription, runUploadSmoke } from './session.js';
 import { startWebServer } from './web-server.js';
 
@@ -150,9 +151,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
-  if (parsed.apiUrl !== undefined) {
-    process.env.DECISION_LOGGER_API_URL = parsed.apiUrl;
-  }
+  applyDecisionLoggerApiUrlOverride(parsed.apiUrl);
   if (!parsed.command || !parsed.audioFilePath) {
     if (parsed.command !== 'live' && parsed.command !== 'serve') {
       printUsage();

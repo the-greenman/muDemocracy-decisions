@@ -1,6 +1,6 @@
 import { logHttpRequest, logHttpResponse } from './runtime.js';
 
-const BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000';
+const BASE_URL = process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? 'http://localhost:3001';
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = `${BASE_URL}${path}`;

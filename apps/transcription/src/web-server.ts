@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { DecisionLoggerApiClient } from './api-client.js';
+import { resolveDecisionLoggerApiUrl } from './config.js';
 import { createProviderFromEnv } from './providers/index.js';
 import type { ITranscriptionProvider, TranscriptEvent } from './providers/interface.js';
 import {
@@ -145,7 +146,7 @@ function resolveChunkFilename(req: IncomingMessage, fallback: string): string {
 }
 
 export async function startWebServer(options?: StartWebServerOptions): Promise<RunningWebServer> {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
+  const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
 
   const provider = options?.provider ?? createProviderFromEnv();

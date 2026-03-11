@@ -5,6 +5,7 @@ import { mkdtemp, readdir, readFile as readFileFromDisk, rm } from 'node:fs/prom
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DecisionLoggerApiClient } from './api-client.js';
+import { resolveDecisionLoggerApiUrl } from './config.js';
 import { formatEventPreviewLine, formatEventsAsSrt, formatEventsAsText } from './output-format.js';
 import { createProviderFromEnv } from './providers/index.js';
 import type { ITranscriptionProvider, TranscriptEvent } from './providers/interface.js';
@@ -85,7 +86,7 @@ export interface UploadSmokeOptions {
 }
 
 function buildBatchDependencies(deps?: Partial<BatchTranscriptionDependencies>): BatchTranscriptionDependencies {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
+  const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
   return {
     provider: deps?.provider ?? createProviderFromEnv(),
@@ -105,7 +106,7 @@ function wait(ms: number): Promise<void> {
 function createDefaultLiveDependencies(
   deps?: Partial<LiveTranscriptionDependencies>,
 ): LiveTranscriptionDependencies {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
+  const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
   const defaultRegisterSignalHandlers = (onShutdown: CleanupFn): CleanupFn => {
     let shutdownPromise: Promise<void> | null = null;
@@ -157,7 +158,6 @@ function resolveDeliveryConfig(
       ?? parsePositiveInt(process.env.STREAM_MAX_OUTBOUND_QUEUE, 200),
   };
 }
-
 
 async function createFfmpegChunkSource(chunkMs: number): Promise<LiveChunkSource> {
   const chunkSeconds = Math.max(1, Math.round(chunkMs / 1000));
@@ -430,7 +430,7 @@ export async function runLocalTranscription(options: LocalTranscriptionOptions):
 }
 
 export async function runUploadSmoke(options: UploadSmokeOptions): Promise<void> {
-  const apiUrl = process.env.DECISION_LOGGER_API_URL ?? 'http://localhost:3001';
+  const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
   const apiClient = new DecisionLoggerApiClient(apiUrl, apiKey);
 
