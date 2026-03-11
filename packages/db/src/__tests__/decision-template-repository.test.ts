@@ -22,13 +22,17 @@ vi.mock('../client', () => ({
 }));
 
 // Mock drizzle-orm operators
-vi.mock('drizzle-orm', () => ({
-  eq: vi.fn(),
-  and: vi.fn(),
-  ilike: vi.fn(),
-  desc: vi.fn(),
-  asc: vi.fn(),
-}));
+vi.mock('drizzle-orm', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('drizzle-orm')>();
+  return {
+    ...actual,
+    eq: vi.fn(),
+    and: vi.fn(),
+    ilike: vi.fn(),
+    desc: vi.fn(),
+    asc: vi.fn(),
+  };
+});
 
 describe('DrizzleDecisionTemplateRepository', () => {
   let repository: DrizzleDecisionTemplateRepository;
