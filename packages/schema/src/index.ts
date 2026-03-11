@@ -954,6 +954,43 @@ export const LLMInteractionSchema = z.object({
 
 export type LLMInteraction = z.infer<typeof LLMInteractionSchema>;
 
+// ============================================================================
+// MEETING SUMMARY SCHEMA
+// ============================================================================
+
+export const MeetingSummarySchema = z.object({
+  meetingId: z.string().uuid(),
+  title: z.string(),
+  segmentCount: z.number().int(),
+  decisionCount: z.number().int(),
+  draftCount: z.number().int(),
+  loggedCount: z.number().int(),
+}).openapi('MeetingSummary', {
+  description: 'Aggregate statistics for a meeting',
+  example: {
+    meetingId: '550e8400-e29b-41d4-a716-446655440000',
+    title: 'Q1 Planning',
+    segmentCount: 45,
+    decisionCount: 3,
+    draftCount: 2,
+    loggedCount: 1,
+  },
+});
+
+export type MeetingSummary = z.infer<typeof MeetingSummarySchema>;
+
+// ============================================================================
+// DECISION CONTEXT LIST SCHEMA
+// ============================================================================
+
+export const DecisionContextListSchema = z.object({
+  contexts: z.array(DecisionContextSchema),
+}).openapi('DecisionContextList', {
+  description: 'List of decision contexts for a meeting',
+});
+
+export type DecisionContextList = z.infer<typeof DecisionContextListSchema>;
+
 export const CreateLLMInteractionSchema = LLMInteractionSchema.omit({
   id: true,
   createdAt: true,

@@ -15,7 +15,7 @@
     }
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup --no-dts && tsc --project tsconfig.declarations.json",
     "dev": "tsup --watch --no-dts",
     "test": "vitest run --passWithNoTests",
     "type-check": "tsc --build --emitDeclarationOnly"
