@@ -4,6 +4,7 @@
 
 import { apiFetch, jsonBody } from "./client.js";
 import type {
+  AssignTranscriptChunksResponse,
   ActiveMeetingsContextSummary,
   DecisionContext,
   DecisionField,
@@ -12,6 +13,7 @@ import type {
   FlaggedDecision,
   FlaggedDecisionListItem,
   GlobalContext,
+  ApiStatus,
   LLMInteraction,
   Meeting,
   MeetingSummary,
@@ -28,6 +30,10 @@ export function listMeetings() {
 
 export function getMeeting(id: string) {
   return apiFetch<Meeting>(`/api/meetings/${id}`);
+}
+
+export function getApiStatus() {
+  return apiFetch<ApiStatus>("/api/status");
 }
 
 export function createMeeting(body: { title: string; date: string; participants?: string[] }) {
@@ -151,17 +157,20 @@ export function getDecisionContext(id: string) {
   return apiFetch<DecisionContext>(`/api/decision-contexts/${id}`);
 }
 
-export function updateDecisionContext(id: string, body: { title?: string; activeField?: string }) {
+export function updateDecisionContext(
+  id: string,
+  body: { title?: string; activeField?: string; templateId?: string },
+) {
   return apiFetch<DecisionContext>(`/api/decision-contexts/${id}`, {
     method: "PATCH",
     ...jsonBody(body),
   });
 }
 
-/** PUT /api/decision-contexts/:id/template-change */
+/** POST /api/decision-contexts/:id/template-change */
 export function changeDecisionContextTemplate(id: string, templateId: string) {
   return apiFetch<DecisionContext>(`/api/decision-contexts/${id}/template-change`, {
-    method: "PUT",
+    method: "POST",
     ...jsonBody({ templateId }),
   });
 }
@@ -201,6 +210,30 @@ export function regenerateField(
 export function getFieldTranscriptChunks(contextId: string, fieldId: string) {
   return apiFetch<{ chunks: TranscriptChunk[] }>(
     `/api/decision-contexts/${contextId}/fields/${fieldId}/transcript`,
+  );
+}
+
+export function assignDecisionTranscriptChunks(contextId: string, chunkIds: string[]) {
+  return apiFetch<AssignTranscriptChunksResponse>(
+    `/api/decision-contexts/${contextId}/transcript/context`,
+    {
+      method: "POST",
+      ...jsonBody({ chunkIds }),
+    },
+  );
+}
+
+export function assignFieldTranscriptChunks(
+  contextId: string,
+  fieldId: string,
+  chunkIds: string[],
+) {
+  return apiFetch<AssignTranscriptChunksResponse>(
+    `/api/decision-contexts/${contextId}/fields/${fieldId}/transcript/context`,
+    {
+      method: "POST",
+      ...jsonBody({ chunkIds }),
+    },
   );
 }
 
@@ -343,5 +376,17 @@ export function setActiveField(meetingId: string, fieldId: string) {
   return apiFetch<GlobalContext>(`/api/meetings/${meetingId}/context/field`, {
     method: "POST",
     ...jsonBody({ fieldId }),
+  });
+}
+
+export function clearActiveField(meetingId: string) {
+  return apiFetch<GlobalContext>(`/api/meetings/${meetingId}/context/field`, {
+    method: "DELETE",
+  });
+}
+
+export function clearActiveDecision(meetingId: string) {
+  return apiFetch<GlobalContext>(`/api/meetings/${meetingId}/context/decision`, {
+    method: "DELETE",
   });
 }

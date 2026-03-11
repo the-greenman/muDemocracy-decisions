@@ -163,6 +163,7 @@ export class DrizzleDecisionFieldRepository implements IDecisionFieldRepository 
       description: row.description,
       category: row.category,
       extractionPrompt: row.extractionPrompt,
+      instructions: row.instructions ?? undefined,
       fieldType: row.fieldType,
       placeholder: row.placeholder,
       validationRules: row.validationRules,

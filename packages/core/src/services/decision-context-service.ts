@@ -299,6 +299,7 @@ export class DecisionContextService implements IDecisionContextService {
     if (!context) return null;
     const patch: Partial<DecisionContext> = {};
     if (data.title !== undefined) patch.title = data.title;
+    if (data.templateId !== undefined) patch.templateId = data.templateId;
     return await this.repository.update(id, patch);
   }
 

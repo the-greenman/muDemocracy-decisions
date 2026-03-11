@@ -6,6 +6,7 @@ import { AgendaList } from "@/components/shared/AgendaList";
 import { TagPill } from "@/components/shared/TagPill";
 import { useMeeting } from "@/hooks/useMeeting";
 import { useMeetingAgenda } from "@/hooks/useMeetingAgenda";
+import { useTemplates } from "@/hooks/useTemplates";
 import { getTemplateFields } from "@/api/endpoints";
 import { buildUIFields, buildAgendaItems } from "@/api/adapters";
 import type { DecisionContext, DecisionField } from "@/api/types";
@@ -32,6 +33,7 @@ export function SharedMeetingPage() {
   // API data
   const { meeting } = useMeeting(meetingId);
   const { decisions, contexts } = useMeetingAgenda(meetingId, { poll: true });
+  const { templates } = useTemplates();
 
   // Template fields cache keyed by templateId
   const templateFieldsRef = useRef<Record<string, DecisionField[]>>({});
@@ -45,6 +47,11 @@ export function SharedMeetingPage() {
       new Date(c.updatedAt) > new Date(latest.updatedAt) ? c : latest,
     );
   }, [contexts]);
+
+  const activeTemplate = useMemo(
+    () => templates.find((t) => t.id === activeContext?.templateId) ?? null,
+    [templates, activeContext?.templateId],
+  );
 
   // Load template fields when activeContext.templateId changes
   const loadTemplateFields = useCallback(async (templateId: string) => {
@@ -202,7 +209,12 @@ export function SharedMeetingPage() {
                 Close
               </button>
             </div>
-            <p className="text-display-field text-text-primary leading-relaxed mt-6">
+            {zoomedField.instructions && (
+              <p className="text-display-meta text-text-muted leading-snug mt-4">
+                {zoomedField.instructions}
+              </p>
+            )}
+            <p className="text-display-field text-text-primary leading-relaxed mt-4">
               {zoomedField.value || "Not yet generated"}
             </p>
           </div>
@@ -240,6 +252,20 @@ export function SharedMeetingPage() {
                 <p className="text-display-meta text-text-secondary mt-2 max-w-2xl leading-relaxed">
                   {activeDecisionSummary}
                 </p>
+              )}
+
+              {/* Template overview */}
+              {activeTemplate && (
+                <div className="mt-4 flex flex-col gap-0.5">
+                  <span className="text-display-meta text-text-muted uppercase tracking-widest text-xs">
+                    {activeTemplate.name}
+                  </span>
+                  {activeTemplate.description && (
+                    <p className="text-display-meta text-text-secondary max-w-2xl leading-relaxed">
+                      {activeTemplate.description}
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* Tags placeholder — no tags in API yet */}

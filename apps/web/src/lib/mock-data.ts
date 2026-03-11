@@ -31,6 +31,7 @@ export interface Field {
   value: string;
   status: FieldStatus;
   required: boolean;
+  instructions?: string; // human-readable guidance on what belongs in this field
   guidance?: string; // ephemeral per-field regen instruction
   versions?: FieldVersion[];
 }

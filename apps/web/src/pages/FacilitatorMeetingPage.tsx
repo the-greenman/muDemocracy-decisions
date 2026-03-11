@@ -31,6 +31,7 @@ import {
   lockField,
   unlockField,
   updateFieldValue,
+  changeDecisionContextTemplate,
   regenerateField,
   regenerateDraft,
   logDecision,
@@ -39,8 +40,23 @@ import {
   updateFlaggedDecision,
   createFlaggedDecision,
   listLLMInteractions,
+  getTranscriptReading,
+  listMeetingChunks,
+  setActiveMeeting,
+  setActiveDecision,
+  setActiveField,
+  clearActiveField,
+  clearActiveDecision,
+  getApiStatus,
 } from "@/api/endpoints";
-import type { LLMInteraction } from "@/api/types";
+import {
+  createTranscriptionSession,
+  uploadTranscriptionSessionChunk,
+  stopTranscriptionSession,
+  getTranscriptionServiceStatus,
+  type TranscriptionServiceStatus,
+} from "@/api/transcription-client";
+import type { ApiStatus, LLMInteraction } from "@/api/types";
 import { buildCandidates, buildAgendaItems } from "@/api/adapters";
 import { FacilitatorFieldCard } from "@/components/facilitator/FacilitatorFieldCard";
 import { CandidateCard } from "@/components/facilitator/CandidateCard";
@@ -149,7 +165,8 @@ type ModalState =
   | { type: "promote"; candidateId: string }
   | { type: "add-existing-context" }
   | { type: "add-relation-context" }
-  | { type: "flag-later" };
+  | { type: "flag-later" }
+  | { type: "system-status" };
 
 const RELATION_TYPES: RelationType[] = [
   "related",
@@ -233,6 +250,23 @@ export function FacilitatorMeetingPage() {
 
   const [streamState, setStreamState] = useState<StreamState>("idle");
   const [newRowsSinceGeneration, setNewRowsSinceGeneration] = useState(0);
+  const [streamError, setStreamError] = useState<string | null>(null);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>("");
+  const [transcriptRowCount, setTranscriptRowCount] = useState(0);
+  const [contextTaggedChunkCount, setContextTaggedChunkCount] = useState(0);
+  const [apiStatus, setApiStatus] = useState<ApiStatus | null>(null);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionServiceStatus | null>(
+    null,
+  );
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderSegmentTimerRef = useRef<number | null>(null);
+  const streamShouldContinueRef = useRef(false);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const pendingChunkUploadsRef = useRef<Promise<void>[]>([]);
 
   const [flagLaterTitle, setFlagLaterTitle] = useState("");
   const [showLLMLog, setShowLLMLog] = useState(false);
@@ -279,6 +313,10 @@ export function FacilitatorMeetingPage() {
   const activeCandidates = candidates.filter((c) => c.status === "new");
   const hasSelectedContext = Boolean(activeApiContextId);
   const isClosedContext = hasSelectedContext && activeContext.status === "logged";
+  const activeApiTemplate = useMemo(
+    () => templates.find((t) => t.id === apiContext?.templateId) ?? null,
+    [templates, apiContext?.templateId],
+  );
   const selectedLlmInteraction =
     llmLog.find((entry) => entry.id === selectedLlmInteractionId) ?? null;
   const isMeetingCompleted = apiMeeting?.status === "completed";
@@ -414,17 +452,126 @@ export function FacilitatorMeetingPage() {
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
 
-  // ── Simulate stream rows arriving while live ──────────────────────
+  // ── Device + context + transcript live state ──────────────────────
 
   useEffect(() => {
-    if (streamState !== "live") return;
+    let cancelled = false;
 
-    const timer = setInterval(() => {
-      setNewRowsSinceGeneration((prev) => prev + Math.floor(Math.random() * 3) + 1);
-    }, 4500);
+    async function loadAudioInputs() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (cancelled) return;
+        const inputs = devices.filter((device) => device.kind === "audioinput");
+        setAudioDevices(inputs);
+        if (!selectedAudioDeviceId && inputs[0]?.deviceId) {
+          setSelectedAudioDeviceId(inputs[0].deviceId);
+        }
+      } catch {
+        if (!cancelled) setAudioDevices([]);
+      }
+    }
 
-    return () => clearInterval(timer);
-  }, [streamState]);
+    void loadAudioInputs();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAudioDeviceId]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    void setActiveMeeting(meetingId).catch(() => {
+      // ignore sync failures
+    });
+  }, [meetingId]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    if (!activeApiContextId) {
+      void clearActiveDecision(meetingId).catch(() => {
+        // no-op
+      });
+      return;
+    }
+
+    const selectedDecision = apiDecisions.find((decision) => decision.contextId === activeApiContextId);
+    if (!selectedDecision) return;
+    void setActiveDecision(
+      meetingId,
+      selectedDecision.id,
+      selectedDecision.suggestedTemplateId ?? undefined,
+    ).catch(() => {
+      // no-op
+    });
+  }, [activeApiContextId, apiDecisions, meetingId]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    if (!activeApiContextId || !zoomedFieldId) {
+      void clearActiveField(meetingId).catch(() => {
+        // no-op
+      });
+      return;
+    }
+
+    void setActiveField(meetingId, zoomedFieldId).catch(() => {
+      // no-op
+    });
+  }, [activeApiContextId, meetingId, zoomedFieldId]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const pollMs = streamState === "live" ? 2000 : 5000;
+    const decisionTagPrefix = activeApiContextId ? `decision:${activeApiContextId}` : null;
+    const fieldTag =
+      activeApiContextId && zoomedFieldId ? `decision:${activeApiContextId}:${zoomedFieldId}` : null;
+    const meetingTag = `meeting:${meetingId}`;
+
+    async function pollTranscript() {
+      try {
+        const [reading, chunkData] = await Promise.all([
+          getTranscriptReading(meetingId),
+          listMeetingChunks(meetingId),
+        ]);
+
+        if (cancelled) return;
+
+        const totalRows = reading.rows.length > 0 ? reading.rows.length : chunkData.chunks.length;
+        setTranscriptRowCount(totalRows);
+
+        const scoped = chunkData.chunks.filter((chunk) => {
+          if (fieldTag) return chunk.contexts.includes(fieldTag);
+          if (decisionTagPrefix) {
+            return chunk.contexts.some(
+              (context) => context === decisionTagPrefix || context.startsWith(`${decisionTagPrefix}:`),
+            );
+          }
+          return chunk.contexts.includes(meetingTag);
+        });
+        setContextTaggedChunkCount(scoped.length);
+      } catch {
+        if (!cancelled) {
+          setTranscriptRowCount(0);
+          setContextTaggedChunkCount(0);
+        }
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(() => {
+            void pollTranscript();
+          }, pollMs);
+        }
+      }
+    }
+
+    void pollTranscript();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [activeApiContextId, meetingId, streamState, zoomedFieldId]);
 
   // ── Broadcast focused field for shared-display sync ──────────────
   useEffect(() => {
@@ -1147,14 +1294,171 @@ export function FacilitatorMeetingPage() {
 
   // ── Stream actions ────────────────────────────────────────────────
 
-  function handleToggleStream() {
-    if (streamState === "live") {
-      setStreamState("stopped");
-      return;
+  function getRecorderMimeType(): string | undefined {
+    const options = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg", "audio/mp4"];
+    return options.find((value) => MediaRecorder.isTypeSupported(value));
+  }
+
+  function extensionForMimeType(mimeType: string | undefined): string {
+    if (!mimeType) return "webm";
+    if (mimeType.includes("webm")) return "webm";
+    if (mimeType.includes("ogg") || mimeType.includes("oga")) return "ogg";
+    if (mimeType.includes("mp4") || mimeType.includes("m4a")) return "m4a";
+    if (mimeType.includes("mpeg") || mimeType.includes("mp3") || mimeType.includes("mpga")) return "mp3";
+    if (mimeType.includes("wav")) return "wav";
+    if (mimeType.includes("flac")) return "flac";
+    return "webm";
+  }
+
+  function clearRecorderSegmentTimer() {
+    if (recorderSegmentTimerRef.current !== null) {
+      window.clearTimeout(recorderSegmentTimerRef.current);
+      recorderSegmentTimerRef.current = null;
+    }
+  }
+
+  async function stopBrowserStream() {
+    streamShouldContinueRef.current = false;
+    clearRecorderSegmentTimer();
+    const recorder = recorderRef.current;
+    const sessionId = sessionIdRef.current;
+    setStreamState("stopped");
+
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    } else if (sessionId) {
+      await Promise.allSettled(pendingChunkUploadsRef.current);
+      try {
+        await stopTranscriptionSession(sessionId);
+      } catch (error) {
+        setStreamError(error instanceof Error ? error.message : "Failed to stop session");
+      }
+      sessionIdRef.current = null;
     }
 
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  }
+
+  async function startBrowserStream() {
+    if (!meetingId) return;
+    setStreamError(null);
     setStreamState("connecting");
-    setTimeout(() => setStreamState("live"), 700);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: selectedAudioDeviceId
+          ? { deviceId: { exact: selectedAudioDeviceId } }
+          : true,
+      });
+      mediaStreamRef.current = stream;
+
+      const session = await createTranscriptionSession(meetingId);
+      sessionIdRef.current = session.sessionId;
+      streamShouldContinueRef.current = true;
+
+      const mimeType = getRecorderMimeType();
+      pendingChunkUploadsRef.current = [];
+
+      const startSegment = () => {
+        if (!streamShouldContinueRef.current || !sessionIdRef.current || !mediaStreamRef.current) {
+          return;
+        }
+
+        const recorder = new MediaRecorder(mediaStreamRef.current, mimeType ? { mimeType } : undefined);
+        recorderRef.current = recorder;
+
+        recorder.ondataavailable = (event) => {
+          if (!sessionIdRef.current || event.data.size === 0) return;
+          const currentSessionId = sessionIdRef.current;
+          if (!currentSessionId) return;
+          const chunkMimeType = event.data.type || mimeType || "audio/webm";
+          const extension = extensionForMimeType(chunkMimeType);
+          const upload = event.data
+            .arrayBuffer()
+            .then((buffer) =>
+              uploadTranscriptionSessionChunk(
+                currentSessionId,
+                buffer,
+                `chunk-${Date.now()}.${extension}`,
+                chunkMimeType,
+              ),
+            );
+          pendingChunkUploadsRef.current.push(upload);
+          void upload
+            .catch((error) => {
+              setStreamError(error instanceof Error ? error.message : "Failed to upload audio chunk");
+            })
+            .finally(() => {
+              pendingChunkUploadsRef.current = pendingChunkUploadsRef.current.filter(
+                (item) => item !== upload,
+              );
+            });
+        };
+
+        recorder.onstop = () => {
+          const finalizeSegment = async () => {
+            await Promise.allSettled(pendingChunkUploadsRef.current);
+            if (!streamShouldContinueRef.current) {
+              if (sessionIdRef.current) {
+                try {
+                  await stopTranscriptionSession(sessionIdRef.current);
+                } catch (error) {
+                  setStreamError(error instanceof Error ? error.message : "Failed to flush stream");
+                }
+              }
+              sessionIdRef.current = null;
+              recorderRef.current = null;
+              if (mediaStreamRef.current) {
+                mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+                mediaStreamRef.current = null;
+              }
+              return;
+            }
+            startSegment();
+          };
+          void finalizeSegment();
+        };
+
+        recorder.onerror = () => {
+          setStreamError("Recorder error while capturing audio");
+          void stopBrowserStream();
+        };
+
+        recorder.start();
+        clearRecorderSegmentTimer();
+        recorderSegmentTimerRef.current = window.setTimeout(() => {
+          if (recorder.state === "recording") {
+            recorder.stop();
+          }
+        }, 10_000);
+      };
+
+      startSegment();
+      setStreamState("live");
+    } catch (error) {
+      setStreamState("stopped");
+      setStreamError(
+        error instanceof Error ? error.message : "Unable to start browser audio stream",
+      );
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+      streamShouldContinueRef.current = false;
+      clearRecorderSegmentTimer();
+    }
+  }
+
+  function handleToggleStream() {
+    if (streamState === "connecting") return;
+    if (streamState === "live") {
+      void stopBrowserStream();
+      return;
+    }
+    void startBrowserStream();
   }
 
   // ── Regenerate ───────────────────────────────────────────────────
@@ -1318,17 +1622,21 @@ export function FacilitatorMeetingPage() {
     }
   }
 
-  function handleChangeTemplate(template: Template, nextFields: Field[]) {
-    if (isClosedContext) return;
+  async function handleChangeTemplate(newTemplateId: string, fieldValues: Record<string, string>) {
+    if (isClosedContext || !activeApiContextId) return;
 
-    setFields(nextFields);
-    setActiveContext((prev) => ({
-      ...prev,
-      templateName: template.name,
-      fields: nextFields,
-    }));
+    // Switch template via dedicated endpoint
+    await changeDecisionContextTemplate(activeApiContextId, newTemplateId);
+
+    // Save any carried-over field values
+    const entries = Object.entries(fieldValues).filter(([, v]) => v.trim());
+    await Promise.all(
+      entries.map(([fieldId, value]) => updateFieldValue(activeApiContextId, fieldId, value)),
+    );
+
     setZoomedFieldId(null);
     setModal(null);
+    refreshContext();
   }
 
   // ── Upload transcript ────────────────────────────────────────────
@@ -1344,7 +1652,11 @@ export function FacilitatorMeetingPage() {
     if (activeApiContextId) query.set("decisionContextId", activeApiContextId);
     query.set("fieldId", fieldId);
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    navigate(`/meetings/${meetingId}/facilitator/transcript${suffix}`);
+    const url = `/meetings/${meetingId}/facilitator/transcript${suffix}`;
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      navigate(url);
+    }
   }
 
   async function handleEndMeeting() {
@@ -1360,6 +1672,45 @@ export function FacilitatorMeetingPage() {
       setEndingMeeting(false);
     }
   }
+
+  async function refreshSystemStatus() {
+    setStatusLoading(true);
+    setStatusError(null);
+    try {
+      const [api, transcription] = await Promise.all([
+        getApiStatus(),
+        getTranscriptionServiceStatus(),
+      ]);
+      setApiStatus(api);
+      setTranscriptionStatus(transcription);
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : "Failed to load system status");
+    } finally {
+      setStatusLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (modal?.type !== "system-status") return;
+    void refreshSystemStatus();
+  }, [modal]);
+
+  useEffect(() => {
+    return () => {
+      streamShouldContinueRef.current = false;
+      clearRecorderSegmentTimer();
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      recorderRef.current = null;
+      mediaStreamRef.current = null;
+      sessionIdRef.current = null;
+      pendingChunkUploadsRef.current = [];
+    };
+  }, []);
 
   // ── Field zoom ───────────────────────────────────────────────────
 
@@ -1426,7 +1777,8 @@ export function FacilitatorMeetingPage() {
       )}
       {modal?.type === "change-template" && (
         <ChangeTemplateDialog
-          currentTemplateName={activeContext.templateName}
+          templates={templates}
+          currentTemplateId={apiContext?.templateId ?? null}
           currentFields={fields}
           onConfirm={handleChangeTemplate}
           onCancel={() => setModal(null)}
@@ -1481,6 +1833,70 @@ export function FacilitatorMeetingPage() {
               >
                 Add
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {modal?.type === "system-status" && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-surface border border-border rounded-card shadow-xl p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-fac-field text-text-primary font-medium">System status</h2>
+              <button
+                onClick={() => setModal(null)}
+                className="inline-flex items-center justify-center w-8 h-8 rounded border border-border text-text-muted hover:text-text-primary"
+                aria-label="Close status modal"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void refreshSystemStatus()}
+                disabled={statusLoading}
+                className="px-3 py-1.5 text-fac-meta border border-border rounded text-text-secondary hover:text-text-primary disabled:opacity-40"
+              >
+                {statusLoading ? "Refreshing…" : "Refresh"}
+              </button>
+              {statusError && <span className="text-fac-meta text-danger">{statusError}</span>}
+            </div>
+
+            <div className="rounded border border-border p-3">
+              <p className="text-fac-label text-text-muted uppercase tracking-wider">Core API</p>
+              <p className="text-fac-meta text-text-primary mt-1">{apiStatus ? "online" : "unknown"}</p>
+              {apiStatus && (
+                <p className="text-fac-meta text-text-secondary mt-1">
+                  db: {apiStatus.databaseConfigured ? "configured" : "missing"} · llm:{" "}
+                  {apiStatus.llm.mode}/{apiStatus.llm.provider}:{apiStatus.llm.model}
+                </p>
+              )}
+            </div>
+
+            <div className="rounded border border-border p-3">
+              <p className="text-fac-label text-text-muted uppercase tracking-wider">Transcription service</p>
+              <p className="text-fac-meta text-text-primary mt-1">
+                {transcriptionStatus ? "online" : "unknown"}
+              </p>
+              {transcriptionStatus && (
+                <>
+                  <p className="text-fac-meta text-text-secondary mt-1">
+                    provider: {transcriptionStatus.provider} · sessions: {transcriptionStatus.sessionCount}
+                  </p>
+                  <p className="text-fac-meta text-text-secondary mt-1">
+                    api bridge: {transcriptionStatus.api.ok ? "ok" : "error"}
+                    {transcriptionStatus.api.error ? ` (${transcriptionStatus.api.error})` : ""}
+                  </p>
+                  <p className="text-fac-meta text-text-secondary mt-1">
+                    whisper:{" "}
+                    {!transcriptionStatus.whisper.enabled
+                      ? "disabled"
+                      : transcriptionStatus.whisper.ok
+                        ? "ok"
+                        : `error${transcriptionStatus.whisper.error ? ` (${transcriptionStatus.whisper.error})` : ""}`}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1541,6 +1957,39 @@ export function FacilitatorMeetingPage() {
               <span className={`w-1.5 h-1.5 rounded-full ${streamBadgeClass}`} />
             </button>
 
+            <label className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary border border-border rounded">
+              Mic
+              <select
+                value={selectedAudioDeviceId}
+                onChange={(event) => setSelectedAudioDeviceId(event.target.value)}
+                disabled={streamState === "live" || streamState === "connecting"}
+                className="bg-transparent text-text-primary focus:outline-none max-w-[170px]"
+                title="Select microphone"
+              >
+                {audioDevices.length === 0 && <option value="">Default microphone</option>}
+                {audioDevices.map((device, index) => (
+                  <option key={device.deviceId || `mic-${index}`} value={device.deviceId}>
+                    {device.label || `Microphone ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <span className="hidden xl:inline text-[11px] px-1.5 py-0.5 rounded-badge bg-overlay border border-border text-text-muted">
+              {transcriptRowCount} rows · {contextTaggedChunkCount} tagged
+            </span>
+
+            <Link
+              to={meetingTranscriptPath}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary hover:text-text-primary border border-border rounded transition-colors"
+              title="Open transcript"
+            >
+              <FilePlus2 size={13} />
+              <span>Open transcript</span>
+            </Link>
+
             <button
               onClick={() => setModal({ type: "upload" })}
               disabled={isMeetingCompleted}
@@ -1562,6 +2011,16 @@ export function FacilitatorMeetingPage() {
             >
               <Flag size={13} />
               <span className="hidden xl:inline">Flag for later</span>
+            </button>
+
+            <button
+              onClick={() => setModal({ type: "system-status" })}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary hover:text-text-primary border border-border rounded transition-colors"
+              title="System status"
+              aria-label="System status"
+            >
+              <Radio size={13} />
+              <span className="hidden xl:inline">System status</span>
             </button>
 
             <button
@@ -1630,6 +2089,12 @@ export function FacilitatorMeetingPage() {
           </>
         }
       />
+
+      {streamError && (
+        <div className="px-4 py-2 border-b border-danger/30 bg-danger-dim/20 text-fac-meta text-danger">
+          {streamError}
+        </div>
+      )}
 
       {/* ── Upload inline panel (if modal type upload) ───────────── */}
       {modal?.type === "upload" && (
@@ -1790,6 +2255,8 @@ export function FacilitatorMeetingPage() {
               </button>
               <Link
                 to={meetingTranscriptPath}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-2 px-3 py-2 rounded text-fac-meta text-text-muted hover:text-text-primary hover:bg-overlay transition-colors w-full"
               >
                 <FilePlus2 size={14} />
@@ -1931,7 +2398,7 @@ export function FacilitatorMeetingPage() {
                     )}
                   </div>
                   <span className="shrink-0 text-fac-meta text-text-muted border border-border px-2 py-0.5 rounded-badge">
-                    {activeContext.templateName}
+                    {activeApiTemplate?.name ?? activeContext.templateName}
                   </span>
                   {!isClosedContext && (
                     <button
@@ -1942,6 +2409,11 @@ export function FacilitatorMeetingPage() {
                     </button>
                   )}
                 </div>
+                {activeApiTemplate?.description && (
+                  <p className="text-fac-meta text-text-muted mt-1 max-w-2xl">
+                    {activeApiTemplate.description}
+                  </p>
+                )}
 
                 <div className="mt-3 flex flex-wrap gap-2 items-center">
                   {activeContext.tags.map((tag) => (

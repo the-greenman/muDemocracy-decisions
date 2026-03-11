@@ -66,6 +66,7 @@ export interface DecisionField {
   namespace: string;
   name: string;
   description: string;
+  instructions?: string;
   category: string;
   extractionPrompt: string;
   fieldType: string;
@@ -162,6 +163,10 @@ export interface ReadableTranscriptRow {
   endTime: string | null;
 }
 
+export interface AssignTranscriptChunksResponse {
+  chunks: TranscriptChunk[];
+}
+
 export interface SupplementaryContent {
   id: string;
   meetingId: string;
@@ -187,4 +192,16 @@ export interface GlobalContext {
 export interface ActiveMeetingsContextSummary {
   currentContext: GlobalContext;
   activeMeetings: Meeting[];
+}
+
+export interface ApiStatus {
+  status: "ok";
+  timestamp: string;
+  nodeEnv: string;
+  databaseConfigured: boolean;
+  llm: {
+    mode: "mock" | "real";
+    provider: string;
+    model: string;
+  };
 }

@@ -1,66 +1,68 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRightLeft, Copy, X } from "lucide-react";
-import { TEMPLATES, getMockFieldsForTemplate, getTemplateFieldDefinitions } from "@/lib/mock-data";
-import type { Field, Template } from "@/lib/mock-data";
+import type { DecisionTemplate, DecisionField } from "@/api/types";
+import { getTemplateFields } from "@/api/endpoints";
+import { formatFieldName } from "@/api/adapters";
+import type { Field } from "@/lib/mock-data";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 
 interface ChangeTemplateDialogProps {
-  currentTemplateName: string;
+  templates: DecisionTemplate[];
+  currentTemplateId: string | null;
   currentFields: Field[];
-  onConfirm: (template: Template, nextFields: Field[]) => void;
+  onConfirm: (templateId: string, fieldValues: Record<string, string>) => void;
   onCancel: () => void;
 }
 
 export function ChangeTemplateDialog({
-  currentTemplateName,
+  templates,
+  currentTemplateId,
   currentFields,
   onConfirm,
   onCancel,
 }: ChangeTemplateDialogProps) {
-  const [templateId, setTemplateId] = useState(
-    TEMPLATES.find((template) => template.name === currentTemplateName)?.id ??
-      TEMPLATES[0]?.id ??
-      "",
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    currentTemplateId ?? templates[0]?.id ?? "",
   );
+  const [targetFields, setTargetFields] = useState<DecisionField[]>([]);
   const [targetValues, setTargetValues] = useState<Record<string, string>>({});
+  const [loadingFields, setLoadingFields] = useState(false);
 
-  const selectedTemplate = useMemo(
-    () => TEMPLATES.find((template) => template.id === templateId) ?? null,
-    [templateId],
-  );
-
-  const targetLabels = useMemo(() => {
-    if (!selectedTemplate) return [];
-    return getTemplateFieldDefinitions(selectedTemplate.name).map((field) => field.label);
-  }, [selectedTemplate]);
-
-  const unavailableFields = useMemo(
-    () => currentFields.filter((field) => !targetLabels.includes(field.label)),
-    [currentFields, targetLabels],
-  );
-
-  const addedLabels = useMemo(
-    () => targetLabels.filter((label) => !currentFields.some((field) => field.label === label)),
-    [currentFields, targetLabels],
-  );
-
+  // Load fields for the selected template
   useEffect(() => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplateId) return;
+    setLoadingFields(true);
+    getTemplateFields(selectedTemplateId)
+      .then(({ fields }) => {
+        setTargetFields(fields);
+        // Carry over values by matching field name → label
+        const next: Record<string, string> = {};
+        for (const f of fields) {
+          const label = formatFieldName(f.name);
+          const match = currentFields.find((c) => c.label === label);
+          next[f.id] = match?.value ?? "";
+        }
+        setTargetValues(next);
+      })
+      .catch(() => setTargetFields([]))
+      .finally(() => setLoadingFields(false));
+  }, [selectedTemplateId, currentFields]);
 
-    const nextFields = getMockFieldsForTemplate(selectedTemplate.name);
-    const seed: Record<string, string> = {};
+  const unavailableFields = useMemo(() => {
+    const targetLabels = new Set(targetFields.map((f) => formatFieldName(f.name)));
+    return currentFields.filter((f) => !targetLabels.has(f.label));
+  }, [currentFields, targetFields]);
 
-    nextFields.forEach((field) => {
-      const match = currentFields.find((current) => current.label === field.label);
-      seed[field.label] = match?.value ?? "";
-    });
+  const addedLabels = useMemo(() => {
+    const currentLabels = new Set(currentFields.map((f) => f.label));
+    return targetFields
+      .map((f) => formatFieldName(f.name))
+      .filter((label) => !currentLabels.has(label));
+  }, [currentFields, targetFields]);
 
-    setTargetValues(seed);
-  }, [currentFields, selectedTemplate]);
-
-  function updateTargetValue(label: string, value: string) {
-    setTargetValues((prev) => ({ ...prev, [label]: value }));
+  function updateTargetValue(fieldId: string, value: string) {
+    setTargetValues((prev) => ({ ...prev, [fieldId]: value }));
   }
 
   function handleCopy(value: string) {
@@ -68,17 +70,9 @@ export function ChangeTemplateDialog({
   }
 
   function handleConfirm() {
-    if (!selectedTemplate) return;
-
-    const nextFields = getMockFieldsForTemplate(selectedTemplate.name).map((field) => ({
-      ...field,
-      value: targetValues[field.label] ?? "",
-    }));
-
-    onConfirm(selectedTemplate, nextFields);
+    if (!selectedTemplateId) return;
+    onConfirm(selectedTemplateId, targetValues);
   }
-
-  const canConfirm = !!selectedTemplate;
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -102,11 +96,11 @@ export function ChangeTemplateDialog({
               New template
             </label>
             <Select
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
               className="max-w-sm"
             >
-              {TEMPLATES.map((template) => (
+              {templates.map((template) => (
                 <option key={template.id} value={template.id}>
                   {template.name}
                 </option>
@@ -114,80 +108,96 @@ export function ChangeTemplateDialog({
             </Select>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <section className="rounded-card border border-danger/25 bg-danger-dim/10 p-3">
-              <h3 className="text-fac-field text-text-primary font-medium">
-                Fields becoming unavailable
-              </h3>
-              <p className="text-fac-meta text-text-muted mt-1">
-                These fields do not exist in the selected template. Copy text you want to preserve.
-              </p>
-              <div className="mt-3 flex flex-col gap-2 max-h-72 overflow-y-auto">
-                {unavailableFields.length === 0 && (
-                  <p className="text-fac-meta text-text-muted italic">
-                    No fields are being removed.
+          {loadingFields ? (
+            <p className="text-fac-meta text-text-muted italic">Loading fields…</p>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <section className="rounded-card border border-danger/25 bg-danger-dim/10 p-3">
+                <h3 className="text-fac-field text-text-primary font-medium">
+                  Fields becoming unavailable
+                </h3>
+                <p className="text-fac-meta text-text-muted mt-1">
+                  These fields do not exist in the selected template. Copy text you want to
+                  preserve.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 max-h-72 overflow-y-auto">
+                  {unavailableFields.length === 0 && (
+                    <p className="text-fac-meta text-text-muted italic">
+                      No fields are being removed.
+                    </p>
+                  )}
+                  {unavailableFields.map((field) => (
+                    <article
+                      key={field.id}
+                      className="rounded border border-border bg-overlay/50 p-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-fac-meta text-text-primary font-medium">{field.label}</p>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleCopy(field.value)}
+                          className="px-2 py-1"
+                        >
+                          <Copy size={12} />
+                          Copy
+                        </Button>
+                      </div>
+                      <textarea
+                        value={field.value}
+                        readOnly
+                        rows={3}
+                        className="mt-2 w-full p-2 rounded border border-border bg-surface text-fac-meta text-text-secondary resize-y"
+                      />
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-card border border-border bg-overlay/20 p-3">
+                <h3 className="text-fac-field text-text-primary font-medium">
+                  Destination fields
+                </h3>
+                <p className="text-fac-meta text-text-muted mt-1">
+                  Paste or edit values below before applying template change.
+                </p>
+                {addedLabels.length > 0 && (
+                  <p className="mt-2 text-fac-meta text-caution">
+                    New fields in this template: {addedLabels.join(", ")}
                   </p>
                 )}
-                {unavailableFields.map((field) => (
-                  <article
-                    key={field.id}
-                    className="rounded border border-border bg-overlay/50 p-2.5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-fac-meta text-text-primary font-medium">{field.label}</p>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleCopy(field.value)}
-                        className="px-2 py-1"
-                      >
-                        <Copy size={12} />
-                        Copy
-                      </Button>
-                    </div>
-                    <textarea
-                      value={field.value}
-                      readOnly
-                      rows={3}
-                      className="mt-2 w-full p-2 rounded border border-border bg-surface text-fac-meta text-text-secondary resize-y"
-                    />
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-card border border-border bg-overlay/20 p-3">
-              <h3 className="text-fac-field text-text-primary font-medium">Destination fields</h3>
-              <p className="text-fac-meta text-text-muted mt-1">
-                Paste or edit values below before applying template change.
-              </p>
-              {addedLabels.length > 0 && (
-                <p className="mt-2 text-fac-meta text-caution">
-                  New fields in this template: {addedLabels.join(", ")}
-                </p>
-              )}
-              <div className="mt-3 flex flex-col gap-2 max-h-72 overflow-y-auto">
-                {targetLabels.map((label) => (
-                  <article key={label} className="rounded border border-border bg-overlay/40 p-2.5">
-                    <p className="text-fac-meta text-text-primary font-medium">{label}</p>
-                    <textarea
-                      value={targetValues[label] ?? ""}
-                      onChange={(e) => updateTargetValue(label, e.target.value)}
-                      rows={3}
-                      className="mt-2 w-full p-2 rounded border border-border bg-surface text-fac-meta text-text-primary resize-y focus:outline-none focus:border-accent"
-                    />
-                  </article>
-                ))}
-              </div>
-            </section>
-          </div>
+                <div className="mt-3 flex flex-col gap-2 max-h-72 overflow-y-auto">
+                  {targetFields.map((field) => (
+                    <article
+                      key={field.id}
+                      className="rounded border border-border bg-overlay/40 p-2.5"
+                    >
+                      <p className="text-fac-meta text-text-primary font-medium">
+                        {formatFieldName(field.name)}
+                      </p>
+                      <textarea
+                        value={targetValues[field.id] ?? ""}
+                        onChange={(e) => updateTargetValue(field.id, e.target.value)}
+                        rows={3}
+                        className="mt-2 w-full p-2 rounded border border-border bg-surface text-fac-meta text-text-primary resize-y focus:outline-none focus:border-accent"
+                      />
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 justify-end px-5 py-4 border-t border-border">
           <Button onClick={onCancel} variant="ghost">
             Cancel
           </Button>
-          <Button onClick={handleConfirm} variant="primary" disabled={!canConfirm}>
+          <Button
+            onClick={handleConfirm}
+            variant="primary"
+            disabled={!selectedTemplateId || loadingFields}
+          >
             Apply template change
           </Button>
         </div>

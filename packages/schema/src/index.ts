@@ -545,6 +545,7 @@ export type CreateDecisionContext = Omit<
 export const UpdateDecisionContextSchema = z
   .object({
     title: z.string().min(1).optional(),
+    templateId: z.string().uuid().optional(),
   })
   .openapi("UpdateDecisionContextRequest", {
     description: "Fields that can be updated on an existing decision context",

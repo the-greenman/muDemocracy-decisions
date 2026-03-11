@@ -30,6 +30,7 @@ export function buildUIFields(templateFields: DecisionField[], context: Decision
     value: context.draftData?.[f.id] ?? "",
     status: context.lockedFields.includes(f.id) ? ("locked" as const) : ("idle" as const),
     required: false, // templateFieldAssignment.required not exposed in API response yet
+    instructions: f.instructions,
   }));
 }
 

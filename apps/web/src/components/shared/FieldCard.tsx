@@ -36,6 +36,11 @@ export function FieldCard({ field, density = "display" }: FieldCardProps) {
         <FieldStatusIcon status={field.status} />
       </div>
 
+      {/* Instructions — display density only */}
+      {isDisplay && field.instructions && (
+        <p className="text-display-meta text-text-muted leading-snug">{field.instructions}</p>
+      )}
+
       {/* Value */}
       {field.status === "generating" ? (
         <GeneratingPlaceholder isDisplay={isDisplay} />
