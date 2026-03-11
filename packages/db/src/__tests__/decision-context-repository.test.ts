@@ -26,6 +26,8 @@ interface CreateDecisionContext {
 process.env.DATABASE_URL =
   "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test";
 
+const testTemplateNamePrefix = "Test Template ";
+
 describe("DrizzleDecisionContextRepository", () => {
   let repository: DrizzleDecisionContextRepository;
   let meetingRepo: DrizzleMeetingRepository;
@@ -62,7 +64,7 @@ describe("DrizzleDecisionContextRepository", () => {
 
     // Create test template
     testTemplateId = randomUUID();
-    const templateName = `Test Template ${testTemplateId}`;
+    const templateName = `${testTemplateNamePrefix}${testTemplateId}`;
     await db.execute(sql`
       INSERT INTO decision_templates (id, name, category, description)
       VALUES (${testTemplateId}, ${templateName}, 'standard', 'A test template')
@@ -71,7 +73,25 @@ describe("DrizzleDecisionContextRepository", () => {
 
   afterEach(async () => {
     // Clean up test data
-    await db.delete(decisionContexts).where(eq(decisionContexts.meetingId, testMeetingId));
+    await db.execute(sql`
+      DELETE FROM decision_contexts
+      WHERE meeting_id IN (
+        SELECT id FROM meetings WHERE title IN ('Test Meeting', 'Meeting 1', 'Meeting 2')
+      )
+    `);
+    await db.delete(decisionContexts).where(eq(decisionContexts.templateId, testTemplateId));
+    await db.execute(sql`
+      DELETE FROM flagged_decisions
+      WHERE meeting_id IN (
+        SELECT id FROM meetings WHERE title IN ('Test Meeting', 'Meeting 1', 'Meeting 2')
+      )
+    `);
+    await db.execute(sql`
+      DELETE FROM meetings WHERE title IN ('Test Meeting', 'Meeting 1', 'Meeting 2')
+    `);
+    await db.execute(sql`
+      DELETE FROM decision_templates WHERE name LIKE ${`${testTemplateNamePrefix}%`}
+    `);
   });
 
   describe("create", () => {

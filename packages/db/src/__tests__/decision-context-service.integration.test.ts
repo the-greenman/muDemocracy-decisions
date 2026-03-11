@@ -9,13 +9,15 @@ import { DrizzleDecisionContextRepository } from "@repo/db";
 import { DrizzleMeetingRepository } from "@repo/db";
 import { DrizzleFlaggedDecisionRepository } from "@repo/db";
 import { db } from "@repo/db";
-import { decisionContexts } from "@repo/db";
+import { decisionContexts, decisionFields } from "@repo/db";
 import { eq, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 // Use test database
 process.env.DATABASE_URL =
   "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test";
+
+const testTemplateNamePrefix = "Test Template ";
 
 describe("DecisionContextService Integration", () => {
   let service: DecisionContextService;
@@ -24,6 +26,7 @@ describe("DecisionContextService Integration", () => {
   let testMeetingId: string;
   let testFlaggedDecisionId: string;
   let testTemplateId: string;
+  let testFieldId: string | null;
 
   beforeEach(async () => {
     const repository = new DrizzleDecisionContextRepository();
@@ -52,7 +55,8 @@ describe("DecisionContextService Integration", () => {
 
     // Create test template
     testTemplateId = randomUUID();
-    const templateName = `Test Template ${testTemplateId}`;
+    testFieldId = null;
+    const templateName = `${testTemplateNamePrefix}${testTemplateId}`;
     await db.execute(sql`
       INSERT INTO decision_templates (id, name, category, description)
       VALUES (${testTemplateId}, ${templateName}, 'standard', 'A test template')
@@ -61,7 +65,28 @@ describe("DecisionContextService Integration", () => {
 
   afterEach(async () => {
     // Clean up test data
-    await db.delete(decisionContexts).where(eq(decisionContexts.meetingId, testMeetingId));
+    await db.execute(sql`
+      DELETE FROM decision_contexts
+      WHERE meeting_id IN (
+        SELECT id FROM meetings WHERE title = 'Test Meeting'
+      )
+    `);
+    await db.delete(decisionContexts).where(eq(decisionContexts.templateId, testTemplateId));
+    if (testFieldId) {
+      await db.delete(decisionFields).where(eq(decisionFields.id, testFieldId));
+    }
+    await db.execute(sql`
+      DELETE FROM flagged_decisions
+      WHERE meeting_id IN (
+        SELECT id FROM meetings WHERE title = 'Test Meeting'
+      )
+    `);
+    await db.execute(sql`
+      DELETE FROM meetings WHERE title = 'Test Meeting'
+    `);
+    await db.execute(sql`
+      DELETE FROM decision_templates WHERE name LIKE ${`${testTemplateNamePrefix}%`}
+    `);
   });
 
   describe("createContext", () => {
@@ -179,9 +204,11 @@ describe("DecisionContextService Integration", () => {
 
       // Create a decision field
       const fieldId = randomUUID();
+      testFieldId = fieldId;
+      const fieldName = `Test Field ${fieldId}`;
       await db.execute(sql`
-        INSERT INTO decision_fields (id, name, category, description, extraction_prompt, field_type)
-        VALUES (${fieldId}, 'Test Field', 'context', 'A test field', 'Extract this field', 'text')
+        INSERT INTO decision_fields (id, namespace, name, category, description, extraction_prompt, field_type)
+        VALUES (${fieldId}, 'test', ${fieldName}, 'context', 'A test field', 'Extract this field', 'text')
       `);
 
       const result = await service.setActiveField(context.id, fieldId);
