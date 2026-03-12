@@ -18,6 +18,7 @@ WORKDIR /app
 ENV npm_config_ignore_scripts=true
 
 RUN npm install -g pnpm@8
+RUN apk add --no-cache ffmpeg
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/transcription/package.json apps/transcription/

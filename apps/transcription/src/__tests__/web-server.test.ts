@@ -13,6 +13,32 @@ afterEach(async () => {
   }
 });
 
+function pcmToWav(pcmData: Buffer): Buffer {
+  const sampleRate = 16_000;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
+  const dataSize = pcmData.length;
+  const header = Buffer.alloc(44);
+
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([header, pcmData]);
+}
+
 describe("web transcription server", () => {
   it("creates a session, accepts chunk uploads, reports status, and flushes on stop", async () => {
     const provider: ITranscriptionProvider = {
@@ -36,6 +62,7 @@ describe("web transcription server", () => {
       provider,
       apiClient,
       autoFlushMs: 1,
+      normalizeAudioChunk: async (audio) => audio,
     });
     runningServers.push(server);
 
@@ -81,8 +108,8 @@ describe("web transcription server", () => {
     };
     expect(chunkPayload).toEqual({ accepted: true, eventCount: 2, autoFlushed: true });
 
-    expect(provider.transcribe).toHaveBeenCalledWith(Buffer.from("fake-audio"), {
-      filename: expect.stringMatching(/^window-\d+\.webm$/),
+    expect(provider.transcribe).toHaveBeenCalledWith(pcmToWav(Buffer.from("fake-audio")), {
+      filename: expect.stringMatching(/^window-\d+\.wav$/),
       language: "en",
     });
     expect(apiClient.postStreamEvent).toHaveBeenNthCalledWith(1, "meeting-browser-1", {
@@ -145,6 +172,7 @@ describe("web transcription server", () => {
         postStreamEvent: vi.fn().mockResolvedValue(undefined),
         flushStream: vi.fn().mockResolvedValue(undefined),
       },
+      normalizeAudioChunk: async (audio) => audio,
     });
     runningServers.push(server);
 
@@ -177,6 +205,7 @@ describe("web transcription server", () => {
         postStreamEvent: vi.fn().mockResolvedValue(undefined),
         flushStream: vi.fn().mockResolvedValue(undefined),
       },
+      normalizeAudioChunk: async (audio) => audio,
     });
     runningServers.push(server);
 
@@ -222,6 +251,7 @@ describe("web transcription server", () => {
       provider,
       apiClient,
       autoFlushMs: 100_000,
+      normalizeAudioChunk: async (audio) => audio,
     });
     runningServers.push(server);
 
@@ -288,6 +318,7 @@ describe("web transcription server", () => {
       provider,
       apiClient,
       autoFlushMs: 100_000,
+      normalizeAudioChunk: async (audio) => audio,
     });
     runningServers.push(server);
 
@@ -319,23 +350,23 @@ describe("web transcription server", () => {
     expect(provider.transcribe).toHaveBeenCalledTimes(4);
     expect(provider.transcribe).toHaveBeenNthCalledWith(
       1,
-      Buffer.concat([Buffer.from("a")]),
-      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.webm$/) }),
+      pcmToWav(Buffer.concat([Buffer.from("a")])),
+      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.wav$/) }),
     );
     expect(provider.transcribe).toHaveBeenNthCalledWith(
       2,
-      Buffer.concat([Buffer.from("a"), Buffer.from("b")]),
-      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.webm$/) }),
+      pcmToWav(Buffer.concat([Buffer.from("a"), Buffer.from("b")])),
+      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.wav$/) }),
     );
     expect(provider.transcribe).toHaveBeenNthCalledWith(
       3,
-      Buffer.concat([Buffer.from("a"), Buffer.from("b"), Buffer.from("c")]),
-      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.webm$/) }),
+      pcmToWav(Buffer.concat([Buffer.from("a"), Buffer.from("b"), Buffer.from("c")])),
+      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.wav$/) }),
     );
     expect(provider.transcribe).toHaveBeenNthCalledWith(
       4,
-      Buffer.concat([Buffer.from("b"), Buffer.from("c"), Buffer.from("d")]),
-      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.webm$/) }),
+      pcmToWav(Buffer.concat([Buffer.from("b"), Buffer.from("c"), Buffer.from("d")])),
+      expect.objectContaining({ filename: expect.stringMatching(/^window-\d+\.wav$/) }),
     );
   });
 });

@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
 import {
   TranscriptionServiceStatusSchema,
   TranscriptionSessionCreateRequestSchema,
@@ -35,6 +36,7 @@ export interface StartWebServerOptions {
   windowMs?: number;
   stepMs?: number;
   dedupeHorizonMs?: number;
+  normalizeAudioChunk?: (audio: Buffer, filename: string) => Promise<Buffer>;
   corsOrigin?: string;
 }
 
@@ -229,9 +231,68 @@ function purgeDedupeHistory(
   }
 }
 
-function extensionFromFilename(filename: string): string {
-  const ext = filename.split(".").pop()?.trim().toLowerCase();
-  return ext && ext.length > 0 ? ext : "webm";
+function pcmToWav(pcmData: Buffer, sampleRate: number, channels: number, bitsPerSample: number): Buffer {
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
+  const dataSize = pcmData.length;
+  const header = Buffer.alloc(44);
+
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([header, pcmData]);
+}
+
+async function normalizeAudioChunkWithFfmpeg(audio: Buffer): Promise<Buffer> {
+  const ffmpegBin = process.env.FFMPEG_BIN ?? "ffmpeg";
+  const args = [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-i",
+    "pipe:0",
+    "-ac",
+    "1",
+    "-ar",
+    "16000",
+    "-f",
+    "s16le",
+    "pipe:1",
+  ];
+
+  const child = spawn(ffmpegBin, args, {
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  const stdoutChunks: Buffer[] = [];
+  const stderrChunks: Buffer[] = [];
+
+  child.stdout.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
+  child.stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+
+  return await new Promise<Buffer>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        const message = Buffer.concat(stderrChunks).toString("utf8").trim();
+        reject(new Error(message.length > 0 ? message : `ffmpeg exited with code ${code}`));
+        return;
+      }
+      resolve(Buffer.concat(stdoutChunks));
+    });
+    child.stdin.end(audio);
+  });
 }
 
 export async function startWebServer(options?: StartWebServerOptions): Promise<RunningWebServer> {
@@ -254,6 +315,7 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
   const defaultDedupeHorizonMs =
     options?.dedupeHorizonMs ??
     parsePositiveInt(process.env.STREAM_DEDUPE_HORIZON_MS, 90_000);
+  const normalizeAudioChunk = options?.normalizeAudioChunk ?? normalizeAudioChunkWithFfmpeg;
 
   const sessions = new Map<string, SessionState>();
 
@@ -405,13 +467,22 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         const filename = resolveChunkFilename(req, fallback);
         const nowMs = Date.now();
         const windowChunkCount = Math.max(1, Math.ceil(session.windowMs / session.stepMs));
-        session.chunkHistory.push({ audio, filename, receivedAtMs: nowMs });
+        let normalizedChunk: Buffer;
+        try {
+          normalizedChunk = await normalizeAudioChunk(audio, filename);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to normalize audio chunk: ${message}`);
+        }
+
+        session.chunkHistory.push({ audio: normalizedChunk, filename, receivedAtMs: nowMs });
         if (session.chunkHistory.length > windowChunkCount) {
           session.chunkHistory.splice(0, session.chunkHistory.length - windowChunkCount);
         }
 
-        const windowAudio = Buffer.concat(session.chunkHistory.map((chunk) => chunk.audio));
-        const transcriptionFilename = `window-${nowMs}.${extensionFromFilename(filename)}`;
+        const windowPcm = Buffer.concat(session.chunkHistory.map((chunk) => chunk.audio));
+        const windowAudio = pcmToWav(windowPcm, 16_000, 1, 16);
+        const transcriptionFilename = `window-${nowMs}.wav`;
         const transcription = await provider.transcribe(windowAudio, {
           filename: transcriptionFilename,
           ...(session.language === undefined ? {} : { language: session.language }),

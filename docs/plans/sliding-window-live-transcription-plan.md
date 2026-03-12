@@ -20,10 +20,10 @@ Gap to close:
 ### Progress
 
 - [x] SW1 contract milestone: schema-first session create/status/status-default contracts added and wired in transcription service.
-- [~] SW2 rolling-window + dedupe runtime implementation.
+- [x] SW2 rolling-window + dedupe runtime implementation.
   - [x] SW2a: server-side dedupe and horizon-based suppression implemented with TDD coverage.
   - [x] SW2b: rolling 30s/10s window audio assembly implementation.
-  - [ ] SW2c: ffmpeg-backed normalization/concat path for browser chunk windows.
+  - [x] SW2c: ffmpeg-backed normalization/concat path for browser chunk windows.
 - [ ] SW3 web/CLI alignment to rolling-window defaults.
 - [ ] SW4 observability completion and final validation checkpoint.
 
