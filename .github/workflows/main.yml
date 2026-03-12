@@ -1,0 +1,135 @@
+name: Main Branch Validation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  changes:
+    name: Detect DB-related changes
+    runs-on: ubuntu-latest
+    outputs:
+      db: ${{ steps.filter.outputs.db }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect path changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            db:
+              - 'packages/db/**'
+              - 'packages/schema/**'
+              - 'scripts/init-db.sql'
+              - 'pnpm-lock.yaml'
+
+  strict-validation:
+    name: Validate Strict
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: decision_logger
+          POSTGRES_PASSWORD: decision_logger
+          POSTGRES_DB: decision_logger_dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U decision_logger -d decision_logger_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev
+      TEST_DATABASE_URL: postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create test database
+        run: |
+          psql postgresql://decision_logger:decision_logger@localhost:5433/postgres -c 'CREATE DATABASE decision_logger_test;' || true
+
+      - name: Run strict validation
+        run: pnpm validate:strict
+
+  db-validation:
+    name: Validate DB Changes
+    needs:
+      - changes
+    if: needs.changes.outputs.db == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: decision_logger
+          POSTGRES_PASSWORD: decision_logger
+          POSTGRES_DB: decision_logger_dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U decision_logger -d decision_logger_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev
+      TEST_DATABASE_URL: postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create test database
+        run: |
+          psql postgresql://decision_logger:decision_logger@localhost:5433/postgres -c 'CREATE DATABASE decision_logger_test;' || true
+
+      - name: Run DB validation
+        run: pnpm validate:db
+
+  docker-packaging:
+    name: Build Docker Images
+    needs:
+      - strict-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -f apps/api/Dockerfile -t decision-logger-api:ci .
+
+      - name: Build transcription image
+        run: docker build -f apps/transcription/Dockerfile -t decision-logger-transcription:ci .
