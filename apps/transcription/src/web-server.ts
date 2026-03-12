@@ -1,5 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import {
+  TranscriptionServiceStatusSchema,
+  TranscriptionSessionCreateRequestSchema,
+  TranscriptionSessionCreateResponseSchema,
+  TranscriptionSessionStatusResponseSchema,
+} from "../../../packages/schema/src/index.js";
 import { DecisionLoggerApiClient } from "./api-client.js";
 import { resolveDecisionLoggerApiUrl } from "./config.js";
 import { createProviderFromEnv } from "./providers/index.js";
@@ -26,6 +32,9 @@ export interface StartWebServerOptions {
     maxQueueSize: number;
   };
   autoFlushMs?: number;
+  windowMs?: number;
+  stepMs?: number;
+  dedupeHorizonMs?: number;
   corsOrigin?: string;
 }
 
@@ -37,8 +46,13 @@ interface SessionState {
   startedAt: string;
   stoppedAt?: string;
   eventsAccepted: number;
+  postedEvents: number;
+  dedupedEvents: number;
   nextSequenceNumber: number;
   lastFlushedAtMs: number;
+  windowMs: number;
+  stepMs: number;
+  dedupeHorizonMs: number;
 }
 
 interface RunningWebServer {
@@ -140,12 +154,12 @@ function collectRequestBody(req: IncomingMessage, maxBytes: number): Promise<Buf
   });
 }
 
-async function parseJsonBody<T>(req: IncomingMessage, maxBytes: number): Promise<T> {
+async function parseJsonBody(req: IncomingMessage, maxBytes: number): Promise<unknown> {
   const body = await collectRequestBody(req, maxBytes);
   if (body.length === 0) {
     throw new Error("Request body is required");
   }
-  const decoded = JSON.parse(body.toString("utf8")) as T;
+  const decoded = JSON.parse(body.toString("utf8")) as unknown;
   return decoded;
 }
 
@@ -204,6 +218,12 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
   const corsOrigin = options?.corsOrigin ?? process.env.TRANSCRIPTION_CORS_ORIGIN ?? "*";
   const autoFlushMs =
     options?.autoFlushMs ?? parsePositiveInt(process.env.STREAM_AUTO_FLUSH_MS, 10_000);
+  const defaultWindowMs =
+    options?.windowMs ?? parsePositiveInt(process.env.STREAM_WINDOW_MS, 30_000);
+  const defaultStepMs = options?.stepMs ?? parsePositiveInt(process.env.STREAM_STEP_MS, 10_000);
+  const defaultDedupeHorizonMs =
+    options?.dedupeHorizonMs ??
+    parsePositiveInt(process.env.STREAM_DEDUPE_HORIZON_MS, 90_000);
 
   const sessions = new Map<string, SessionState>();
 
@@ -234,62 +254,93 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
             ? await probeUrlOk(`${whisperUrl.replace(/\/$/, "")}/`)
             : null;
 
+        const payload = TranscriptionServiceStatusSchema.parse({
+          status: "ok",
+          provider,
+          api: {
+            url: apiUrl,
+            ...apiProbe,
+          },
+          whisper:
+            whisperProbe === null
+              ? { enabled: false }
+              : {
+                  enabled: true,
+                  url: whisperUrl,
+                  ...whisperProbe,
+                },
+          sessionCount: sessions.size,
+          defaults: {
+            windowMs: defaultWindowMs,
+            stepMs: defaultStepMs,
+            dedupeHorizonMs: defaultDedupeHorizonMs,
+            autoFlushMs,
+          },
+        });
+
         sendJson(
           req,
           res,
           200,
-          {
-            status: "ok",
-            provider,
-            api: {
-              url: apiUrl,
-              ...apiProbe,
-            },
-            whisper:
-              whisperProbe === null
-                ? { enabled: false }
-                : {
-                    enabled: true,
-                    url: whisperUrl,
-                    ...whisperProbe,
-                  },
-            sessionCount: sessions.size,
-          },
+          payload,
           corsOrigin,
         );
         return;
       }
 
       if (method === "POST" && path === "/sessions") {
-        type SessionCreateBody = { meetingId?: string; language?: string };
-        const body = await parseJsonBody<SessionCreateBody>(req, maxChunkBytes);
-        const meetingId = body.meetingId?.trim();
-        if (!meetingId) {
-          sendJson(req, res, 400, { error: "meetingId is required" }, corsOrigin);
+        const body = await parseJsonBody(req, maxChunkBytes);
+        const parsed = TranscriptionSessionCreateRequestSchema.safeParse({
+          windowMs: defaultWindowMs,
+          stepMs: defaultStepMs,
+          dedupeHorizonMs: defaultDedupeHorizonMs,
+          ...(typeof body === "object" && body !== null
+            ? (body as Record<string, unknown>)
+            : {}),
+        });
+        if (!parsed.success) {
+          sendJson(
+            req,
+            res,
+            400,
+            { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+            corsOrigin,
+          );
           return;
         }
+        const meetingId = parsed.data.meetingId.trim();
 
         const session: SessionState = {
           id: randomUUID(),
           meetingId,
-          ...(body.language === undefined ? {} : { language: body.language }),
+          ...(parsed.data.language === undefined ? {} : { language: parsed.data.language }),
           status: "active",
           startedAt: new Date().toISOString(),
           eventsAccepted: 0,
+          postedEvents: 0,
+          dedupedEvents: 0,
           nextSequenceNumber: 1,
           lastFlushedAtMs: Date.now(),
+          windowMs: parsed.data.windowMs,
+          stepMs: parsed.data.stepMs,
+          dedupeHorizonMs: parsed.data.dedupeHorizonMs,
         };
         sessions.set(session.id, session);
+
+        const payload = TranscriptionSessionCreateResponseSchema.parse({
+          sessionId: session.id,
+          meetingId: session.meetingId,
+          startedAt: session.startedAt,
+          windowMs: session.windowMs,
+          stepMs: session.stepMs,
+          dedupeHorizonMs: session.dedupeHorizonMs,
+        });
 
         sendJson(
           req,
           res,
           201,
-          {
-            sessionId: session.id,
-            meetingId: session.meetingId,
-            startedAt: session.startedAt,
-          },
+          payload,
           corsOrigin,
         );
         return;
@@ -339,6 +390,7 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
 
         session.nextSequenceNumber += normalizedEvents.length;
         session.eventsAccepted += normalizedEvents.length;
+        session.postedEvents += normalizedEvents.length;
 
         const now = Date.now();
         let autoFlushed = false;
@@ -424,18 +476,21 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
           return;
         }
 
+        const payload = TranscriptionSessionStatusResponseSchema.parse({
+          status: session.status,
+          bufferedEvents: session.eventsAccepted,
+          postedEvents: session.postedEvents,
+          dedupedEvents: session.dedupedEvents,
+          windowMs: session.windowMs,
+          stepMs: session.stepMs,
+          dedupeHorizonMs: session.dedupeHorizonMs,
+        });
+
         sendJson(
           req,
           res,
           200,
-          {
-            sessionId: session.id,
-            meetingId: session.meetingId,
-            status: session.status,
-            bufferedEvents: session.eventsAccepted,
-            startedAt: session.startedAt,
-            ...(session.stoppedAt === undefined ? {} : { stoppedAt: session.stoppedAt }),
-          },
+          payload,
           corsOrigin,
         );
         return;

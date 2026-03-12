@@ -5,6 +5,9 @@ type SessionCreateResponse = {
   sessionId: string;
   meetingId: string;
   startedAt: string;
+  windowMs: number;
+  stepMs: number;
+  dedupeHorizonMs: number;
 };
 
 type SessionStopResponse = {
@@ -27,6 +30,12 @@ export type TranscriptionServiceStatus = {
     error?: string;
   };
   sessionCount: number;
+  defaults: {
+    windowMs: number;
+    stepMs: number;
+    dedupeHorizonMs: number;
+    autoFlushMs: number;
+  };
 };
 
 async function transcriptionFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -82,6 +91,11 @@ export function getTranscriptionSessionStatus(sessionId: string) {
   return transcriptionFetch<{
     status: "active" | "stopping" | "stopped";
     bufferedEvents: number;
+    postedEvents: number;
+    dedupedEvents: number;
+    windowMs: number;
+    stepMs: number;
+    dedupeHorizonMs: number;
   }>(`/sessions/${sessionId}/status`);
 }
 

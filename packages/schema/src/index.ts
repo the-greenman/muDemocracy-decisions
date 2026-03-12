@@ -234,6 +234,108 @@ export const StreamFlushResponseSchema = z
     description: "Transcript chunks created by flushing the streaming buffer",
   });
 
+const TranscriptionPositiveMsSchema = z.number().int().positive();
+
+export const TranscriptionSessionCreateRequestSchema = z
+  .object({
+    meetingId: z.string().min(1, "meetingId is required"),
+    language: z.string().min(1).optional(),
+    windowMs: TranscriptionPositiveMsSchema.default(30_000),
+    stepMs: TranscriptionPositiveMsSchema.default(10_000),
+    dedupeHorizonMs: TranscriptionPositiveMsSchema.default(90_000),
+  })
+  .superRefine((value, ctx) => {
+    if (value.stepMs > value.windowMs) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["stepMs"],
+        message: "stepMs must be less than or equal to windowMs",
+      });
+    }
+  })
+  .openapi("TranscriptionSessionCreateRequest", {
+    description: "Start a browser-controlled transcription session",
+    example: {
+      meetingId: "550e8400-e29b-41d4-a716-446655440000",
+      language: "en",
+      windowMs: 30_000,
+      stepMs: 10_000,
+      dedupeHorizonMs: 90_000,
+    },
+  });
+
+export type TranscriptionSessionCreateRequest = z.infer<
+  typeof TranscriptionSessionCreateRequestSchema
+>;
+
+export const TranscriptionSessionCreateResponseSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    meetingId: z.string().min(1),
+    startedAt: z.string().datetime({ offset: true }),
+    windowMs: TranscriptionPositiveMsSchema,
+    stepMs: TranscriptionPositiveMsSchema,
+    dedupeHorizonMs: TranscriptionPositiveMsSchema,
+  })
+  .openapi("TranscriptionSessionCreateResponse", {
+    description: "Created transcription session details including effective window settings",
+  });
+
+export type TranscriptionSessionCreateResponse = z.infer<
+  typeof TranscriptionSessionCreateResponseSchema
+>;
+
+export const TranscriptionSessionStatusResponseSchema = z
+  .object({
+    status: z.enum(["active", "stopping", "stopped"]),
+    bufferedEvents: z.number().int().min(0),
+    postedEvents: z.number().int().min(0),
+    dedupedEvents: z.number().int().min(0),
+    windowMs: TranscriptionPositiveMsSchema,
+    stepMs: TranscriptionPositiveMsSchema,
+    dedupeHorizonMs: TranscriptionPositiveMsSchema,
+  })
+  .openapi("TranscriptionSessionStatusResponse", {
+    description: "Runtime status for a browser transcription session",
+  });
+
+export type TranscriptionSessionStatusResponse = z.infer<
+  typeof TranscriptionSessionStatusResponseSchema
+>;
+
+const TranscriptionHealthProbeSchema = z.object({
+  ok: z.boolean(),
+  error: z.string().optional(),
+});
+
+export const TranscriptionServiceStatusSchema = z
+  .object({
+    status: z.literal("ok"),
+    provider: z.string(),
+    api: TranscriptionHealthProbeSchema.extend({
+      url: z.string(),
+    }),
+    whisper: z.union([
+      z.object({ enabled: z.literal(false) }),
+      TranscriptionHealthProbeSchema.extend({
+        enabled: z.literal(true),
+        url: z.string(),
+      }),
+    ]),
+    sessionCount: z.number().int().min(0),
+    defaults: z.object({
+      windowMs: TranscriptionPositiveMsSchema,
+      stepMs: TranscriptionPositiveMsSchema,
+      dedupeHorizonMs: TranscriptionPositiveMsSchema,
+      autoFlushMs: TranscriptionPositiveMsSchema,
+    }),
+  })
+  .openapi("TranscriptionServiceStatus", {
+    description: "Status for transcription service health and runtime defaults",
+  });
+
+export type TranscriptionServiceStatus = z.infer<typeof TranscriptionServiceStatusSchema>;
+
 export const AssignTranscriptChunksRequestSchema = z
   .object({
     chunkIds: z.array(z.string().uuid()).min(1),

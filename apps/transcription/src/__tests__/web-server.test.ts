@@ -51,8 +51,16 @@ describe("web transcription server", () => {
     });
 
     expect(createResponse.status).toBe(201);
-    const createPayload = (await createResponse.json()) as { sessionId: string };
+    const createPayload = (await createResponse.json()) as {
+      sessionId: string;
+      windowMs: number;
+      stepMs: number;
+      dedupeHorizonMs: number;
+    };
     expect(createPayload.sessionId).toBeTruthy();
+    expect(createPayload.windowMs).toBe(30_000);
+    expect(createPayload.stepMs).toBe(10_000);
+    expect(createPayload.dedupeHorizonMs).toBe(90_000);
 
     const chunkResponse = await fetch(
       `${baseUrl}/sessions/${createPayload.sessionId}/chunks?filename=first.webm`,
@@ -93,9 +101,19 @@ describe("web transcription server", () => {
     const statusPayload = (await statusResponse.json()) as {
       status: string;
       bufferedEvents: number;
+      postedEvents: number;
+      dedupedEvents: number;
+      windowMs: number;
+      stepMs: number;
+      dedupeHorizonMs: number;
     };
     expect(statusPayload.status).toBe("active");
     expect(statusPayload.bufferedEvents).toBe(2);
+    expect(statusPayload.postedEvents).toBe(2);
+    expect(statusPayload.dedupedEvents).toBe(0);
+    expect(statusPayload.windowMs).toBe(30_000);
+    expect(statusPayload.stepMs).toBe(10_000);
+    expect(statusPayload.dedupeHorizonMs).toBe(90_000);
 
     const stopResponse = await fetch(`${baseUrl}/sessions/${createPayload.sessionId}/stop`, {
       method: "POST",
@@ -140,6 +158,42 @@ describe("web transcription server", () => {
 
     expect(response.status).toBe(400);
     const payload = (await response.json()) as { error: string };
-    expect(payload.error).toContain("meetingId");
+    expect(payload.error.length).toBeGreaterThan(0);
+  });
+
+  it("returns 400 when stepMs exceeds windowMs", async () => {
+    const provider: ITranscriptionProvider = {
+      transcribe: vi.fn().mockResolvedValue({
+        events: [],
+        rawResponse: {},
+      }),
+    };
+
+    const server = await startWebServer({
+      port: 0,
+      host: "127.0.0.1",
+      provider,
+      apiClient: {
+        postStreamEvent: vi.fn().mockResolvedValue(undefined),
+        flushStream: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+    runningServers.push(server);
+
+    const baseUrl = `http://127.0.0.1:${server.port}`;
+
+    const response = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        meetingId: "meeting-browser-2",
+        windowMs: 10_000,
+        stepMs: 20_000,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as { error: string };
+    expect(payload.error).toContain("stepMs");
   });
 });

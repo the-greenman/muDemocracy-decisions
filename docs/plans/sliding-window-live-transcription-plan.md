@@ -17,6 +17,13 @@ Gap to close:
 - Define schema-first API contract additions for session controls/status.
 - Align implementation docs, architecture docs, and operational defaults.
 
+### Progress
+
+- [x] SW1 contract milestone: schema-first session create/status/status-default contracts added and wired in transcription service.
+- [ ] SW2 rolling-window + dedupe runtime implementation.
+- [ ] SW3 web/CLI alignment to rolling-window defaults.
+- [ ] SW4 observability completion and final validation checkpoint.
+
 ---
 
 ## Zod-First Contract Changes
