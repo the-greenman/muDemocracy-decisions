@@ -3,6 +3,9 @@ name: Pull Request Validation
 on:
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   changes:
     name: Detect DB-related changes
