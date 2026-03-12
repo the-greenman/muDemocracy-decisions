@@ -57,6 +57,11 @@ interface SessionState {
   dedupeHorizonMs: number;
   dedupeSeenAtMs: Map<string, number>;
   chunkHistory: Array<{ audio: Buffer; filename: string; receivedAtMs: number }>;
+  lastChunkReceivedAt?: string;
+  lastTranscriptionAt?: string;
+  lastProviderEventCount?: number;
+  lastProviderTextPreview?: string;
+  lastProviderError?: string;
 }
 
 interface RunningWebServer {
@@ -418,6 +423,7 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
           dedupeHorizonMs: parsed.data.dedupeHorizonMs,
           dedupeSeenAtMs: new Map<string, number>(),
           chunkHistory: [],
+          lastProviderEventCount: 0,
         };
         sessions.set(session.id, session);
 
@@ -476,6 +482,7 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         }
 
         session.chunkHistory.push({ audio: normalizedChunk, filename, receivedAtMs: nowMs });
+        session.lastChunkReceivedAt = new Date(nowMs).toISOString();
         if (session.chunkHistory.length > windowChunkCount) {
           session.chunkHistory.splice(0, session.chunkHistory.length - windowChunkCount);
         }
@@ -483,10 +490,21 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         const windowPcm = Buffer.concat(session.chunkHistory.map((chunk) => chunk.audio));
         const windowAudio = pcmToWav(windowPcm, 16_000, 1, 16);
         const transcriptionFilename = `window-${nowMs}.wav`;
-        const transcription = await provider.transcribe(windowAudio, {
-          filename: transcriptionFilename,
-          ...(session.language === undefined ? {} : { language: session.language }),
-        });
+        let transcription;
+        try {
+          transcription = await provider.transcribe(windowAudio, {
+            filename: transcriptionFilename,
+            ...(session.language === undefined ? {} : { language: session.language }),
+          });
+        } catch (error) {
+          session.lastProviderError = error instanceof Error ? error.message : String(error);
+          session.lastTranscriptionAt = new Date().toISOString();
+          throw error;
+        }
+        session.lastTranscriptionAt = new Date().toISOString();
+        delete session.lastProviderError;
+        session.lastProviderEventCount = transcription.events.length;
+        session.lastProviderTextPreview = transcription.events.map((event) => event.text.trim()).filter((text) => text.length > 0).join(" ").slice(0, 280);
 
         purgeDedupeHistory(session.dedupeSeenAtMs, nowMs, session.dedupeHorizonMs);
         const dedupedEvents = transcription.events.filter((event) => {
@@ -606,6 +624,21 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
           windowMs: session.windowMs,
           stepMs: session.stepMs,
           dedupeHorizonMs: session.dedupeHorizonMs,
+          ...(session.lastChunkReceivedAt === undefined
+            ? {}
+            : { lastChunkReceivedAt: session.lastChunkReceivedAt }),
+          ...(session.lastTranscriptionAt === undefined
+            ? {}
+            : { lastTranscriptionAt: session.lastTranscriptionAt }),
+          ...(session.lastProviderEventCount === undefined
+            ? {}
+            : { lastProviderEventCount: session.lastProviderEventCount }),
+          ...(session.lastProviderTextPreview === undefined
+            ? {}
+            : { lastProviderTextPreview: session.lastProviderTextPreview }),
+          ...(session.lastProviderError === undefined
+            ? {}
+            : { lastProviderError: session.lastProviderError }),
         });
 
         sendJson(

@@ -54,6 +54,11 @@ export type TranscriptionSessionStatus = {
   windowMs: number;
   stepMs: number;
   dedupeHorizonMs: number;
+  lastChunkReceivedAt?: string;
+  lastTranscriptionAt?: string;
+  lastProviderEventCount?: number;
+  lastProviderTextPreview?: string;
+  lastProviderError?: string;
 };
 
 async function transcriptionFetch<T>(path: string, init?: RequestInit): Promise<T> {

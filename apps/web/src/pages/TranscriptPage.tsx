@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Check,
-  ArrowLeft,
   Hash,
   Link as LinkIcon,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   assignDecisionTranscriptChunks,
   assignFieldTranscriptChunks,
@@ -18,6 +17,15 @@ import {
 } from "@/api/endpoints";
 import type { ReadableTranscriptRow, TranscriptChunk } from "@/api/types";
 import { MainHeader } from "@/components/shared/MainHeader";
+import {
+  type TranscriptScope,
+  type TranscriptSelectionPayload,
+  type TranscriptTargetPayload,
+  transcriptSelectionStorageKey,
+  transcriptTargetStorageKey,
+  readStoredJson,
+  writeStoredJson,
+} from "@/lib/facilitator-sync";
 
 type TranscriptRowModel = {
   id: string;
@@ -27,8 +35,6 @@ type TranscriptRowModel = {
   text: string;
   chunkIds: string[];
 };
-
-type TranscriptScope = "meeting" | "decision" | "field";
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -59,10 +65,11 @@ function mapChunkRows(chunks: TranscriptChunk[]): TranscriptRowModel[] {
 }
 
 export function TranscriptPage() {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const meetingId = id ?? "";
+  const transcriptTargetKey = transcriptTargetStorageKey(meetingId);
+  const transcriptSelectionKey = transcriptSelectionStorageKey(meetingId);
   const decisionContextId = searchParams.get("decisionContextId") ?? "";
   const fieldId = searchParams.get("fieldId") ?? "";
   const defaultScope: TranscriptScope =
@@ -76,6 +83,7 @@ export function TranscriptPage() {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [newRowsSinceOpen, setNewRowsSinceOpen] = useState(0);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -94,10 +102,47 @@ export function TranscriptPage() {
     targetValue: false,
     touchedIds: new Set<string>(),
   });
+  const previousRowCountRef = useRef(0);
 
   useEffect(() => {
     setScope(defaultScope);
   }, [defaultScope]);
+
+  useEffect(() => {
+    const applyTarget = () => {
+      const payload = readStoredJson<TranscriptTargetPayload>(transcriptTargetKey);
+      if (!payload || payload.meetingId !== meetingId) return;
+      const nextParams = new URLSearchParams(searchParams);
+
+      if (payload.decisionContextId) nextParams.set("decisionContextId", payload.decisionContextId);
+      else nextParams.delete("decisionContextId");
+
+      if (payload.fieldId) nextParams.set("fieldId", payload.fieldId);
+      else nextParams.delete("fieldId");
+
+      const current = searchParams.toString();
+      const next = nextParams.toString();
+      if (current !== next) {
+        setSearchParams(nextParams, { replace: true });
+      }
+    };
+
+    applyTarget();
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== transcriptTargetKey) return;
+      applyTarget();
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [meetingId, searchParams, setSearchParams, transcriptTargetKey]);
+
+  const targetLabel = useMemo(() => {
+    if (!decisionContextId) return "Meeting-wide transcript";
+    if (fieldId) return `Field target · context ${decisionContextId} · field ${fieldId}`;
+    return `Decision target · context ${decisionContextId}`;
+  }, [decisionContextId, fieldId]);
 
   const loadRows = useCallback(
     async (pollOnly = false) => {
@@ -121,6 +166,12 @@ export function TranscriptPage() {
           meetingRows = mapChunkRows(chunkData.chunks);
         }
 
+        const nextRowCount = meetingRows.length;
+        const previousRowCount = previousRowCountRef.current;
+        if (pollOnly && previousRowCount > 0 && nextRowCount > previousRowCount) {
+          setNewRowsSinceOpen((value) => value + (nextRowCount - previousRowCount));
+        }
+        previousRowCountRef.current = nextRowCount;
         setRows(meetingRows);
 
         if (scope === "field") {
@@ -314,33 +365,26 @@ export function TranscriptPage() {
       return;
     }
 
+    const selectionPayload: TranscriptSelectionPayload = {
+      meetingId,
+      rowIds,
+      chunkIds,
+      decisionContextId: decisionContextId || undefined,
+      fieldId: fieldId || undefined,
+      scope,
+      createdAt: new Date().toISOString(),
+    };
+    writeStoredJson(transcriptSelectionKey, selectionPayload);
+    setSelected(new Set());
     setConfirming(false);
-    navigate(`/meetings/${meetingId}/facilitator`, {
-      state: {
-        segmentSelection: {
-          rowIds,
-          chunkIds,
-          decisionContextId: decisionContextId || undefined,
-          fieldId: fieldId || undefined,
-          scope,
-        },
-      },
-    });
   }
 
   return (
     <div className="density-facilitator min-h-screen bg-base flex flex-col">
       <MainHeader
         className="px-4 py-3 shrink-0"
-        navItems={[
-          {
-            label: "Workspace",
-            to: `/meetings/${meetingId}/facilitator`,
-            icon: <ArrowLeft size={13} />,
-          },
-        ]}
-        title="Select transcript segments"
-        subtitle={`${selected.size} row${selected.size !== 1 ? "s" : ""} selected`}
+        title="Transcript window"
+        subtitle={`${selected.size} row${selected.size !== 1 ? "s" : ""} selected · ${targetLabel}`}
         actions={
           <button
             disabled={selected.size === 0 || confirming}
@@ -348,7 +392,7 @@ export function TranscriptPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-fac-meta bg-settled text-base rounded font-medium hover:bg-settled/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Check size={13} />
-            {confirming ? "Saving…" : "Confirm selection"}
+            {confirming ? "Saving…" : "Send selection"}
           </button>
         }
       />
@@ -369,6 +413,9 @@ export function TranscriptPage() {
 
       {/* Toolbar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-3 shrink-0">
+        <span className="text-fac-meta text-text-secondary shrink-0 border border-border rounded-badge bg-surface px-2 py-1">
+          {targetLabel}
+        </span>
         <div className="flex items-center gap-1 rounded border border-border p-1 bg-surface">
           <button
             onClick={() => setScope("meeting")}
@@ -443,6 +490,9 @@ export function TranscriptPage() {
 
         <span className="text-fac-meta text-text-muted shrink-0">
           {filtered.length} / {scopedRows.length} rows
+        </span>
+        <span className="text-fac-meta text-text-muted shrink-0">
+          {newRowsSinceOpen > 0 ? `+${newRowsSinceOpen} new since open` : "No new rows yet"}
         </span>
         {isContextScope && (
           <span className="text-fac-meta text-text-muted shrink-0">

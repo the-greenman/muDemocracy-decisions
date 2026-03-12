@@ -5,13 +5,15 @@ export { z } from "@hono/zod-openapi";
 // MEETING SCHEMAS
 // ============================================================================
 
+export const MeetingStatusSchema = z.enum(["proposed", "in_session", "ended"]);
+
 export const MeetingSchema = z
   .object({
     id: z.string().uuid(),
     title: z.string().min(1, "Title is required"),
     date: z.string().datetime({ offset: true }),
     participants: z.array(z.string()).min(1, "At least one participant is required"),
-    status: z.enum(["active", "completed"]).default("active"),
+    status: MeetingStatusSchema.default("proposed"),
     createdAt: z.string().datetime({ offset: true }),
   })
   .openapi("Meeting", {
@@ -21,7 +23,7 @@ export const MeetingSchema = z
       title: "Test Meeting",
       date: "2026-02-27T10:00:00Z",
       participants: ["Alice", "Bob"],
-      status: "active",
+      status: "proposed",
       createdAt: "2026-02-27T10:00:00Z",
     },
   });
@@ -294,6 +296,11 @@ export const TranscriptionSessionStatusResponseSchema = z
     windowMs: TranscriptionPositiveMsSchema,
     stepMs: TranscriptionPositiveMsSchema,
     dedupeHorizonMs: TranscriptionPositiveMsSchema,
+    lastChunkReceivedAt: z.string().datetime().optional(),
+    lastTranscriptionAt: z.string().datetime().optional(),
+    lastProviderEventCount: z.number().int().min(0).optional(),
+    lastProviderTextPreview: z.string().optional(),
+    lastProviderError: z.string().optional(),
   })
   .openapi("TranscriptionSessionStatusResponse", {
     description: "Runtime status for a browser transcription session",
@@ -861,16 +868,16 @@ export const GlobalContextSchema = z
 
 export type GlobalContext = z.infer<typeof GlobalContextSchema>;
 
-export const ActiveMeetingsContextSummarySchema = z
+export const InSessionMeetingsContextSummarySchema = z
   .object({
     currentContext: GlobalContextSchema,
-    activeMeetings: z.array(MeetingSchema),
+    inSessionMeetings: z.array(MeetingSchema),
   })
-  .openapi("ActiveMeetingsContextSummary", {
-    description: "Current global context and all meetings whose meeting-record status is active",
+  .openapi("InSessionMeetingsContextSummary", {
+    description: "Current global context and all meetings whose lifecycle status is in_session",
   });
 
-export type ActiveMeetingsContextSummary = z.infer<typeof ActiveMeetingsContextSummarySchema>;
+export type InSessionMeetingsContextSummary = z.infer<typeof InSessionMeetingsContextSummarySchema>;
 
 export const CreateDecisionTemplateSchema = DecisionTemplateSchema.omit({
   id: true,
