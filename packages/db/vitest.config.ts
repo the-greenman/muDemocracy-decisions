@@ -12,6 +12,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@repo/db": path.resolve(__dirname, "./src"),
       "@repo/schema": path.resolve(__dirname, "../schema/src"),
       "@repo/core": path.resolve(__dirname, "../core/src"),
     },
