@@ -7,6 +7,7 @@ RUN npm install -g pnpm@8
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY tsconfig.json tsconfig.base.json ./
 COPY apps/transcription/package.json apps/transcription/tsconfig.json apps/transcription/
+COPY packages/schema/src packages/schema/src
 
 RUN pnpm install --frozen-lockfile --ignore-scripts --filter @repo/transcription...
 

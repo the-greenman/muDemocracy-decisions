@@ -15,7 +15,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "tsx": "^4.7.0"
+    "@hono/zod-openapi": "^0.11.0",
+    "tsx": "^4.7.0",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
