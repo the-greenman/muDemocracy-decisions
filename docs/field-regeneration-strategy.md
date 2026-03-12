@@ -2,7 +2,7 @@
 
 **Status**: authoritative
 **Owns**: field regeneration behavior, prompt-source rules, field-specific weighting and regeneration flow
-**Must sync with**: `packages/schema`, `docs/field-library-architecture.md`, `docs/OVERVIEW.md`, `docs/plans/iterative-implementation-plan.md`
+**Must sync with**: `packages/schema`, `docs/field-library-architecture.md`, `docs/decision-feedback-architecture.md`, `docs/OVERVIEW.md`, `docs/plans/iterative-implementation-plan.md`
 
 ## Architecture Decision: Field-Specific Prompts
 
@@ -83,6 +83,8 @@ This document owns the behavioral contract:
 - full regenerate must process unlocked fields only
 - locked fields must remain unchanged
 - field-specific transcript evidence should outrank broader decision/meeting evidence
+- regeneration uses the **persisted feedback chain** — no ad-hoc guidance in the request body (see below)
+- field identity is UUID-based across schema, persistence, APIs, and prompt assembly; symbolic field names may appear in rendered prompt text, but not as identifiers
 
 ### Field Prompt Loading
 
@@ -90,10 +92,32 @@ Field prompt loading should follow these rules:
 
 - load the canonical field definition from the field library
 - use the field's own extraction guidance
+- preserve template-level guidance as the statement of template intent, with field extraction guidance refining that intent per field
 - avoid template-local prompt duplication
 - keep prompts as data rather than hardcoded service logic
 
 Prompts are **data**, not code. They live in the database and can be updated without code changes.
+
+## Feedback Chain
+
+The former `GuidanceSegment[]` mechanism (transient, per-request, not persisted) has been replaced by the **structured feedback chain**.
+
+Feedback does not replace template guidance.
+
+Template guidance expresses the canonical intent behind the active template and its fields.
+Feedback expresses contextual steering toward that intent for the current decision context, draft version, or field instance.
+
+Key behavioral rules:
+
+- `DraftGenerationService` assembles prompts from multiple prompt sources: transcript evidence, supplementary content, template guidance, feedback chain, and field extraction instructions
+- `DraftGenerationService` fetches the feedback chain from the database automatically before building any prompt
+- No `guidance` parameter exists on any regeneration endpoint or service method
+- Template guidance remains present during both full-draft generation and field regeneration
+- The feedback chain is rendered into the LLM prompt after supplementary content and before the field extraction block
+- Field-specific feedback (non-null `fieldId`) is placed before whole-draft feedback in field regeneration, following the same priority model as transcript chunk weighting
+- Items with `excludeFromRegeneration = true` are omitted from the prompt but preserved in the chain
+
+See `docs/decision-feedback-architecture.md` for the complete feedback model, persistence layer, API surface, and MCP tool definitions.
 
 ## Testing Strategy
 
