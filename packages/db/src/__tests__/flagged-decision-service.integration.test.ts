@@ -28,7 +28,7 @@ describe("FlaggedDecisionService Integration Tests", () => {
       title: "Integration Test Meeting",
       date: new Date("2026-02-28T00:00:00.000Z"),
       participants: ["Alice", "Bob"],
-      status: "active",
+      status: "in_session",
     });
   });
 

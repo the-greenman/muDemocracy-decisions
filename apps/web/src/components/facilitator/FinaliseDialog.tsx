@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { CheckSquare, X, UserPlus, Trash2 } from "lucide-react";
-import { DECISION_METHODS } from "@/lib/mock-data";
-import type { DecisionMethod } from "@/lib/mock-data";
+import type { DecisionMethod } from "@/lib/ui-models";
+
+const DECISION_METHOD_OPTIONS: Array<{ value: DecisionMethod; label: string }> = [
+  { value: "unanimous_vote", label: "Unanimous vote" },
+  { value: "consensus", label: "Consensus" },
+  { value: "majority_vote", label: "Majority vote" },
+  { value: "executive", label: "Executive decision" },
+  { value: "delegated", label: "Delegated authority" },
+];
 
 interface FinaliseDialogProps {
   participants: string[];
@@ -50,7 +57,7 @@ export function FinaliseDialog({ participants, onConfirm, onCancel }: FinaliseDi
               Decision method
             </label>
             <div className="flex flex-col gap-1.5">
-              {DECISION_METHODS.map((m) => (
+              {DECISION_METHOD_OPTIONS.map((m) => (
                 <label
                   key={m.value}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded border cursor-pointer transition-colors ${method === m.value ? "border-settled/40 bg-settled-dim/20" : "border-border hover:border-border-strong"}`}

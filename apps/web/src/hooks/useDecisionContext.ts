@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getDecisionContext, getTemplateFields } from "../api/endpoints.js";
 import { buildUIFields } from "../api/adapters.js";
 import type { DecisionContext, DecisionField } from "../api/types.js";
-import type { Field } from "../lib/mock-data.js";
+import type { Field } from "../lib/ui-models.js";
 import { ApiError } from "../api/client.js";
 
 interface UseDecisionContextResult {

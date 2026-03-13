@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { FilePlus2, X } from "lucide-react";
-import { TEMPLATES } from "@/lib/mock-data";
-import type { Template, RelationType } from "@/lib/mock-data";
+import type { DecisionTemplate } from "@/api/types";
+import type { RelationType } from "@/lib/ui-models";
 import { Select } from "@/components/ui/Select";
 
 interface CreateContextDialogProps {
+  templates: DecisionTemplate[];
   onConfirm: (
     title: string,
     summary: string,
-    template: Template,
+    template: DecisionTemplate,
     relationType?: RelationType,
   ) => void;
   onCancel: () => void;
@@ -28,6 +29,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function CreateContextDialog({
+  templates,
   onConfirm,
   onCancel,
   initialTitle = "",
@@ -37,7 +39,7 @@ export function CreateContextDialog({
 }: CreateContextDialogProps) {
   const [title, setTitle] = useState(initialTitle);
   const [summary, setSummary] = useState(initialSummary);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<DecisionTemplate | null>(null);
   const [relationType, setRelationType] = useState<RelationType>(initialRelationType);
 
   const canConfirm = title.trim() && selectedTemplate;
@@ -120,7 +122,7 @@ export function CreateContextDialog({
               Template <span className="text-danger">*</span>
             </label>
             <div className="flex flex-col gap-1.5">
-              {TEMPLATES.map((tpl) => (
+              {templates.map((tpl) => (
                 <button
                   key={tpl.id}
                   onClick={() => setSelectedTemplate(tpl)}
@@ -138,14 +140,11 @@ export function CreateContextDialog({
                         {tpl.name}
                       </span>
                       <span className="text-fac-meta text-text-muted border border-border rounded px-1.5 py-0.5">
-                        {CATEGORY_LABELS[tpl.category]}
+                        {CATEGORY_LABELS[tpl.category] ?? tpl.category}
                       </span>
                     </div>
                     <p className="text-fac-meta text-text-muted mt-0.5">{tpl.description}</p>
                   </div>
-                  <span className="text-fac-meta text-text-muted shrink-0">
-                    {tpl.fieldCount} fields
-                  </span>
                 </button>
               ))}
             </div>

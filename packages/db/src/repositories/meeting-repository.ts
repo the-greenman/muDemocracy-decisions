@@ -35,7 +35,7 @@ export class DrizzleMeetingRepository {
       title: data.title,
       date: meetingDate,
       participants: data.participants,
-      status: "active",
+      status: "proposed",
     };
 
     const result = await db.insert(meetings).values(insertData).returning();
@@ -86,7 +86,7 @@ export class DrizzleMeetingRepository {
     return this.mapToMeeting(result[0]);
   }
 
-  async updateStatus(id: string, status: "active" | "completed"): Promise<Meeting> {
+  async updateStatus(id: string, status: "proposed" | "in_session" | "ended"): Promise<Meeting> {
     const [result] = await db
       .update(meetings)
       .set({ status })

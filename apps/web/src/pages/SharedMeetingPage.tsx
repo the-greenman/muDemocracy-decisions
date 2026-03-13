@@ -10,7 +10,7 @@ import { useTemplates } from "@/hooks/useTemplates";
 import { getTemplateFields } from "@/api/endpoints";
 import { buildUIFields, buildAgendaItems } from "@/api/adapters";
 import type { DecisionContext, DecisionField } from "@/api/types";
-import type { Field } from "@/lib/mock-data";
+import type { Field } from "@/lib/ui-models";
 
 type FocusPayload = {
   meetingId?: string;

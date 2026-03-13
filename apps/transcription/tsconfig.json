@@ -2,10 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "../../",
     "composite": true,
     "noEmit": false
   },
-  "references": [{ "path": "../../packages/schema" }],
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../../packages/schema/src/**/*"],
   "exclude": ["dist", "node_modules"]
 }

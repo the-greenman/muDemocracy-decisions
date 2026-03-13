@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link2, X } from "lucide-react";
-import type { OpenContextSummary } from "@/lib/mock-data";
+import type { DecisionContextPickerItem } from "@/api/types";
 import { OpenContextPicker } from "@/components/shared/OpenContextPicker";
 import { Button } from "@/components/ui/Button";
 
 interface AddExistingContextDialogProps {
-  contexts: OpenContextSummary[];
+  contexts: DecisionContextPickerItem[];
   currentMeeting: { title: string; date: string };
-  onConfirm: (context: OpenContextSummary) => void;
+  onConfirm: (context: DecisionContextPickerItem) => void;
   onCancel: () => void;
 }
 

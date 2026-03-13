@@ -19,20 +19,27 @@ fi
 if [[ -f "$WEB_PID_FILE" ]]; then
   EXISTING_PID="$(cat "$WEB_PID_FILE" 2>/dev/null || true)"
   if [[ -n "$EXISTING_PID" ]] && kill -0 "$EXISTING_PID" >/dev/null 2>&1; then
+    EXISTING_URL="$(grep -Eo 'http://localhost:[0-9]+' "$WEB_LOG_FILE" 2>/dev/null | tail -n 1 || true)"
     echo "Web dev server already running (pid $EXISTING_PID)."
-    echo "UI: http://localhost:5173"
+    echo "UI: ${EXISTING_URL:-http://localhost:5173}"
     exit 0
   fi
   rm -f "$WEB_PID_FILE"
 fi
 
-nohup pnpm --filter @repo/web dev >"$WEB_LOG_FILE" 2>&1 &
+nohup setsid pnpm --filter @repo/web dev >"$WEB_LOG_FILE" 2>&1 &
 WEB_PID=$!
 echo "$WEB_PID" >"$WEB_PID_FILE"
 
 for _ in $(seq 1 45); do
   if curl -sf "http://localhost:5173" >/dev/null 2>&1; then
     echo "Web dev server is ready at http://localhost:5173 (pid $WEB_PID)"
+    echo "Logs: $WEB_LOG_FILE"
+    exit 0
+  fi
+  WEB_URL="$(grep -Eo 'http://localhost:[0-9]+' "$WEB_LOG_FILE" 2>/dev/null | tail -n 1 || true)"
+  if [[ -n "$WEB_URL" ]] && curl -sf "$WEB_URL" >/dev/null 2>&1; then
+    echo "Web dev server is ready at $WEB_URL (pid $WEB_PID)"
     echo "Logs: $WEB_LOG_FILE"
     exit 0
   fi

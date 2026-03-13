@@ -39,7 +39,7 @@ import {
   clearDecisionContextRoute,
   clearFieldContextRoute,
   clearMeetingContextRoute,
-  getActiveMeetingsContextSummaryRoute,
+  getInSessionMeetingsContextSummaryRoute,
   getContextRoute,
   setDecisionContextRoute,
   setFieldContextRoute,
@@ -264,7 +264,7 @@ app.openapi(getContextRoute, async (c) => {
   return c.json(context);
 });
 
-app.openapi(getActiveMeetingsContextSummaryRoute, async (c) => {
+app.openapi(getInSessionMeetingsContextSummaryRoute, async (c) => {
   if (!globalContextService) {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
@@ -276,7 +276,9 @@ app.openapi(getActiveMeetingsContextSummaryRoute, async (c) => {
 
   return c.json({
     currentContext,
-    activeMeetings: meetings.filter((meeting: { status: string }) => meeting.status === "active"),
+    inSessionMeetings: meetings.filter(
+      (meeting: { status: string }) => meeting.status === "in_session",
+    ),
   });
 });
 
@@ -531,9 +533,19 @@ app.openapi(updateMeetingRoute, async (c) => {
   try {
     const { id } = c.req.valid("param");
     const { status, ...otherUpdates } = c.req.valid("json");
+    const existingMeeting = await meetingService.findById(id);
+    if (!existingMeeting) {
+      return c.json({ error: "Meeting not found" }, 404);
+    }
 
     if (status !== undefined) {
       const meeting = await meetingService.updateStatus(id, status);
+      if (status === "ended" && globalContextService) {
+        const context = await globalContextService.getContext();
+        if (context.activeMeetingId === id) {
+          await globalContextService.clearMeeting();
+        }
+      }
 
       if (otherUpdates.title === undefined && otherUpdates.participants === undefined) {
         return c.json(meeting);
@@ -557,11 +569,7 @@ app.openapi(updateMeetingRoute, async (c) => {
     }
 
     if (Object.keys(updatePayload).length === 0) {
-      const meeting = await meetingService.findById(id);
-      if (!meeting) {
-        return c.json({ error: "Meeting not found" }, 404);
-      }
-      return c.json(meeting);
+      return c.json(existingMeeting);
     }
 
     const meeting = await meetingService.update(id, updatePayload);

@@ -131,18 +131,19 @@ describe("DecisionContextService Integration", () => {
 
   describe("updateDraftData", () => {
     it("should update draft data in the database", async () => {
+      const fieldId = randomUUID();
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
         title: "Test Context",
         templateId: testTemplateId,
-        draftData: { field1: "original" },
+        draftData: { [fieldId]: "original" },
       });
 
-      const result = await service.updateDraftData(context.id, { field1: "updated" });
+      const result = await service.updateDraftData(context.id, { [fieldId]: "updated" });
 
       expect(result).toBeDefined();
-      expect(result!.draftData).toEqual({ field1: "updated" });
+      expect(result!.draftData).toEqual({ [fieldId]: "updated" });
 
       // Verify in database
       const found = await db
@@ -150,7 +151,7 @@ describe("DecisionContextService Integration", () => {
         .from(decisionContexts)
         .where(eq(decisionContexts.id, context.id))
         .limit(1);
-      expect(found[0]!.draftData).toEqual({ field1: "updated" });
+      expect(found[0]!.draftData).toEqual({ [fieldId]: "updated" });
     });
 
     it("should not update locked fields", async () => {
@@ -163,7 +164,6 @@ describe("DecisionContextService Integration", () => {
           (${lockedFieldId}, 'test', ${`Locked Field ${lockedFieldId}`}, 'context', 'A locked test field', 'Extract this field', 'text'),
           (${unlockedFieldId}, 'test', ${`Unlocked Field ${unlockedFieldId}`}, 'context', 'An unlocked test field', 'Extract this field', 'text')
       `);
-
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
@@ -194,7 +194,6 @@ describe("DecisionContextService Integration", () => {
         INSERT INTO decision_fields (id, namespace, name, category, description, extraction_prompt, field_type)
         VALUES (${fieldId}, 'test', ${`Test Field ${fieldId}`}, 'context', 'A test field', 'Extract this field', 'text')
       `);
-
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,
@@ -247,7 +246,6 @@ describe("DecisionContextService Integration", () => {
           (${field1Id}, 'test', ${`Status Field ${field1Id}`}, 'context', 'A status test field', 'Extract this field', 'text'),
           (${field2Id}, 'test', ${`Status Field ${field2Id}`}, 'context', 'Another status test field', 'Extract this field', 'text')
       `);
-
       const context = await service.createContext({
         meetingId: testMeetingId,
         flaggedDecisionId: testFlaggedDecisionId,

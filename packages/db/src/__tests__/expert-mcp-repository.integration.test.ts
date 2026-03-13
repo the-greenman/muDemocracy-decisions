@@ -52,7 +52,7 @@ describe("Expert and MCP Repository Integration Tests", () => {
         title: `Expert Advice Meeting ${randomUUID()}`,
         date: new Date("2026-03-01T00:00:00.000Z"),
         participants: ["Alice", "Bob"],
-        status: "active",
+        status: "in_session",
       })
       .returning();
 

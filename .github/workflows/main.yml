@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -17,7 +16,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Configure database environment
         run: |
           echo "DATABASE_URL=postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev" >> "$GITHUB_ENV"
@@ -26,7 +24,6 @@ jobs:
           echo "PGPORT=5433" >> "$GITHUB_ENV"
           echo "PGUSER=decision_logger" >> "$GITHUB_ENV"
           echo "PGPASSWORD=decision_logger" >> "$GITHUB_ENV"
-
       - name: Detect path changes
         id: filter
         uses: dorny/paths-filter@v3
@@ -58,7 +55,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Configure database environment
         run: |
           echo "DATABASE_URL=postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev" >> "$GITHUB_ENV"
@@ -67,7 +63,6 @@ jobs:
           echo "PGPORT=5433" >> "$GITHUB_ENV"
           echo "PGUSER=decision_logger" >> "$GITHUB_ENV"
           echo "PGPASSWORD=decision_logger" >> "$GITHUB_ENV"
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -129,7 +124,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Configure database environment
         run: |
           echo "DATABASE_URL=postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev" >> "$GITHUB_ENV"
@@ -138,7 +132,6 @@ jobs:
           echo "PGPORT=5433" >> "$GITHUB_ENV"
           echo "PGUSER=decision_logger" >> "$GITHUB_ENV"
           echo "PGPASSWORD=decision_logger" >> "$GITHUB_ENV"
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -185,7 +178,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Configure database environment
         run: |
           echo "DATABASE_URL=postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev" >> "$GITHUB_ENV"
@@ -194,7 +186,6 @@ jobs:
           echo "PGPORT=5433" >> "$GITHUB_ENV"
           echo "PGUSER=decision_logger" >> "$GITHUB_ENV"
           echo "PGPASSWORD=decision_logger" >> "$GITHUB_ENV"
-
       - name: Build API image
         run: docker build -f apps/api/Dockerfile -t decision-logger-api:ci .
 

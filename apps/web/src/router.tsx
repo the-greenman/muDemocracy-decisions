@@ -3,14 +3,12 @@ import { MeetingListPage } from "./pages/MeetingListPage";
 import { SharedMeetingPage } from "./pages/SharedMeetingPage";
 import { FacilitatorMeetingPage } from "./pages/FacilitatorMeetingPage";
 import { FacilitatorMeetingHomePage } from "./pages/FacilitatorMeetingHomePage";
+import { FacilitatorStreamPage } from "./pages/FacilitatorStreamPage";
+import { FacilitatorStreamDiagnosticsPage } from "./pages/FacilitatorStreamDiagnosticsPage";
 import { TranscriptPage } from "./pages/TranscriptPage";
 import { LoggedDecisionPage } from "./pages/LoggedDecisionPage";
-import { PrototypeGallery } from "./pages/PrototypeGallery";
 
 export const router = createBrowserRouter([
-  // ── Prototype gallery (dev only) ────────────────────────────────
-  { path: "/prototype", element: <PrototypeGallery /> },
-
   // ── Route 1: Meeting list ────────────────────────────────────────
   { path: "/", element: <MeetingListPage /> },
 
@@ -20,6 +18,8 @@ export const router = createBrowserRouter([
   // ── Route 3: Facilitator meeting view ───────────────────────────
   { path: "/meetings/:id/facilitator/home", element: <FacilitatorMeetingHomePage /> },
   { path: "/meetings/:id/facilitator", element: <FacilitatorMeetingPage /> },
+  { path: "/meetings/:id/facilitator/stream", element: <FacilitatorStreamPage /> },
+  { path: "/meetings/:id/facilitator/stream/diagnostics", element: <FacilitatorStreamDiagnosticsPage /> },
 
   // ── Route 4: Segment selection ───────────────────────────────────
   { path: "/meetings/:id/facilitator/transcript", element: <TranscriptPage /> },

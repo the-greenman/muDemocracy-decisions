@@ -1,5 +1,5 @@
 import { Lock, Loader2 } from "lucide-react";
-import type { Field } from "@/lib/mock-data";
+import type { Field } from "@/lib/ui-models";
 
 interface FieldCardProps {
   field: Field;

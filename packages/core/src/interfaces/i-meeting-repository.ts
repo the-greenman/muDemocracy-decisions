@@ -8,6 +8,6 @@ export interface IMeetingRepository {
     id: string,
     data: Partial<Pick<CreateMeeting, "title" | "date" | "participants">>,
   ): Promise<Meeting>;
-  updateStatus(id: string, status: "active" | "completed"): Promise<Meeting>;
+  updateStatus(id: string, status: "proposed" | "in_session" | "ended"): Promise<Meeting>;
   delete(id: string): Promise<boolean>;
 }

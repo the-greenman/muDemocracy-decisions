@@ -25,7 +25,7 @@ describe("DrizzleFlaggedDecisionRepository", () => {
       title: "Test Meeting",
       date: new Date("2026-02-27T00:00:00.000Z"),
       participants: ["Alice", "Bob"],
-      status: "active",
+      status: "in_session",
     });
 
     // Clean up any existing test data

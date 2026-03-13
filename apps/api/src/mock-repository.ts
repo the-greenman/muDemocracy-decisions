@@ -10,7 +10,7 @@ export class MockMeetingRepository implements IMeetingRepository {
     const meeting: Meeting = {
       id: crypto.randomUUID(),
       ...data,
-      status: "active",
+      status: "proposed",
       createdAt: new Date().toISOString(),
     };
 
@@ -44,7 +44,7 @@ export class MockMeetingRepository implements IMeetingRepository {
     return updated;
   }
 
-  async updateStatus(id: string, status: "active" | "completed"): Promise<Meeting> {
+  async updateStatus(id: string, status: "proposed" | "in_session" | "ended"): Promise<Meeting> {
     const existingMeeting = this.meetings.get(id);
     if (!existingMeeting) {
       throw new Error("Meeting not found");

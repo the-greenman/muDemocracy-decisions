@@ -3,7 +3,7 @@ import { ArrowRightLeft, Copy, X } from "lucide-react";
 import type { DecisionTemplate, DecisionField } from "@/api/types";
 import { getTemplateFields } from "@/api/endpoints";
 import { formatFieldName } from "@/api/adapters";
-import type { Field } from "@/lib/mock-data";
+import type { Field } from "@/lib/ui-models";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 

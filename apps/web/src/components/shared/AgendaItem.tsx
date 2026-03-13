@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, Clock, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { AgendaItemStatus } from "@/lib/mock-data";
+import type { AgendaItemStatus } from "@/lib/ui-models";
 
 interface AgendaItemProps {
   title: string;

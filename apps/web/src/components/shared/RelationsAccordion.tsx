@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import type { Relation, RelationType } from "@/lib/mock-data";
+import type { Relation, RelationType } from "@/lib/ui-models";
 import { AccordionSection } from "@/components/ui/AccordionSection";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";

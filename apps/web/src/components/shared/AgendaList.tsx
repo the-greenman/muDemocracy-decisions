@@ -1,5 +1,5 @@
 import { AgendaItem } from "@/components/shared/AgendaItem";
-import type { AgendaItemStatus } from "@/lib/mock-data";
+import type { AgendaItemStatus } from "@/lib/ui-models";
 
 type AgendaListItem = {
   id: string;

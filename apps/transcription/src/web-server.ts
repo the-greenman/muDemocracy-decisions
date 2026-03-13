@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import {
+  TranscriptionDiagnosticsResponseSchema,
   TranscriptionServiceStatusSchema,
   TranscriptionSessionCreateRequestSchema,
   TranscriptionSessionCreateResponseSchema,
@@ -40,6 +41,39 @@ export interface StartWebServerOptions {
   corsOrigin?: string;
 }
 
+const DIAGNOSTIC_HISTORY_LIMIT = 50;
+
+interface SessionChunkHistoryItem {
+  audio: Buffer;
+  filename: string;
+  receivedAtMs: number;
+}
+
+interface SessionChunkDiagnostic {
+  receivedAt: string;
+  filename: string;
+  contentType?: string;
+  originalByteLength: number;
+  normalizedByteLength: number;
+  rollingWindowChunkCount: number;
+  rollingWindowAudioBytes: number;
+}
+
+interface SessionWhisperDiagnostic {
+  createdAt: string;
+  filename: string;
+  eventCount: number;
+  textPreview: string;
+  rawResponse: unknown;
+  error?: string;
+}
+
+interface SessionDeliveredEventDiagnostic {
+  createdAt: string;
+  meetingId: string;
+  event: TranscriptEvent;
+}
+
 interface SessionState {
   id: string;
   meetingId: string;
@@ -56,7 +90,15 @@ interface SessionState {
   stepMs: number;
   dedupeHorizonMs: number;
   dedupeSeenAtMs: Map<string, number>;
-  chunkHistory: Array<{ audio: Buffer; filename: string; receivedAtMs: number }>;
+  chunkHistory: SessionChunkHistoryItem[];
+  chunkTrace: SessionChunkDiagnostic[];
+  whisperResponses: SessionWhisperDiagnostic[];
+  deliveredEvents: SessionDeliveredEventDiagnostic[];
+  lastChunkReceivedAt?: string;
+  lastTranscriptionAt?: string;
+  lastProviderEventCount?: number;
+  lastProviderTextPreview?: string;
+  lastProviderError?: string;
 }
 
 interface RunningWebServer {
@@ -228,6 +270,13 @@ function purgeDedupeHistory(
     if (seenAt < cutoff) {
       seenAtMs.delete(key);
     }
+  }
+}
+
+function pushDiagnosticEntry<T>(items: T[], entry: T): void {
+  items.push(entry);
+  if (items.length > DIAGNOSTIC_HISTORY_LIMIT) {
+    items.splice(0, items.length - DIAGNOSTIC_HISTORY_LIMIT);
   }
 }
 
@@ -418,6 +467,10 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
           dedupeHorizonMs: parsed.data.dedupeHorizonMs,
           dedupeSeenAtMs: new Map<string, number>(),
           chunkHistory: [],
+          chunkTrace: [],
+          whisperResponses: [],
+          deliveredEvents: [],
+          lastProviderEventCount: 0,
         };
         sessions.set(session.id, session);
 
@@ -466,6 +519,8 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         const fallback = `chunk-${Date.now()}.webm`;
         const filename = resolveChunkFilename(req, fallback);
         const nowMs = Date.now();
+        const contentType =
+          typeof req.headers["content-type"] === "string" ? req.headers["content-type"] : undefined;
         const windowChunkCount = Math.max(1, Math.ceil(session.windowMs / session.stepMs));
         let normalizedChunk: Buffer;
         try {
@@ -476,16 +531,53 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         }
 
         session.chunkHistory.push({ audio: normalizedChunk, filename, receivedAtMs: nowMs });
+        session.lastChunkReceivedAt = new Date(nowMs).toISOString();
         if (session.chunkHistory.length > windowChunkCount) {
           session.chunkHistory.splice(0, session.chunkHistory.length - windowChunkCount);
         }
+        const rollingWindowAudioBytes = session.chunkHistory.reduce((total, chunk) => total + chunk.audio.length, 0);
+        pushDiagnosticEntry(session.chunkTrace, {
+          receivedAt: session.lastChunkReceivedAt,
+          filename,
+          ...(contentType === undefined ? {} : { contentType }),
+          originalByteLength: audio.length,
+          normalizedByteLength: normalizedChunk.length,
+          rollingWindowChunkCount: session.chunkHistory.length,
+          rollingWindowAudioBytes,
+        });
 
         const windowPcm = Buffer.concat(session.chunkHistory.map((chunk) => chunk.audio));
         const windowAudio = pcmToWav(windowPcm, 16_000, 1, 16);
         const transcriptionFilename = `window-${nowMs}.wav`;
-        const transcription = await provider.transcribe(windowAudio, {
+        let transcription;
+        try {
+          transcription = await provider.transcribe(windowAudio, {
+            filename: transcriptionFilename,
+            ...(session.language === undefined ? {} : { language: session.language }),
+          });
+        } catch (error) {
+          session.lastProviderError = error instanceof Error ? error.message : String(error);
+          session.lastTranscriptionAt = new Date().toISOString();
+          pushDiagnosticEntry(session.whisperResponses, {
+            createdAt: session.lastTranscriptionAt,
+            filename: transcriptionFilename,
+            eventCount: 0,
+            textPreview: "",
+            rawResponse: null,
+            error: session.lastProviderError,
+          });
+          throw error;
+        }
+        session.lastTranscriptionAt = new Date().toISOString();
+        delete session.lastProviderError;
+        session.lastProviderEventCount = transcription.events.length;
+        session.lastProviderTextPreview = transcription.events.map((event) => event.text.trim()).filter((text) => text.length > 0).join(" ").slice(0, 280);
+        pushDiagnosticEntry(session.whisperResponses, {
+          createdAt: session.lastTranscriptionAt,
           filename: transcriptionFilename,
-          ...(session.language === undefined ? {} : { language: session.language }),
+          eventCount: transcription.events.length,
+          textPreview: session.lastProviderTextPreview,
+          rawResponse: transcription.rawResponse,
         });
 
         purgeDedupeHistory(session.dedupeSeenAtMs, nowMs, session.dedupeHorizonMs);
@@ -503,6 +595,13 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         });
 
         const normalizedEvents = normalizeSequenceNumbers(dedupedEvents, session.nextSequenceNumber);
+        normalizedEvents.forEach((event) => {
+          pushDiagnosticEntry(session.deliveredEvents, {
+            createdAt: new Date().toISOString(),
+            meetingId: session.meetingId,
+            event,
+          });
+        });
         await deliverStreamEvents(
           session.meetingId,
           normalizedEvents,
@@ -533,6 +632,51 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
           },
           corsOrigin,
         );
+        return;
+      }
+
+      if (method === "GET" && path === "/diagnostics") {
+        const payload = TranscriptionDiagnosticsResponseSchema.parse({
+          status: "ok",
+          sessions: Array.from(sessions.values()).map((session) => ({
+            sessionId: session.id,
+            meetingId: session.meetingId,
+            status: session.status,
+            startedAt: session.startedAt,
+            ...(session.stoppedAt === undefined ? {} : { stoppedAt: session.stoppedAt }),
+            windowMs: session.windowMs,
+            stepMs: session.stepMs,
+            dedupeHorizonMs: session.dedupeHorizonMs,
+            bufferedEvents: session.eventsAccepted,
+            postedEvents: session.postedEvents,
+            dedupedEvents: session.dedupedEvents,
+            ...(session.lastChunkReceivedAt === undefined
+              ? {}
+              : { lastChunkReceivedAt: session.lastChunkReceivedAt }),
+            ...(session.lastTranscriptionAt === undefined
+              ? {}
+              : { lastTranscriptionAt: session.lastTranscriptionAt }),
+            ...(session.lastProviderEventCount === undefined
+              ? {}
+              : { lastProviderEventCount: session.lastProviderEventCount }),
+            ...(session.lastProviderTextPreview === undefined
+              ? {}
+              : { lastProviderTextPreview: session.lastProviderTextPreview }),
+            ...(session.lastProviderError === undefined
+              ? {}
+              : { lastProviderError: session.lastProviderError }),
+            activeWindowChunks: session.chunkHistory.map((chunk) => ({
+              receivedAt: new Date(chunk.receivedAtMs).toISOString(),
+              filename: chunk.filename,
+              normalizedByteLength: chunk.audio.length,
+            })),
+            chunkTrace: session.chunkTrace,
+            whisperResponses: session.whisperResponses,
+            deliveredEvents: session.deliveredEvents,
+          })),
+        });
+
+        sendJson(req, res, 200, payload, corsOrigin);
         return;
       }
 
@@ -606,6 +750,21 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
           windowMs: session.windowMs,
           stepMs: session.stepMs,
           dedupeHorizonMs: session.dedupeHorizonMs,
+          ...(session.lastChunkReceivedAt === undefined
+            ? {}
+            : { lastChunkReceivedAt: session.lastChunkReceivedAt }),
+          ...(session.lastTranscriptionAt === undefined
+            ? {}
+            : { lastTranscriptionAt: session.lastTranscriptionAt }),
+          ...(session.lastProviderEventCount === undefined
+            ? {}
+            : { lastProviderEventCount: session.lastProviderEventCount }),
+          ...(session.lastProviderTextPreview === undefined
+            ? {}
+            : { lastProviderTextPreview: session.lastProviderTextPreview }),
+          ...(session.lastProviderError === undefined
+            ? {}
+            : { lastProviderError: session.lastProviderError }),
         });
 
         sendJson(

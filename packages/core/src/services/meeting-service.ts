@@ -2,6 +2,8 @@ import type { IMeetingRepository } from "../interfaces/i-meeting-repository";
 import { CreateMeetingSchema } from "@repo/schema";
 import type { Meeting, CreateMeeting } from "@repo/schema";
 
+const editableMeetingStatuses = ["proposed", "in_session", "ended"] as const;
+
 export class MeetingService {
   constructor(private readonly repo: IMeetingRepository) {}
 
@@ -36,6 +38,13 @@ export class MeetingService {
     if (!id) {
       throw new Error("Meeting ID is required");
     }
+    const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new Error("Meeting not found");
+    }
+    if (existing.status === "ended") {
+      throw new Error("Ended meetings cannot be reopened or modified");
+    }
 
     // Business logic: ensure at least one participant if updating participants
     if (data.participants !== undefined && data.participants.length === 0) {
@@ -45,12 +54,22 @@ export class MeetingService {
     return this.repo.update(id, data);
   }
 
-  async updateStatus(id: string, status: "active" | "completed"): Promise<Meeting> {
+  async updateStatus(id: string, status: "proposed" | "in_session" | "ended"): Promise<Meeting> {
     if (!id) {
       throw new Error("Meeting ID is required");
     }
-    if (!["active", "completed"].includes(status)) {
-      throw new Error('Status must be either "active" or "completed"');
+    if (!editableMeetingStatuses.includes(status)) {
+      throw new Error('Status must be one of "proposed", "in_session", or "ended"');
+    }
+    const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new Error("Meeting not found");
+    }
+    if (existing.status === "ended") {
+      throw new Error("Ended meetings cannot be reopened or modified");
+    }
+    if (status === "proposed" && existing.status === "in_session") {
+      throw new Error("In-session meetings cannot move back to proposed");
     }
     return this.repo.updateStatus(id, status);
   }

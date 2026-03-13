@@ -126,7 +126,7 @@ describe("Zod Schema Validation", () => {
       title: "Test Meeting",
       date: "2026-02-27T10:00:00Z",
       participants: ["Alice", "Bob"],
-      status: "active",
+      status: "in_session",
       createdAt: "2026-02-27T10:00:00Z",
     };
 

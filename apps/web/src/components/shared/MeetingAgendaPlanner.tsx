@@ -7,7 +7,7 @@ import { TabButton } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
-import type { OpenContextSummary } from "@/lib/mock-data";
+import type { DecisionContextPickerItem } from "@/api/types";
 
 interface MeetingAgendaPlannerProps {
   manualAgendaItems: string[];
@@ -18,7 +18,7 @@ interface MeetingAgendaPlannerProps {
   onMoveManualAgendaItem: (value: string, direction: "up" | "down") => void;
   selectedContextIds: string[];
   onSelectedContextIdsChange: (ids: string[]) => void;
-  contexts: OpenContextSummary[];
+  contexts: DecisionContextPickerItem[];
   currentMeeting: { title: string; date: string };
 }
 

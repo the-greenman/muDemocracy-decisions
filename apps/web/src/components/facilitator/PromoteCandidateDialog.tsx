@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
 import { ArrowUpCircle, X } from "lucide-react";
-import { TEMPLATES } from "@/lib/mock-data";
-import type { Candidate, Template } from "@/lib/mock-data";
+import type { DecisionTemplate } from "@/api/types";
+import type { Candidate } from "@/lib/ui-models";
 
 interface PromoteCandidateDialogProps {
   candidate: Candidate;
   agendaTitles: string[];
+  templates: DecisionTemplate[];
   onConfirm: (payload: {
     title: string;
     summary: string;
-    template: Template;
+    template: DecisionTemplate;
     insertMode: "append" | "before";
     beforeIndex: number;
   }) => void;
@@ -19,18 +20,19 @@ interface PromoteCandidateDialogProps {
 export function PromoteCandidateDialog({
   candidate,
   agendaTitles,
+  templates,
   onConfirm,
   onCancel,
 }: PromoteCandidateDialogProps) {
   const [title, setTitle] = useState(candidate.title);
   const [summary, setSummary] = useState(candidate.summary);
-  const [templateId, setTemplateId] = useState(TEMPLATES[0]?.id ?? "");
+  const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [insertMode, setInsertMode] = useState<"append" | "before">("append");
   const [beforeIndex, setBeforeIndex] = useState(1);
 
   const selectedTemplate = useMemo(
-    () => TEMPLATES.find((tpl) => tpl.id === templateId) ?? TEMPLATES[0],
-    [templateId],
+    () => templates.find((tpl) => tpl.id === templateId) ?? templates[0],
+    [templateId, templates],
   );
 
   const canConfirm = Boolean(title.trim() && selectedTemplate);
@@ -83,7 +85,7 @@ export function PromoteCandidateDialog({
               onChange={(e) => setTemplateId(e.target.value)}
               className="w-full px-3 py-2 rounded border border-border bg-overlay text-fac-meta text-text-primary focus:outline-none focus:border-accent"
             >
-              {TEMPLATES.map((tpl) => (
+              {templates.map((tpl) => (
                 <option key={tpl.id} value={tpl.id}>
                   {tpl.name}
                 </option>

@@ -5,7 +5,7 @@
 import { apiFetch, jsonBody } from "./client.js";
 import type {
   AssignTranscriptChunksResponse,
-  ActiveMeetingsContextSummary,
+  InSessionMeetingsContextSummary,
   DecisionContext,
   DecisionField,
   DecisionTemplate,
@@ -43,7 +43,12 @@ export function createMeeting(body: { title: string; date: string; participants?
 
 export function updateMeeting(
   id: string,
-  body: { title?: string; date?: string; participants?: string[]; status?: "active" | "completed" },
+  body: {
+    title?: string;
+    date?: string;
+    participants?: string[];
+    status?: "proposed" | "in_session" | "ended";
+  },
 ) {
   return apiFetch<Meeting>(`/api/meetings/${id}`, { method: "PATCH", ...jsonBody(body) });
 }
@@ -373,8 +378,8 @@ export function getGlobalContext() {
   return apiFetch<GlobalContext>("/api/context");
 }
 
-export function getActiveMeetingsContextSummary() {
-  return apiFetch<ActiveMeetingsContextSummary>("/api/context/active-meetings");
+export function getInSessionMeetingsContextSummary() {
+  return apiFetch<InSessionMeetingsContextSummary>("/api/context/in-session-meetings");
 }
 
 export function setActiveMeeting(meetingId: string) {

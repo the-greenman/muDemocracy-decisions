@@ -5,13 +5,15 @@ export { z } from "@hono/zod-openapi";
 // MEETING SCHEMAS
 // ============================================================================
 
+export const MeetingStatusSchema = z.enum(["proposed", "in_session", "ended"]);
+
 export const MeetingSchema = z
   .object({
     id: z.string().uuid(),
     title: z.string().min(1, "Title is required"),
     date: z.string().datetime({ offset: true }),
     participants: z.array(z.string()).min(1, "At least one participant is required"),
-    status: z.enum(["active", "completed"]).default("active"),
+    status: MeetingStatusSchema.default("proposed"),
     createdAt: z.string().datetime({ offset: true }),
   })
   .openapi("Meeting", {
@@ -21,7 +23,7 @@ export const MeetingSchema = z
       title: "Test Meeting",
       date: "2026-02-27T10:00:00Z",
       participants: ["Alice", "Bob"],
-      status: "active",
+      status: "proposed",
       createdAt: "2026-02-27T10:00:00Z",
     },
   });
@@ -294,6 +296,11 @@ export const TranscriptionSessionStatusResponseSchema = z
     windowMs: TranscriptionPositiveMsSchema,
     stepMs: TranscriptionPositiveMsSchema,
     dedupeHorizonMs: TranscriptionPositiveMsSchema,
+    lastChunkReceivedAt: z.string().datetime().optional(),
+    lastTranscriptionAt: z.string().datetime().optional(),
+    lastProviderEventCount: z.number().int().min(0).optional(),
+    lastProviderTextPreview: z.string().optional(),
+    lastProviderError: z.string().optional(),
   })
   .openapi("TranscriptionSessionStatusResponse", {
     description: "Runtime status for a browser transcription session",
@@ -302,6 +309,85 @@ export const TranscriptionSessionStatusResponseSchema = z
 export type TranscriptionSessionStatusResponse = z.infer<
   typeof TranscriptionSessionStatusResponseSchema
 >;
+
+const TranscriptionDiagnosticTranscriptEventSchema = z.object({
+  text: z.string(),
+  speaker: z.string().optional(),
+  startTimeSeconds: z.number().optional(),
+  endTimeSeconds: z.number().optional(),
+  sequenceNumber: z.number().int().optional(),
+});
+
+const TranscriptionDiagnosticChunkSchema = z.object({
+  receivedAt: z.string().datetime({ offset: true }),
+  filename: z.string().min(1),
+  contentType: z.string().optional(),
+  originalByteLength: z.number().int().min(0),
+  normalizedByteLength: z.number().int().min(0),
+  rollingWindowChunkCount: z.number().int().min(0),
+  rollingWindowAudioBytes: z.number().int().min(0),
+});
+
+const TranscriptionDiagnosticActiveWindowChunkSchema = z.object({
+  receivedAt: z.string().datetime({ offset: true }),
+  filename: z.string().min(1),
+  normalizedByteLength: z.number().int().min(0),
+});
+
+const TranscriptionDiagnosticWhisperResponseSchema = z.object({
+  createdAt: z.string().datetime({ offset: true }),
+  filename: z.string().min(1),
+  eventCount: z.number().int().min(0),
+  textPreview: z.string(),
+  rawResponse: z.unknown(),
+  error: z.string().optional(),
+});
+
+const TranscriptionDiagnosticDeliveredEventSchema = z.object({
+  createdAt: z.string().datetime({ offset: true }),
+  meetingId: z.string().min(1),
+  event: TranscriptionDiagnosticTranscriptEventSchema,
+});
+
+export const TranscriptionSessionDiagnosticsSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    meetingId: z.string().min(1),
+    status: z.enum(["active", "stopping", "stopped"]),
+    startedAt: z.string().datetime({ offset: true }),
+    stoppedAt: z.string().datetime({ offset: true }).optional(),
+    windowMs: TranscriptionPositiveMsSchema,
+    stepMs: TranscriptionPositiveMsSchema,
+    dedupeHorizonMs: TranscriptionPositiveMsSchema,
+    bufferedEvents: z.number().int().min(0),
+    postedEvents: z.number().int().min(0),
+    dedupedEvents: z.number().int().min(0),
+    lastChunkReceivedAt: z.string().datetime({ offset: true }).optional(),
+    lastTranscriptionAt: z.string().datetime({ offset: true }).optional(),
+    lastProviderEventCount: z.number().int().min(0).optional(),
+    lastProviderTextPreview: z.string().optional(),
+    lastProviderError: z.string().optional(),
+    activeWindowChunks: z.array(TranscriptionDiagnosticActiveWindowChunkSchema),
+    chunkTrace: z.array(TranscriptionDiagnosticChunkSchema),
+    whisperResponses: z.array(TranscriptionDiagnosticWhisperResponseSchema),
+    deliveredEvents: z.array(TranscriptionDiagnosticDeliveredEventSchema),
+  })
+  .openapi("TranscriptionSessionDiagnostics", {
+    description: "Detailed in-memory diagnostics for a transcription session",
+  });
+
+export type TranscriptionSessionDiagnostics = z.infer<typeof TranscriptionSessionDiagnosticsSchema>;
+
+export const TranscriptionDiagnosticsResponseSchema = z
+  .object({
+    status: z.literal("ok"),
+    sessions: z.array(TranscriptionSessionDiagnosticsSchema),
+  })
+  .openapi("TranscriptionDiagnosticsResponse", {
+    description: "Detailed diagnostics snapshot for all in-memory transcription sessions",
+  });
+
+export type TranscriptionDiagnosticsResponse = z.infer<typeof TranscriptionDiagnosticsResponseSchema>;
 
 const TranscriptionHealthProbeSchema = z.object({
   ok: z.boolean(),
@@ -861,16 +947,16 @@ export const GlobalContextSchema = z
 
 export type GlobalContext = z.infer<typeof GlobalContextSchema>;
 
-export const ActiveMeetingsContextSummarySchema = z
+export const InSessionMeetingsContextSummarySchema = z
   .object({
     currentContext: GlobalContextSchema,
-    activeMeetings: z.array(MeetingSchema),
+    inSessionMeetings: z.array(MeetingSchema),
   })
-  .openapi("ActiveMeetingsContextSummary", {
-    description: "Current global context and all meetings whose meeting-record status is active",
+  .openapi("InSessionMeetingsContextSummary", {
+    description: "Current global context and all meetings whose lifecycle status is in_session",
   });
 
-export type ActiveMeetingsContextSummary = z.infer<typeof ActiveMeetingsContextSummarySchema>;
+export type InSessionMeetingsContextSummary = z.infer<typeof InSessionMeetingsContextSummarySchema>;
 
 export const CreateDecisionTemplateSchema = DecisionTemplateSchema.omit({
   id: true,

@@ -32,7 +32,7 @@ import {
 // ENUMS
 // ============================================================================
 
-export const meetingStatusEnum = pgEnum("meeting_status", ["active", "completed"]);
+export const meetingStatusEnum = pgEnum("meeting_status", ["proposed", "in_session", "ended"]);
 export const transcriptSourceEnum = pgEnum("transcript_source", ["upload", "stream", "import"]);
 export const transcriptFormatEnum = pgEnum("transcript_format", ["json", "txt", "vtt", "srt"]);
 export const chunkStrategyEnum = pgEnum("chunk_strategy", [
@@ -113,7 +113,7 @@ export const meetings = pgTable(
     title: text("title").notNull(),
     date: timestamp("date", { withTimezone: true }).notNull(),
     participants: text("participants").array().notNull(),
-    status: meetingStatusEnum("status").default("active").notNull(),
+    status: meetingStatusEnum("status").default("proposed").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({

@@ -9,10 +9,15 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema.js";
 
+const defaultConnectionString =
+  process.env.VITEST || process.env.NODE_ENV === "test"
+    ? "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_test"
+    : "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev";
+
 // Connection string from environment
 const connectionString =
   process.env.DATABASE_URL ||
-  "postgresql://decision_logger:decision_logger@localhost:5433/decision_logger_dev";
+  defaultConnectionString;
 
 // Create postgres client
 // For serverless/edge environments, use { prepare: false }

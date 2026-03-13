@@ -11,7 +11,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { DecisionFeedback } from "@/api/types";
-import type { Field, FieldVersion, SupplementaryItem } from "@/lib/mock-data";
+import type { Field, FieldVersion, SupplementaryItem } from "@/lib/ui-models";
 
 interface FieldZoomProps {
   field: Field;

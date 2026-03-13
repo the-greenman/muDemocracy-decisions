@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   CreateMeetingSchema,
   DecisionContextSchema,
+  MeetingStatusSchema,
   MeetingSchema,
   ReadableTranscriptRowSchema,
 } from "@repo/schema";
@@ -28,7 +29,7 @@ const UpdateMeetingRequestSchema = z
     title: z.string().min(1).optional(),
     date: z.string().datetime({ offset: true }).optional(),
     participants: z.array(z.string()).min(1).optional(),
-    status: z.enum(["active", "completed"]).optional(),
+    status: MeetingStatusSchema.optional(),
   })
   .openapi("UpdateMeetingRequest");
 
@@ -58,7 +59,7 @@ const MeetingResponseSchema = MeetingSchema.openapi({
     title: "Test Meeting",
     date: "2026-02-27T10:00:00Z",
     participants: ["Alice", "Bob"],
-    status: "active",
+    status: "proposed",
     createdAt: "2026-02-27T10:00:00Z",
   },
 });

@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { ActiveMeetingsContextSummarySchema, GlobalContextSchema } from "@repo/schema";
+import { GlobalContextSchema, InSessionMeetingsContextSummarySchema } from "@repo/schema";
 
 const ErrorResponseSchema = z.object({
   error: z.string(),
@@ -52,18 +52,18 @@ export const getContextRoute = createRoute({
   },
 });
 
-export const getActiveMeetingsContextSummaryRoute = createRoute({
+export const getInSessionMeetingsContextSummaryRoute = createRoute({
   method: "get",
-  path: "/api/context/active-meetings",
+  path: "/api/context/in-session-meetings",
   tags: ["context"],
   responses: {
     200: {
       content: {
         "application/json": {
-          schema: ActiveMeetingsContextSummarySchema,
+          schema: InSessionMeetingsContextSummarySchema,
         },
       },
-      description: "Current global context plus all meetings whose record status is active",
+      description: "Current global context plus all meetings whose lifecycle status is in session",
     },
     503: {
       content: {

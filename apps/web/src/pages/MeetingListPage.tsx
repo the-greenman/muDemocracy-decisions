@@ -5,7 +5,6 @@ import {
   CalendarDays,
   Users,
   X,
-  UserPlus,
   Trash2,
   AlertCircle,
   RefreshCw,
@@ -13,12 +12,16 @@ import {
   Compass,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { ContextDisplay } from "@/components/shared/ContextDisplay";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Panel } from "@/components/ui/Panel";
+import { ParticipantAddWidget } from "@/components/shared/ParticipantAddWidget";
 import { MainHeader } from "@/components/shared/MainHeader";
-import { listMeetings, createMeeting, getActiveMeetingsContextSummary } from "@/api/endpoints";
-import type { ActiveMeetingsContextSummary, Meeting } from "@/api/types";
+import { listMeetings, createMeeting, getInSessionMeetingsContextSummary } from "@/api/endpoints";
+import type { InSessionMeetingsContextSummary, Meeting } from "@/api/types";
+
+const CONTEXT_SUMMARY_LOAD_ERROR = "Failed to load active meeting context";
 
 function nowAsLocalDateTimeInputValue() {
   const now = new Date();
@@ -30,19 +33,10 @@ function nowAsLocalDateTimeInputValue() {
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
-type MeetingLifecycle = "scheduled" | "active" | "closed";
+type MeetingLifecycle = "proposed" | "in_session" | "ended";
 
 function getMeetingLifecycle(meeting: Meeting): MeetingLifecycle {
-  if (meeting.status === "completed") {
-    return "closed";
-  }
-
-  const startsAt = new Date(meeting.date);
-  if (Number.isNaN(startsAt.getTime())) {
-    return "active";
-  }
-
-  return startsAt.getTime() > Date.now() ? "scheduled" : "active";
+  return meeting.status;
 }
 
 function formatMeetingDate(value: string): string {
@@ -62,7 +56,7 @@ function formatMeetingDate(value: string): string {
 
 export function MeetingListPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [activeSummary, setActiveSummary] = useState<ActiveMeetingsContextSummary | null>(null);
+  const [activeSummary, setActiveSummary] = useState<InSessionMeetingsContextSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -71,12 +65,16 @@ export function MeetingListPage() {
     setLoading(true);
     setError(null);
     try {
-      const [{ meetings: data }, summary] = await Promise.all([
-        listMeetings(),
-        getActiveMeetingsContextSummary(),
-      ]);
+      const { meetings: data } = await listMeetings();
       setMeetings(data);
-      setActiveSummary(summary);
+
+      try {
+        const summary = await getInSessionMeetingsContextSummary();
+        setActiveSummary(summary);
+      } catch (summaryError) {
+        console.error(CONTEXT_SUMMARY_LOAD_ERROR, summaryError);
+        setActiveSummary(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load meetings");
     } finally {
@@ -102,7 +100,7 @@ export function MeetingListPage() {
 
   return (
     <div className="density-facilitator min-h-screen bg-base">
-      <MainHeader title="Decision Logger" subtitle="Meeting sessions" />
+      <MainHeader title="μDemocracy:decisions" subtitle="Meeting sessions" />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         {error && (
@@ -147,23 +145,19 @@ export function MeetingListPage() {
                   <Compass size={16} className="text-accent" />
                   <span>{currentContext.activeMeeting?.title ?? "Active meeting selected"}</span>
                 </div>
-                <p className="text-fac-meta text-text-secondary">
-                  Meeting: {currentContext.activeMeetingId}
-                </p>
+                <ContextDisplay meetingId={currentContext.activeMeetingId} />
                 {currentContext.activeDecisionContextId && (
-                  <p className="text-fac-meta text-text-secondary">
-                    Decision context:{" "}
-                    {currentContext.activeDecision?.suggestedTitle ??
-                      currentContext.activeDecisionContext?.title ??
-                      currentContext.activeDecisionContextId}
-                  </p>
+                  <ContextDisplay
+                    meetingId={currentContext.activeMeetingId}
+                    decisionContextId={currentContext.activeDecisionContextId}
+                  />
                 )}
                 {!currentContext.activeDecisionContextId &&
                   activeSummary &&
-                  activeSummary.activeMeetings.length > 1 && (
+                  activeSummary.inSessionMeetings.length > 1 && (
                     <p className="text-fac-meta text-text-muted">
-                      {activeSummary.activeMeetings.length} meetings are open, but this is the one
-                      currently selected for global context.
+                      {activeSummary.inSessionMeetings.length} meetings are in session, but only
+                      this one is selected for global context.
                     </p>
                   )}
               </div>
@@ -198,7 +192,11 @@ export function MeetingListPage() {
           ) : (
             <div className="flex flex-col gap-3">
               {orderedMeetings.map((meeting) => (
-                <MeetingRow key={meeting.id} meeting={meeting} />
+                <MeetingRow
+                  key={meeting.id}
+                  meeting={meeting}
+                  isActiveContext={meeting.id === currentContext?.activeMeetingId}
+                />
               ))}
             </div>
           )}
@@ -236,15 +234,20 @@ function NewMeetingForm({
   const [title, setTitle] = useState("");
   const [meetingAt, setMeetingAt] = useState(nowAsLocalDateTimeInputValue());
   const [participants, setParticipants] = useState<string[]>([]);
-  const [newParticipant, setNewParticipant] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  function addParticipant() {
-    const name = newParticipant.trim();
-    if (!name || participants.includes(name)) return;
-    setParticipants((prev) => [...prev, name]);
-    setNewParticipant("");
+  function addParticipant(name: string) {
+    const normalized = name.trim();
+    if (!normalized) return false;
+
+    const exists = participants.some(
+      (participant) => participant.toLowerCase() === normalized.toLowerCase(),
+    );
+    if (exists) return false;
+
+    setParticipants((prev) => [...prev, normalized]);
+    return true;
   }
 
   function removeParticipant(name: string) {
@@ -340,26 +343,12 @@ function NewMeetingForm({
             </div>
           ))}
         </div>
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Name…"
-            value={newParticipant}
-            onChange={(e) => setNewParticipant(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addParticipant()}
-            inputSize="sm"
-            className="flex-1 bg-surface"
-          />
-          <Button
-            onClick={addParticipant}
-            disabled={!newParticipant.trim()}
-            variant="outline-accent"
-            size="sm"
-          >
-            <UserPlus size={13} />
-            Add
-          </Button>
-        </div>
+        <ParticipantAddWidget
+          onAdd={addParticipant}
+          placeholder="Name..."
+          buttonLabel="Add"
+          size="sm"
+        />
       </div>
 
       <div className="flex gap-2 pt-1">
@@ -381,21 +370,25 @@ function NewMeetingForm({
 
 // ── Meeting row ──────────────────────────────────────────────────
 
-function MeetingRow({ meeting }: { meeting: Meeting }) {
+function MeetingRow({ meeting, isActiveContext }: { meeting: Meeting; isActiveContext: boolean }) {
   const lifecycle = getMeetingLifecycle(meeting);
   const lifecycleBadgeClass =
-    lifecycle === "scheduled"
+    lifecycle === "proposed"
       ? "bg-caution-dim text-caution border-caution/30"
-      : lifecycle === "active"
+      : lifecycle === "in_session"
         ? "bg-accent-dim text-accent border-accent/30"
         : "bg-overlay text-text-muted border-border";
   const lifecycleLabel =
-    lifecycle === "scheduled" ? "Scheduled" : lifecycle === "active" ? "Active" : "Closed";
+    lifecycle === "proposed" ? "Proposed" : lifecycle === "in_session" ? "In session" : "Ended";
 
   return (
     <Link
       to={`/meetings/${meeting.id}/facilitator/home`}
-      className="block p-4 rounded-card border border-border bg-surface hover:border-border-strong transition-colors"
+      className={`block p-4 rounded-card border bg-surface transition-colors ${
+        isActiveContext
+          ? "border-accent/50 shadow-[0_0_0_1px_rgba(99,102,241,0.25)]"
+          : "border-border hover:border-border-strong"
+      }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -404,6 +397,11 @@ function MeetingRow({ meeting }: { meeting: Meeting }) {
             <span className="text-fac-field text-text-primary font-medium truncate">
               {meeting.title}
             </span>
+            {isActiveContext && (
+              <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-badge text-[11px] border font-medium bg-accent-dim/60 text-accent border-accent/40">
+                Active context
+              </span>
+            )}
             <span
               className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-badge text-[11px] border font-medium ${lifecycleBadgeClass}`}
             >

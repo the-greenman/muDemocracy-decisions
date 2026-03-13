@@ -30,8 +30,8 @@ describe("MeetingService", () => {
       const expectedMeeting: Meeting = {
         id: "550e8400-e29b-41d4-a716-446655440000",
         ...createData,
-        status: "active",
-        createdAt: new Date("2026-02-27T10:00:00Z"),
+        status: "proposed",
+        createdAt: "2026-02-27T10:00:00Z",
       };
 
       vi.mocked(mockRepo.create).mockResolvedValue(expectedMeeting);
@@ -79,8 +79,8 @@ describe("MeetingService", () => {
         title: "Test Meeting",
         date: "2026-02-27T10:00:00Z",
         participants: ["Alice"],
-        status: "active",
-        createdAt: new Date(),
+        status: "proposed",
+        createdAt: new Date().toISOString(),
       };
 
       vi.mocked(mockRepo.findById).mockResolvedValue(expectedMeeting);
@@ -112,20 +112,20 @@ describe("MeetingService", () => {
       // Arrange
       const expectedMeetings: Meeting[] = [
         {
-          id: "1",
+          id: "550e8400-e29b-41d4-a716-446655440000",
           title: "Meeting 1",
           date: "2026-02-27T10:00:00Z",
           participants: ["Alice"],
-          status: "active",
-          createdAt: new Date(),
+          status: "proposed",
+          createdAt: new Date().toISOString(),
         },
         {
-          id: "2",
+          id: "550e8400-e29b-41d4-a716-446655440001",
           title: "Meeting 2",
           date: "2026-02-28T10:00:00Z",
           participants: ["Bob"],
-          status: "completed",
-          createdAt: new Date(),
+          status: "ended",
+          createdAt: new Date().toISOString(),
         },
       ];
 
@@ -144,22 +144,32 @@ describe("MeetingService", () => {
     it("should update meeting status", async () => {
       // Arrange
       const meetingId = "550e8400-e29b-41d4-a716-446655440000";
-      const status = "completed" as const;
+      const status = "ended" as const;
+      const existingMeeting: Meeting = {
+        id: meetingId,
+        title: "Test Meeting",
+        date: "2026-02-27T10:00:00Z",
+        participants: ["Alice"],
+        status: "in_session",
+        createdAt: new Date().toISOString(),
+      };
       const expectedMeeting: Meeting = {
         id: meetingId,
         title: "Test Meeting",
         date: "2026-02-27T10:00:00Z",
         participants: ["Alice"],
         status,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       };
 
+      vi.mocked(mockRepo.findById).mockResolvedValue(existingMeeting);
       vi.mocked(mockRepo.updateStatus).mockResolvedValue(expectedMeeting);
 
       // Act
       const result = await service.updateStatus(meetingId, status);
 
       // Assert
+      expect(mockRepo.findById).toHaveBeenCalledWith(meetingId);
       expect(mockRepo.updateStatus).toHaveBeenCalledWith(meetingId, status);
       expect(result).toEqual(expectedMeeting);
     });

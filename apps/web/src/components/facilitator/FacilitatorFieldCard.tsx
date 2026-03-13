@@ -1,6 +1,6 @@
 import { Lock, Unlock, RefreshCw, Maximize2, Paperclip } from "lucide-react";
 import { FieldCard } from "@/components/shared/FieldCard";
-import type { Field } from "@/lib/mock-data";
+import type { Field } from "@/lib/ui-models";
 
 interface FacilitatorFieldCardProps {
   field: Field;

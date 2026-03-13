@@ -65,6 +65,9 @@ export class GlobalContextService implements IGlobalContextService {
     if (!meeting) {
       throw new Error("Meeting not found");
     }
+    if (meeting.status === "ended") {
+      throw new Error("Ended meetings cannot be selected as the active context");
+    }
 
     await this.store.save({ activeMeetingId: meetingId });
   }
@@ -163,6 +166,14 @@ export class GlobalContextService implements IGlobalContextService {
     const activeMeeting = state.activeMeetingId
       ? ((await this.meetingRepository.findById(state.activeMeetingId)) ?? undefined)
       : undefined;
+    if (state.activeMeetingId !== undefined && activeMeeting?.status === "ended") {
+      await this.store.save({});
+      return {};
+    }
+    if (state.activeMeetingId !== undefined && activeMeeting === undefined) {
+      await this.store.save({});
+      return {};
+    }
     const activeDecision = state.activeDecisionId
       ? ((await this.flaggedDecisionService.getDecisionById(state.activeDecisionId)) ?? undefined)
       : undefined;

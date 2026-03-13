@@ -26,7 +26,7 @@ describe("DrizzleRawTranscriptRepository", () => {
       title: "Test Meeting",
       date: new Date(),
       participants: [],
-      status: "active",
+      status: "in_session",
     });
 
     await db.insert(meetings).values({
@@ -34,7 +34,7 @@ describe("DrizzleRawTranscriptRepository", () => {
       title: "Other Meeting",
       date: new Date(),
       participants: [],
-      status: "active",
+      status: "in_session",
     });
 
     // Clean up any existing test data

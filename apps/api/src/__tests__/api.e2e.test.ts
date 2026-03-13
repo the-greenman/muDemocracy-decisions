@@ -124,7 +124,7 @@ describe("API E2E Tests", () => {
     expect(data.id).toBeDefined();
     expect(data.title).toBe("Test Meeting");
     expect(data.participants).toEqual(["Alice", "Bob"]);
-    expect(data.status).toBe("active");
+    expect(data.status).toBe("proposed");
 
     createdMeetingId = data.id;
   });
@@ -152,7 +152,7 @@ describe("API E2E Tests", () => {
       body: JSON.stringify({
         title: "Updated Test Meeting",
         participants: ["Alice", "Bob", "Charlie"],
-        status: "active",
+        status: "in_session",
       }),
     });
 
@@ -161,7 +161,7 @@ describe("API E2E Tests", () => {
     expect(data.id).toBe(createdMeetingId);
     expect(data.title).toBe("Updated Test Meeting");
     expect(data.participants).toEqual(["Alice", "Bob", "Charlie"]);
-    expect(data.status).toBe("active");
+    expect(data.status).toBe("in_session");
   });
 
   it("PATCH /api/meetings/:id - should return 404 for a missing meeting", async () => {
@@ -277,20 +277,20 @@ describe("API E2E Tests", () => {
     expect(data.activeMeeting?.id).toBe(createdMeetingId);
   });
 
-  it("GET /api/context/active-meetings - should return current context plus meetings with active record status", async () => {
-    const response = await app.request("/api/context/active-meetings");
+  it("GET /api/context/in-session-meetings - should return current context plus meetings with in-session record status", async () => {
+    const response = await app.request("/api/context/in-session-meetings");
 
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.currentContext.activeMeetingId).toBe(createdMeetingId);
     expect(data.currentContext.activeMeeting?.id).toBe(createdMeetingId);
-    expect(data.activeMeetings).toBeInstanceOf(Array);
+    expect(data.inSessionMeetings).toBeInstanceOf(Array);
     expect(
-      data.activeMeetings.some((meeting: { id: string }) => meeting.id === createdMeetingId),
+      data.inSessionMeetings.some((meeting: { id: string }) => meeting.id === createdMeetingId),
     ).toBe(true);
     expect(
-      data.activeMeetings.some((meeting: { id: string }) => meeting.id === deletableMeetingId),
-    ).toBe(true);
+      data.inSessionMeetings.some((meeting: { id: string }) => meeting.id === deletableMeetingId),
+    ).toBe(false);
   });
 
   it("GET /api/meetings - should list all meetings", async () => {

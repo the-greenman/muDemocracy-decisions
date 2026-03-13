@@ -54,6 +54,78 @@ export type TranscriptionSessionStatus = {
   windowMs: number;
   stepMs: number;
   dedupeHorizonMs: number;
+  lastChunkReceivedAt?: string;
+  lastTranscriptionAt?: string;
+  lastProviderEventCount?: number;
+  lastProviderTextPreview?: string;
+  lastProviderError?: string;
+};
+
+export type TranscriptionDiagnosticTranscriptEvent = {
+  text: string;
+  speaker?: string;
+  startTimeSeconds?: number;
+  endTimeSeconds?: number;
+  sequenceNumber?: number;
+};
+
+export type TranscriptionDiagnosticChunk = {
+  receivedAt: string;
+  filename: string;
+  contentType?: string;
+  originalByteLength: number;
+  normalizedByteLength: number;
+  rollingWindowChunkCount: number;
+  rollingWindowAudioBytes: number;
+};
+
+export type TranscriptionDiagnosticActiveWindowChunk = {
+  receivedAt: string;
+  filename: string;
+  normalizedByteLength: number;
+};
+
+export type TranscriptionDiagnosticWhisperResponse = {
+  createdAt: string;
+  filename: string;
+  eventCount: number;
+  textPreview: string;
+  rawResponse: unknown;
+  error?: string;
+};
+
+export type TranscriptionDiagnosticDeliveredEvent = {
+  createdAt: string;
+  meetingId: string;
+  event: TranscriptionDiagnosticTranscriptEvent;
+};
+
+export type TranscriptionSessionDiagnostics = {
+  sessionId: string;
+  meetingId: string;
+  status: "active" | "stopping" | "stopped";
+  startedAt: string;
+  stoppedAt?: string;
+  windowMs: number;
+  stepMs: number;
+  dedupeHorizonMs: number;
+  bufferedEvents: number;
+  postedEvents: number;
+  dedupedEvents: number;
+  lastChunkReceivedAt?: string;
+  lastTranscriptionAt?: string;
+  lastProviderEventCount?: number;
+  lastProviderTextPreview?: string;
+  lastProviderError?: string;
+  activeWindowChunks: TranscriptionDiagnosticActiveWindowChunk[];
+  chunkTrace: TranscriptionDiagnosticChunk[];
+  whisperResponses: TranscriptionDiagnosticWhisperResponse[];
+  deliveredEvents: TranscriptionDiagnosticDeliveredEvent[];
+};
+
+export type TranscriptionDiagnosticsResponse = {
+  status: "ok";
+  sessions: TranscriptionSessionDiagnostics[];
 };
 
 async function transcriptionFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -124,4 +196,8 @@ export function getTranscriptionSessionStatus(sessionId: string) {
 
 export function getTranscriptionServiceStatus() {
   return transcriptionFetch<TranscriptionServiceStatus>("/status");
+}
+
+export function getTranscriptionDiagnostics() {
+  return transcriptionFetch<TranscriptionDiagnosticsResponse>("/diagnostics");
 }

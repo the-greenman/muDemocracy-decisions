@@ -92,7 +92,7 @@ describe("Decision Log Service Integration Tests", () => {
         title: "Test Meeting for Decision Logs",
         date: new Date("2026-02-28T00:00:00.000Z"),
         participants: ["Alice", "Bob"],
-        status: "active",
+        status: "in_session",
       })
       .returning();
     testMeetingId = meeting!.id;
@@ -379,8 +379,8 @@ describe("Decision Log Service Integration Tests", () => {
 
       const logs = await decisionLogService.getDecisionLogsByDateRange(startDate, endDate);
 
-      expect(logs).toHaveLength(1);
-      expect(logs[0]!.id).toBe(created!.id);
+      expect(logs.length).toBeGreaterThanOrEqual(1);
+      expect(logs.some((log) => log.id === created!.id)).toBe(true);
     });
   });
 

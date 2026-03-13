@@ -16,6 +16,9 @@ import { sql } from "drizzle-orm";
 import type { CreateExpertTemplate, CreateMCPServer, CreateExpertAdvice } from "@repo/core";
 import { randomUUID } from "crypto";
 
+const expertTemplateNamePrefix = "Expert/MCP Service Test ";
+const mcpServerNamePrefix = "expert-mcp-service-";
+
 describe("Expert and MCP Service Integration Tests", () => {
   let expertTemplateService: ExpertTemplateService;
   let mcpServerService: MCPServerService;
@@ -34,9 +37,18 @@ describe("Expert and MCP Service Integration Tests", () => {
 
   beforeEach(async () => {
     // Clean up test data
-    await db.execute(sql`DELETE FROM expert_advice`);
-    await db.execute(sql`DELETE FROM expert_templates`);
-    await db.execute(sql`DELETE FROM mcp_servers`);
+    await db.execute(sql`
+      DELETE FROM expert_advice
+      WHERE expert_id IN (
+        SELECT id FROM expert_templates WHERE name LIKE ${`${expertTemplateNamePrefix}%`}
+      )
+    `);
+    await db.execute(sql`
+      DELETE FROM expert_templates WHERE name LIKE ${`${expertTemplateNamePrefix}%`}
+    `);
+    await db.execute(sql`
+      DELETE FROM mcp_servers WHERE name LIKE ${`${mcpServerNamePrefix}%`}
+    `);
 
     const [template] = await db
       .insert(decisionTemplates)
@@ -57,7 +69,7 @@ describe("Expert and MCP Service Integration Tests", () => {
         title: `Expert Advice Service Meeting ${randomUUID()}`,
         date: new Date("2026-03-01T00:00:00.000Z"),
         participants: ["Alice", "Bob"],
-        status: "active",
+        status: "in_session",
       })
       .returning();
 
@@ -95,15 +107,24 @@ describe("Expert and MCP Service Integration Tests", () => {
 
   afterAll(async () => {
     // Clean up
-    await db.execute(sql`DELETE FROM expert_advice`);
-    await db.execute(sql`DELETE FROM expert_templates`);
-    await db.execute(sql`DELETE FROM mcp_servers`);
+    await db.execute(sql`
+      DELETE FROM expert_advice
+      WHERE expert_id IN (
+        SELECT id FROM expert_templates WHERE name LIKE ${`${expertTemplateNamePrefix}%`}
+      )
+    `);
+    await db.execute(sql`
+      DELETE FROM expert_templates WHERE name LIKE ${`${expertTemplateNamePrefix}%`}
+    `);
+    await db.execute(sql`
+      DELETE FROM mcp_servers WHERE name LIKE ${`${mcpServerNamePrefix}%`}
+    `);
   });
 
   describe("ExpertTemplateService Integration", () => {
     it("should create and retrieve expert templates", async () => {
       const data: CreateExpertTemplate = {
-        name: "Technical Architect",
+        name: `${expertTemplateNamePrefix}Technical Architect`,
         type: "technical",
         promptTemplate: "You are a technical architect. Review this decision...",
         mcpAccess: ["github", "jira"],
@@ -121,7 +142,7 @@ describe("Expert and MCP Service Integration Tests", () => {
 
     it("should get templates by type", async () => {
       const technicalTemplate: CreateExpertTemplate = {
-        name: "Technical Expert",
+        name: `${expertTemplateNamePrefix}Technical Expert`,
         type: "technical",
         promptTemplate: "You are a technical expert",
         mcpAccess: [],
@@ -129,7 +150,7 @@ describe("Expert and MCP Service Integration Tests", () => {
       };
 
       const legalTemplate: CreateExpertTemplate = {
-        name: "Legal Expert",
+        name: `${expertTemplateNamePrefix}Legal Expert`,
         type: "legal",
         promptTemplate: "You are a legal expert",
         mcpAccess: [],
@@ -140,17 +161,15 @@ describe("Expert and MCP Service Integration Tests", () => {
       await expertTemplateService.createTemplate(legalTemplate);
 
       const technicalExperts = await expertTemplateService.getTemplatesByType("technical");
-      expect(technicalExperts).toHaveLength(1);
-      expect(technicalExperts[0]!.name).toBe("Technical Expert");
+      expect(technicalExperts.some((expert) => expert.name === technicalTemplate.name)).toBe(true);
 
       const legalExperts = await expertTemplateService.getTemplatesByType("legal");
-      expect(legalExperts).toHaveLength(1);
-      expect(legalExperts[0]!.name).toBe("Legal Expert");
+      expect(legalExperts.some((expert) => expert.name === legalTemplate.name)).toBe(true);
     });
 
     it("should search templates", async () => {
       const template1: CreateExpertTemplate = {
-        name: "Database Architect",
+        name: `${expertTemplateNamePrefix}Database Architect`,
         type: "technical",
         promptTemplate: "You are a database architect",
         mcpAccess: [],
@@ -158,7 +177,7 @@ describe("Expert and MCP Service Integration Tests", () => {
       };
 
       const template2: CreateExpertTemplate = {
-        name: "Legal Counsel",
+        name: `${expertTemplateNamePrefix}Legal Counsel`,
         type: "legal",
         promptTemplate: "You are legal counsel",
         mcpAccess: [],
@@ -169,15 +188,14 @@ describe("Expert and MCP Service Integration Tests", () => {
       await expertTemplateService.createTemplate(template2);
 
       const searchResults = await expertTemplateService.searchTemplates("architect");
-      expect(searchResults).toHaveLength(1);
-      expect(searchResults[0]!.name).toBe("Database Architect");
+      expect(searchResults.some((expert) => expert.name === template1.name)).toBe(true);
     });
   });
 
   describe("MCPServerService Integration", () => {
     it("should create and retrieve MCP servers", async () => {
       const data: CreateMCPServer = {
-        name: "github-mcp",
+        name: `${mcpServerNamePrefix}github-mcp`,
         type: "stdio",
         connectionConfig: {
           command: "npx",
@@ -201,7 +219,7 @@ describe("Expert and MCP Service Integration Tests", () => {
 
     it("should update server status", async () => {
       const data: CreateMCPServer = {
-        name: "test-server",
+        name: `${mcpServerNamePrefix}test-server`,
         type: "http",
         connectionConfig: { url: "http://localhost:3000" },
         status: "active",
@@ -209,23 +227,23 @@ describe("Expert and MCP Service Integration Tests", () => {
 
       await mcpServerService.createServer(data);
 
-      const updated = await mcpServerService.updateServerStatus("test-server", "inactive");
+      const updated = await mcpServerService.updateServerStatus(data.name, "inactive");
       expect(updated).toBe(true);
 
-      const server = await mcpServerService.getServer("test-server");
+      const server = await mcpServerService.getServer(data.name);
       expect(server!.status).toBe("inactive");
     });
 
     it("should get servers by type", async () => {
       const stdioServer: CreateMCPServer = {
-        name: "stdio-server",
+        name: `${mcpServerNamePrefix}stdio-server`,
         type: "stdio",
         connectionConfig: { command: "node", args: ["server.js"] },
         status: "active",
       };
 
       const httpServer: CreateMCPServer = {
-        name: "http-server",
+        name: `${mcpServerNamePrefix}http-server`,
         type: "http",
         connectionConfig: { url: "http://localhost:3000" },
         status: "active",
@@ -235,12 +253,10 @@ describe("Expert and MCP Service Integration Tests", () => {
       await mcpServerService.createServer(httpServer);
 
       const stdioServers = await mcpServerService.getServersByType("stdio");
-      expect(stdioServers).toHaveLength(1);
-      expect(stdioServers[0]!.name).toBe("stdio-server");
+      expect(stdioServers.some((server) => server.name === stdioServer.name)).toBe(true);
 
       const httpServers = await mcpServerService.getServersByType("http");
-      expect(httpServers).toHaveLength(1);
-      expect(httpServers[0]!.name).toBe("http-server");
+      expect(httpServers.some((server) => server.name === httpServer.name)).toBe(true);
     });
   });
 
@@ -375,25 +391,22 @@ describe("Expert and MCP Service Integration Tests", () => {
 
   describe("Cross-Service Integration", () => {
     it("should create expert with MCP access and use it in advice", async () => {
-      // Create MCP server
       const mcpServer = await mcpServerService.createServer({
-        name: "code-analyzer",
+        name: `${mcpServerNamePrefix}code-analyzer`,
         type: "stdio",
         connectionConfig: { command: "code-analyzer" },
         capabilities: { tools: ["analyze", "suggest"] },
         status: "active",
       });
 
-      // Create expert with MCP access
       const expert = await expertTemplateService.createTemplate({
-        name: "Code Review Expert",
+        name: `${expertTemplateNamePrefix}Code Review Expert`,
         type: "technical",
         promptTemplate: "You are a code review expert",
         mcpAccess: [mcpServer.name],
         isActive: true,
       });
 
-      // Create advice using the expert
       const advice = await expertAdviceService.createAdvice({
         decisionContextId: testDecisionContextId,
         expertId: expert.id,

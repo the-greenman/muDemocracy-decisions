@@ -1,4 +1,4 @@
-import type { AgendaItemStatus } from "@/lib/mock-data";
+import type { AgendaItemStatus } from "@/lib/ui-models";
 
 interface StatusBadgeProps {
   status: AgendaItemStatus;

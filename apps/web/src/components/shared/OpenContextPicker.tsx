@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { CalendarDays } from "lucide-react";
-import type { OpenContextSummary } from "@/lib/mock-data";
+import type { DecisionContextPickerItem } from "@/api/types";
 import { MeetingSearchPanel } from "@/components/shared/MeetingSearchPanel";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 interface OpenContextPickerProps {
-  contexts: OpenContextSummary[];
+  contexts: DecisionContextPickerItem[];
   currentMeeting: { title: string; date: string };
   selectionMode: "single" | "multiple";
   selectedIds: string[];

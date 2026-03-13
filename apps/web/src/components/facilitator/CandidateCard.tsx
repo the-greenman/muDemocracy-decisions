@@ -1,5 +1,5 @@
 import { ArrowUpCircle, X, Clock } from "lucide-react";
-import type { Candidate } from "@/lib/mock-data";
+import type { Candidate } from "@/lib/ui-models";
 
 interface CandidateCardProps {
   candidate: Candidate;

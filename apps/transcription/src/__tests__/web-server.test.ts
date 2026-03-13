@@ -142,6 +142,72 @@ describe("web transcription server", () => {
     expect(statusPayload.stepMs).toBe(10_000);
     expect(statusPayload.dedupeHorizonMs).toBe(90_000);
 
+    const diagnosticsResponse = await fetch(`${baseUrl}/diagnostics`);
+    expect(diagnosticsResponse.status).toBe(200);
+    const diagnosticsPayload = (await diagnosticsResponse.json()) as {
+      status: string;
+      sessions: Array<{
+        sessionId: string;
+        meetingId: string;
+        chunkTrace: Array<{
+          filename: string;
+          contentType?: string;
+          originalByteLength: number;
+          normalizedByteLength: number;
+          rollingWindowChunkCount: number;
+        }>;
+        activeWindowChunks: Array<{
+          filename: string;
+          normalizedByteLength: number;
+        }>;
+        whisperResponses: Array<{
+          filename: string;
+          eventCount: number;
+          textPreview: string;
+          rawResponse: unknown;
+        }>;
+        deliveredEvents: Array<{
+          meetingId: string;
+          event: {
+            text: string;
+            sequenceNumber?: number;
+          };
+        }>;
+      }>;
+    };
+    expect(diagnosticsPayload.status).toBe("ok");
+    const diagnosticsSession = diagnosticsPayload.sessions.find(
+      (session) => session.sessionId === createPayload.sessionId,
+    );
+    expect(diagnosticsSession).toBeTruthy();
+    expect(diagnosticsSession?.meetingId).toBe("meeting-browser-1");
+    expect(diagnosticsSession?.chunkTrace).toHaveLength(1);
+    expect(diagnosticsSession?.chunkTrace[0]).toMatchObject({
+      filename: "first.webm",
+      contentType: "application/octet-stream",
+      originalByteLength: 10,
+      normalizedByteLength: 10,
+      rollingWindowChunkCount: 1,
+    });
+    expect(diagnosticsSession?.activeWindowChunks).toEqual([
+      expect.objectContaining({ filename: "first.webm", normalizedByteLength: 10 }),
+    ]);
+    expect(diagnosticsSession?.whisperResponses).toHaveLength(1);
+    expect(diagnosticsSession?.whisperResponses[0]).toMatchObject({
+      eventCount: 2,
+      rawResponse: {},
+    });
+    expect(diagnosticsSession?.whisperResponses[0]?.textPreview).toContain("hello world");
+    expect(diagnosticsSession?.deliveredEvents).toHaveLength(2);
+    expect(diagnosticsSession?.deliveredEvents[0]).toMatchObject({
+      meetingId: "meeting-browser-1",
+      event: { text: "hello world", sequenceNumber: 1 },
+    });
+    expect(diagnosticsSession?.deliveredEvents[1]).toMatchObject({
+      meetingId: "meeting-browser-1",
+      event: { text: "second line", sequenceNumber: 2 },
+    });
+
     const stopResponse = await fetch(`${baseUrl}/sessions/${createPayload.sessionId}/stop`, {
       method: "POST",
     });

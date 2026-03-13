@@ -12,7 +12,7 @@ import type {
   Meeting,
   MeetingSummary,
 } from "./types.js";
-import type { Field, Candidate, Meeting as UIMeeting } from "../lib/mock-data.js";
+import type { Field, Candidate } from "../lib/ui-models.js";
 
 // ── Field adapter ─────────────────────────────────────────────────
 
@@ -111,6 +111,16 @@ export function buildAgendaItems(decisions: FlaggedDecisionListItem[]): AgendaIt
 
 // ── Meeting adapter ───────────────────────────────────────────────
 
+export interface UIMeeting {
+  id: string;
+  title: string;
+  date: string;
+  status: "active" | "closed";
+  participants: string[];
+  draftedCount: number;
+  loggedCount: number;
+}
+
 /**
  * Map an API Meeting + optional MeetingSummary to the UIMeeting shape
  * used by MeetingListPage rows.
@@ -120,7 +130,7 @@ export function toUIMeeting(m: Meeting, summary?: MeetingSummary): UIMeeting {
     id: m.id,
     title: m.title,
     date: m.date,
-    status: m.status === "completed" ? "closed" : "active",
+    status: m.status === "ended" ? "closed" : "active",
     participants: m.participants,
     draftedCount: summary?.draftCount ?? 0,
     loggedCount: summary?.loggedCount ?? 0,

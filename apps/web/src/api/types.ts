@@ -2,12 +2,14 @@
 // These mirror the shapes returned by apps/api/. No Zod — the web
 // layer does not import from packages/schema.
 
+export type MeetingStatus = "proposed" | "in_session" | "ended";
+
 export interface Meeting {
   id: string;
   title: string;
   date: string;
   participants: string[];
-  status: "active" | "completed";
+  status: MeetingStatus;
   createdAt: string;
 }
 
@@ -87,6 +89,18 @@ export interface DecisionTemplate {
   isDefault: boolean;
   isCustom: boolean;
   createdAt: string;
+}
+
+export interface DecisionContextPickerItem {
+  id: string;
+  contextId: string;
+  meetingId: string;
+  title: string;
+  templateName: string;
+  status: "open" | "deferred" | "logged";
+  sourceMeetingTitle: string;
+  sourceMeetingDate: string;
+  sourceMeetingTags: string[];
 }
 
 export interface DecisionLog {
@@ -231,9 +245,9 @@ export interface GlobalContext {
   activeTemplate?: DecisionTemplate;
 }
 
-export interface ActiveMeetingsContextSummary {
+export interface InSessionMeetingsContextSummary {
   currentContext: GlobalContext;
-  activeMeetings: Meeting[];
+  inSessionMeetings: Meeting[];
 }
 
 export interface ApiStatus {

@@ -1,4 +1,4 @@
-import type { TagCategory } from "@/lib/mock-data";
+import type { TagCategory } from "@/lib/ui-models";
 
 interface TagPillProps {
   name: string;
