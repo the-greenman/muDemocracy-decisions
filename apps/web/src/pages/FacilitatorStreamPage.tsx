@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertCircle, ExternalLink, Home, Radio, RefreshCw } from "lucide-react";
+import { AlertCircle, ExternalLink, Radio, RefreshCw } from "lucide-react";
+import { ContextDisplay } from "@/components/shared/ContextDisplay";
 import { MainHeader } from "@/components/shared/MainHeader";
 import { getApiStatus, getTranscriptReading, listMeetingChunks } from "@/api/endpoints";
 import {
@@ -42,8 +43,6 @@ export function FacilitatorStreamPage() {
   const meetingId = id ?? "";
   const streamStorageKey = streamStatusStorageKey(meetingId);
   const transcriptTargetKey = transcriptTargetStorageKey(meetingId);
-  const meetingHomePath = `/meetings/${meetingId}/facilitator/home`;
-  const meetingWorkspacePath = `/meetings/${meetingId}/facilitator`;
   const transcriptPath = `/meetings/${meetingId}/facilitator/transcript`;
   const sharedPath = `/meetings/${meetingId}`;
 
@@ -79,13 +78,9 @@ export function FacilitatorStreamPage() {
     return "bg-text-muted";
   }, [streamState]);
 
-  const transcriptTargetLabel = useMemo(() => {
-    if (!transcriptTarget?.decisionContextId) return "Meeting-wide segments";
-    if (transcriptTarget.fieldId) {
-      return `Field segments · context ${transcriptTarget.decisionContextId} · field ${transcriptTarget.fieldId}`;
-    }
-    return `Decision segments · context ${transcriptTarget.decisionContextId}`;
-  }, [transcriptTarget]);
+  function handleCloseWindow() {
+    window.close();
+  }
 
   useEffect(() => {
     const payload: StreamStatusPayload = {
@@ -444,26 +439,17 @@ export function FacilitatorStreamPage() {
     <div className="density-facilitator min-h-screen bg-base flex flex-col">
       <MainHeader
         className="px-4 py-3"
-        navItems={[{ label: "Meetings", to: "/" }, { label: meetingId || "meeting" }]}
+        navItems={[{ label: meetingId || "meeting" }]}
         title="Streaming control"
         subtitle="Persistent live capture and system health"
         actions={
-          <>
-            <Link
-              to={meetingWorkspacePath}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary hover:text-text-primary border border-border rounded transition-colors"
-            >
-              <ExternalLink size={13} />
-              <span>Workspace</span>
-            </Link>
-            <Link
-              to={meetingHomePath}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary hover:text-text-primary border border-border rounded transition-colors"
-            >
-              <Home size={13} />
-              <span>Meeting home</span>
-            </Link>
-          </>
+          <button
+            onClick={handleCloseWindow}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-fac-meta text-text-secondary hover:text-text-primary border border-border rounded transition-colors"
+            type="button"
+          >
+            <span>Close window</span>
+          </button>
         }
       />
 
@@ -590,7 +576,11 @@ export function FacilitatorStreamPage() {
           </StatusCard>
 
           <StatusCard title="Transcript target">
-            <p className="text-fac-meta text-text-primary">{transcriptTargetLabel}</p>
+            <ContextDisplay
+              meetingId={meetingId}
+              decisionContextId={transcriptTarget?.decisionContextId}
+              fieldId={transcriptTarget?.fieldId}
+            />
             <p className="text-fac-meta text-text-secondary">
               Transcript window follows the active facilitator target automatically.
             </p>

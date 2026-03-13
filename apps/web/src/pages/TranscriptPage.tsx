@@ -16,6 +16,7 @@ import {
   listMeetingChunks,
 } from "@/api/endpoints";
 import type { ReadableTranscriptRow, TranscriptChunk } from "@/api/types";
+import { ContextDisplay } from "@/components/shared/ContextDisplay";
 import { MainHeader } from "@/components/shared/MainHeader";
 import {
   type TranscriptScope,
@@ -137,12 +138,6 @@ export function TranscriptPage() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, [meetingId, searchParams, setSearchParams, transcriptTargetKey]);
-
-  const targetLabel = useMemo(() => {
-    if (!decisionContextId) return "Meeting-wide transcript";
-    if (fieldId) return `Field target · context ${decisionContextId} · field ${fieldId}`;
-    return `Decision target · context ${decisionContextId}`;
-  }, [decisionContextId, fieldId]);
 
   const loadRows = useCallback(
     async (pollOnly = false) => {
@@ -384,7 +379,7 @@ export function TranscriptPage() {
       <MainHeader
         className="px-4 py-3 shrink-0"
         title="Transcript window"
-        subtitle={`${selected.size} row${selected.size !== 1 ? "s" : ""} selected · ${targetLabel}`}
+        subtitle={`${selected.size} row${selected.size !== 1 ? "s" : ""} selected`}
         actions={
           <button
             disabled={selected.size === 0 || confirming}
@@ -413,9 +408,7 @@ export function TranscriptPage() {
 
       {/* Toolbar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-3 shrink-0">
-        <span className="text-fac-meta text-text-secondary shrink-0 border border-border rounded-badge bg-surface px-2 py-1">
-          {targetLabel}
-        </span>
+        <ContextDisplay meetingId={meetingId} decisionContextId={decisionContextId} fieldId={fieldId} />
         <div className="flex items-center gap-1 rounded border border-border p-1 bg-surface">
           <button
             onClick={() => setScope("meeting")}
