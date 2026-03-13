@@ -1,0 +1,14 @@
+{
+  "pull_request": {
+    "head": {
+      "ref": "local-act"
+    },
+    "base": {
+      "ref": "main"
+    }
+  },
+  "repository": {
+    "full_name": "the-greenman/decision-logger",
+    "default_branch": "main"
+  }
+}
