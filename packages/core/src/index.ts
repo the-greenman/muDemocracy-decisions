@@ -21,6 +21,7 @@ export {
 export { DecisionLogService } from "./services/decision-log-service.js";
 export { DecisionFieldService } from "./services/decision-field-service.js";
 export { DecisionTemplateService } from "./services/decision-template-service.js";
+export { ExportTemplateService } from "./services/export-template-service.js";
 export { ExpertTemplateService } from "./services/expert-template-service.js";
 export { MCPServerService } from "./services/mcp-server-service.js";
 export { ExpertAdviceService } from "./services/expert-advice-service.js";
@@ -44,6 +45,7 @@ export {
   createContentCreator,
   createFlaggedDecisionService,
   createDecisionTemplateService,
+  createExportTemplateService,
   createGlobalContextService,
   createLLMInteractionService,
   createMarkdownExportService,
@@ -106,6 +108,12 @@ export type {
   DecisionTemplateIdentityLookup,
 } from "./interfaces/i-decision-template-repository.js";
 export type { IDecisionTemplateService } from "./interfaces/i-decision-template-service.js";
+export type {
+  IExportTemplateRepository,
+  IExportTemplateFieldAssignmentRepository,
+  ExportTemplateFieldAssignmentInsert,
+} from "./interfaces/i-export-template-repository.js";
+export type { IExportTemplateService } from "./interfaces/i-export-template-service.js";
 export type { ISupplementaryContentRepository } from "./interfaces/i-supplementary-content-repository.js";
 export type { IFeedbackRepository } from "./interfaces/i-feedback-repository.js";
 export type { IExpertTemplateRepository } from "./interfaces/i-expert-template-repository.js";
@@ -128,6 +136,12 @@ export type { FlaggedDecision } from "@repo/schema";
 export type { DecisionField, CreateDecisionField } from "@repo/schema";
 export type { DecisionTemplate, CreateDecisionTemplate } from "@repo/schema";
 export type { TemplateFieldAssignment, CreateTemplateFieldAssignment } from "@repo/schema";
+export type {
+  ExportTemplate,
+  CreateExportTemplate,
+  ExportTemplateFieldAssignment,
+  CreateExportTemplateFieldAssignment,
+} from "@repo/schema";
 export type { ExpertTemplate, CreateExpertTemplate, UpdateExpertTemplate } from "@repo/schema";
 export type { MCPServer, CreateMCPServer, UpdateMCPServer } from "@repo/schema";
 export type { ExpertAdvice, CreateExpertAdvice } from "@repo/schema";

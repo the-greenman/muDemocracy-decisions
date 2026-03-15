@@ -892,6 +892,31 @@ export const CreateTemplateFieldAssignmentSchema = TemplateFieldAssignmentSchema
 
 export type CreateTemplateFieldAssignment = z.infer<typeof CreateTemplateFieldAssignmentSchema>;
 
+export const DefinitionLineageSchema = z
+  .object({
+    sourceDefinitionId: z.string().uuid().optional(),
+    sourceVersion: z.number().int().positive().optional(),
+    forkedFromDefinitionId: z.string().uuid().optional(),
+    forkedFromVersion: z.number().int().positive().optional(),
+  })
+  .openapi("DefinitionLineage", {
+    description: "Optional lineage metadata for imported or forked definitions",
+  });
+
+export type DefinitionLineage = z.infer<typeof DefinitionLineageSchema>;
+
+export const DefinitionProvenanceSchema = z
+  .object({
+    publisher: z.string().optional(),
+    sourcePackage: z.string().optional(),
+    importedAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .openapi("DefinitionProvenance", {
+    description: "Optional provenance metadata for imported definitions",
+  });
+
+export type DefinitionProvenance = z.infer<typeof DefinitionProvenanceSchema>;
+
 export const DecisionTemplateSchema = z
   .object({
     id: z.string().uuid(),
@@ -899,7 +924,15 @@ export const DecisionTemplateSchema = z
     name: z.string(),
     description: z.string(),
     promptTemplate: z.string().optional(),
-    category: z.enum(["standard", "technology", "strategy", "budget", "policy", "proposal"]),
+    category: z.enum([
+      "standard",
+      "technology",
+      "strategy",
+      "budget",
+      "policy",
+      "proposal",
+      "deliberation",
+    ]),
     fields: z.array(TemplateFieldAssignmentSchema),
     version: z.number().int().default(1),
     isDefault: z.boolean().default(false),
@@ -982,6 +1015,214 @@ export const CreateDecisionTemplateSchema = DecisionTemplateSchema.omit({
 });
 
 export type CreateDecisionTemplate = z.infer<typeof CreateDecisionTemplateSchema>;
+
+export const ExportTemplateFieldAssignmentSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    exportTemplateId: z.string().uuid().optional(),
+    fieldId: z.string().uuid(),
+    order: z.number().int().nonnegative(),
+    title: z.string().optional(),
+  })
+  .openapi("ExportTemplateFieldAssignment", {
+    description: "Assignment of a deliberation field to an export template",
+    example: {
+      fieldId: "550e8400-e29b-41d4-a716-446655440005",
+      order: 0,
+      title: "Analysis",
+    },
+  });
+
+export type ExportTemplateFieldAssignment = z.infer<typeof ExportTemplateFieldAssignmentSchema>;
+
+export const CreateExportTemplateFieldAssignmentSchema = ExportTemplateFieldAssignmentSchema.omit({
+  id: true,
+  exportTemplateId: true,
+}).openapi("CreateExportTemplateFieldAssignment", {
+  description: "Schema for creating a new export-template field assignment",
+  example: {
+    fieldId: "550e8400-e29b-41d4-a716-446655440005",
+    order: 0,
+    title: "Analysis",
+  },
+});
+
+export type CreateExportTemplateFieldAssignment = z.infer<
+  typeof CreateExportTemplateFieldAssignmentSchema
+>;
+
+export const ExportTemplateSchema = z
+  .object({
+    id: z.string().uuid(),
+    deliberationTemplateId: z.string().uuid(),
+    namespace: z.string().default("core"),
+    name: z.string(),
+    description: z.string(),
+    fields: z.array(ExportTemplateFieldAssignmentSchema),
+    version: z.number().int().default(1),
+    isDefault: z.boolean().default(false),
+    isCustom: z.boolean().default(false),
+    lineage: DefinitionLineageSchema.optional(),
+    provenance: DefinitionProvenanceSchema.optional(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .openapi("ExportTemplate", {
+    description: "A presentation template for human-readable permanent-log exports",
+    example: {
+      id: "550e8400-e29b-41d4-a716-446655440018",
+      deliberationTemplateId: "550e8400-e29b-41d4-a716-446655440008",
+      namespace: "core",
+      name: "Decision Record",
+      description: "Human-readable permanent log layout",
+      fields: [
+        {
+          fieldId: "550e8400-e29b-41d4-a716-446655440005",
+          order: 0,
+          title: "Analysis",
+        },
+      ],
+      version: 1,
+      isDefault: true,
+      isCustom: false,
+      lineage: {
+        sourceDefinitionId: "550e8400-e29b-41d4-a716-446655440018",
+        sourceVersion: 1,
+      },
+      provenance: {
+        publisher: "core",
+        sourcePackage: "core-template-library",
+        importedAt: "2026-03-15T19:45:00Z",
+      },
+      createdAt: "2026-03-15T19:45:00Z",
+    },
+  });
+
+export type ExportTemplate = z.infer<typeof ExportTemplateSchema>;
+
+export const CreateExportTemplateSchema = ExportTemplateSchema.omit({
+  id: true,
+  version: true,
+  isDefault: true,
+  isCustom: true,
+  createdAt: true,
+}).openapi("CreateExportTemplate", {
+  description: "Schema for creating a new export template",
+  example: {
+    deliberationTemplateId: "550e8400-e29b-41d4-a716-446655440008",
+    namespace: "core",
+    name: "Decision Record",
+    description: "Human-readable permanent log layout",
+    fields: [
+      {
+        fieldId: "550e8400-e29b-41d4-a716-446655440005",
+        order: 0,
+        title: "Analysis",
+      },
+    ],
+    lineage: {
+      sourceDefinitionId: "550e8400-e29b-41d4-a716-446655440018",
+      sourceVersion: 1,
+    },
+    provenance: {
+      publisher: "core",
+      sourcePackage: "core-template-library",
+      importedAt: "2026-03-15T19:45:00Z",
+    },
+  },
+});
+
+export type CreateExportTemplate = z.infer<typeof CreateExportTemplateSchema>;
+
+export const DefinitionDependencyReferenceSchema = z
+  .object({
+    definitionId: z.string().uuid(),
+    namespace: z.string(),
+    name: z.string(),
+    version: z.number().int().positive(),
+  })
+  .openapi("DefinitionDependencyReference", {
+    description: "Reference to an externally managed definition dependency",
+  });
+
+export type DefinitionDependencyReference = z.infer<typeof DefinitionDependencyReferenceSchema>;
+
+export const ExportTemplateDefinitionPackageSchema = z
+  .object({
+    mode: z.enum(["bundled", "standalone"]),
+    exportTemplate: ExportTemplateSchema,
+    dependencyRefs: z.object({
+      deliberationTemplate: DefinitionDependencyReferenceSchema,
+      fields: z.array(DefinitionDependencyReferenceSchema),
+    }),
+    bundledDependencies: z
+      .object({
+        deliberationTemplates: z.array(DecisionTemplateSchema).default([]),
+        fields: z.array(DecisionFieldSchema).default([]),
+      })
+      .default({
+        deliberationTemplates: [],
+        fields: [],
+      }),
+  })
+  .superRefine((value, ctx) => {
+    const referencedFieldIds = new Set(value.exportTemplate.fields.map((field) => field.fieldId));
+
+    if (value.dependencyRefs.deliberationTemplate.definitionId !== value.exportTemplate.deliberationTemplateId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Dependency reference must match export template deliberationTemplateId",
+        path: ["dependencyRefs", "deliberationTemplate", "definitionId"],
+      });
+    }
+
+    if (value.dependencyRefs.fields.length !== referencedFieldIds.size) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Dependency field references must match the export template field set",
+        path: ["dependencyRefs", "fields"],
+      });
+    }
+
+    for (const field of value.exportTemplate.fields) {
+      const hasRef = value.dependencyRefs.fields.some((ref) => ref.definitionId === field.fieldId);
+      if (!hasRef) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Missing dependency reference for export field ${field.fieldId}`,
+          path: ["dependencyRefs", "fields"],
+        });
+      }
+    }
+
+    if (value.mode === "bundled") {
+      const bundledTemplate = value.bundledDependencies.deliberationTemplates.find(
+        (template) => template.id === value.exportTemplate.deliberationTemplateId,
+      );
+      if (!bundledTemplate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bundled package is missing the parent deliberation template dependency",
+          path: ["bundledDependencies", "deliberationTemplates"],
+        });
+      }
+
+      for (const fieldId of referencedFieldIds) {
+        const bundledField = value.bundledDependencies.fields.find((field) => field.id === fieldId);
+        if (!bundledField) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Bundled package is missing field dependency ${fieldId}`,
+            path: ["bundledDependencies", "fields"],
+          });
+        }
+      }
+    }
+  })
+  .openapi("ExportTemplateDefinitionPackage", {
+    description: "Serialized export-template definition plus dependency references for import/export workflows",
+  });
+
+export type ExportTemplateDefinitionPackage = z.infer<typeof ExportTemplateDefinitionPackageSchema>;
 
 // ============================================================================
 // EXPERT TEMPLATE SCHEMAS

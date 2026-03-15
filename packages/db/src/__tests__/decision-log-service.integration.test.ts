@@ -334,33 +334,36 @@ describe("Decision Log Service Integration Tests", () => {
 
   describe("getUserDecisionLogs", () => {
     it("should retrieve all logs by a specific user", async () => {
+      const user1Id = `user-1-${randomUUID()}`;
+      const user2Id = `user-2-${randomUUID()}`;
+
       // Create logs by different users
       await decisionLogService.logDecision(testDecisionContextId, {
-        loggedBy: "user-1",
+        loggedBy: user1Id,
         decisionMethod: { type: "manual" },
       });
 
       const secondContext = await createLockedContext("User Log Context 2");
 
       await decisionLogService.logDecision(secondContext.id, {
-        loggedBy: "user-2",
+        loggedBy: user2Id,
         decisionMethod: { type: "manual" },
       });
 
       const thirdContext = await createLockedContext("User Log Context 3");
 
       await decisionLogService.logDecision(thirdContext.id, {
-        loggedBy: "user-1",
+        loggedBy: user1Id,
         decisionMethod: { type: "ai_assisted" },
       });
 
-      const user1Logs = await decisionLogService.getUserDecisionLogs("user-1");
-      const user2Logs = await decisionLogService.getUserDecisionLogs("user-2");
+      const user1Logs = await decisionLogService.getUserDecisionLogs(user1Id);
+      const user2Logs = await decisionLogService.getUserDecisionLogs(user2Id);
 
       expect(user1Logs).toHaveLength(2);
-      expect(user1Logs.every((log) => log!.loggedBy === "user-1")).toBe(true);
+      expect(user1Logs.every((log) => log!.loggedBy === user1Id)).toBe(true);
       expect(user2Logs).toHaveLength(1);
-      expect(user2Logs[0]!.loggedBy).toBe("user-2");
+      expect(user2Logs[0]!.loggedBy).toBe(user2Id);
     });
   });
 

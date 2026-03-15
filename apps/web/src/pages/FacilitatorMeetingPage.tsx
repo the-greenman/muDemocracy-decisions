@@ -4,6 +4,7 @@ import {
   RefreshCw,
   Undo2,
   CheckSquare,
+  Download,
   ExternalLink,
   Home,
   FilePlus2,
@@ -44,6 +45,7 @@ import {
   listLLMInteractions,
   getTranscriptReading,
   listMeetingChunks,
+  exportMarkdown,
   setActiveMeeting,
   setActiveDecision,
   setActiveField,
@@ -215,6 +217,7 @@ export function FacilitatorMeetingPage() {
   const [fieldFeedback, setFieldFeedback] = useState<DecisionFeedback[]>([]);
   const [fieldFeedbackLoading, setFieldFeedbackLoading] = useState(false);
   const [finalised, setFinalised] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [transcriptUploaded, setTranscriptUploaded] = useState(false);
   const [selectionToast, setSelectionToast] = useState<{ rows: number; chunks: number } | null>(
     null,
@@ -1402,6 +1405,26 @@ export function FacilitatorMeetingPage() {
     }
   }
 
+  async function handleExportDecision() {
+    if (!activeApiContextId) return;
+    setExporting(true);
+    try {
+      const { markdown } = await exportMarkdown(activeApiContextId);
+      const blob = new Blob([markdown], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const fileNameBase =
+        activeContext.title.trim().replace(/\s+/g, "-").toLowerCase() || "decision";
+
+      anchor.href = url;
+      anchor.download = `${fileNameBase}.md`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   // ── Create context ───────────────────────────────────────────────
 
   async function handleCreateContext(
@@ -1839,15 +1862,27 @@ export function FacilitatorMeetingPage() {
             </button>
 
             <button
-              onClick={() => setModal({ type: "finalise" })}
-              disabled={isClosedContext || isMeetingCompleted || !hasSelectedContext}
+              onClick={() => void handleExportDecision()}
+              disabled={!hasSelectedContext || exporting}
               className="flex items-center gap-1.5 px-3 py-1.5 text-fac-meta bg-settled text-base rounded font-medium hover:bg-settled/90 transition-colors disabled:opacity-30"
-              title="Finalise"
-              aria-label="Finalise"
+              title="Export"
+              aria-label="Export"
             >
-              <CheckSquare size={13} />
-              <span className="hidden xl:inline">Finalise</span>
+              <Download size={13} />
+              <span className="hidden xl:inline">{exporting ? "Exporting…" : "Export"}</span>
             </button>
+            {!isClosedContext && (
+              <button
+                onClick={() => setModal({ type: "finalise" })}
+                disabled={isMeetingCompleted || !hasSelectedContext}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-fac-meta bg-settled text-base rounded font-medium hover:bg-settled/90 transition-colors disabled:opacity-30"
+                title="Finalise"
+                aria-label="Finalise"
+              >
+                <CheckSquare size={13} />
+                <span className="hidden xl:inline">Finalise</span>
+              </button>
+            )}
 
             <button
               onClick={() => void handleEndMeeting()}

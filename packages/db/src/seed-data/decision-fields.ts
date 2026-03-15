@@ -22,6 +22,9 @@ export const CORE_FIELD_IDS = {
   STAKEHOLDERS: '550e8400-e29b-41d4-a716-446655440009',
   RESOURCES: '550e8400-e29b-41d4-a716-446655440010',
   OUTSTANDING_ISSUES: '550e8400-e29b-41d4-a716-446655440011',
+  DECISION_QUESTION: '550e8400-e29b-41d4-a716-446655440012',
+  TENSION: '550e8400-e29b-41d4-a716-446655440013',
+  CONDITIONS_OF_ENOUGH: '550e8400-e29b-41d4-a716-446655440014',
 } as const;
 
 export type CoreFieldRecord = {
@@ -77,6 +80,39 @@ export const CORE_FIELDS: CoreFieldRecord[] = [
     isCustom: false,
   },
   {
+    id: CORE_FIELD_IDS.DECISION_QUESTION,
+    namespace: 'core',
+    name: 'decision_question',
+    description: 'The specific decision that the group must answer',
+    category: 'context',
+    extractionPrompt:
+      'Extract the specific decision question the group is trying to answer. ' +
+      'The question must describe a choice that could realistically be made.',
+    instructions:
+      'State the exact decision the group needs to make. ' +
+      'Avoid vague framing such as "how should we improve". ' +
+      'A good decision question implies a clear choice.',
+    fieldType: 'textarea',
+    placeholder: 'What exactly are we deciding?',
+    version: 1,
+    isCustom: false,
+  },
+  {
+    id: CORE_FIELD_IDS.TENSION,
+    namespace: 'core',
+    name: 'tension',
+    description: 'The tension or problem that makes this decision necessary',
+    category: 'context',
+    extractionPrompt:
+      'Summarise the tension or problem that triggered the need for a decision.',
+    instructions:
+      'Describe the tension between the current situation and the desired outcome.',
+    fieldType: 'textarea',
+    placeholder: 'What tension or problem requires a decision?',
+    version: 1,
+    isCustom: false,
+  },
+  {
     id: CORE_FIELD_IDS.OPTIONS,
     namespace: 'core',
     name: 'options',
@@ -128,6 +164,21 @@ export const CORE_FIELDS: CoreFieldRecord[] = [
     fieldType: 'textarea',
     placeholder: 'What analysis supports the decision?',
     version: 2,
+    isCustom: false,
+  },
+  {
+    id: CORE_FIELD_IDS.CONDITIONS_OF_ENOUGH,
+    namespace: 'core',
+    name: 'conditions_of_enough',
+    description: 'Signals that indicate when this decision should be revisited',
+    category: 'outcome',
+    extractionPrompt:
+      'Extract any conditions or signals that would trigger revisiting the decision.',
+    instructions:
+      'Describe how the group will know when this decision should be reviewed.',
+    fieldType: 'textarea',
+    placeholder: 'When should this decision be reviewed?',
+    version: 1,
     isCustom: false,
   },
   {

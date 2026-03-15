@@ -13,6 +13,7 @@ import { DecisionFieldService } from "./services/decision-field-service.js";
 import { DraftGenerationService } from "./services/draft-generation-service.js";
 import { FlaggedDecisionService } from "./services/flagged-decision-service.js";
 import { DecisionTemplateService } from "./services/decision-template-service.js";
+import { ExportTemplateService } from "./services/export-template-service.js";
 import { ExpertTemplateService } from "./services/expert-template-service.js";
 import { GlobalContextService, FileGlobalContextStore } from "./services/global-context-service.js";
 import { LLMInteractionService } from "./services/llm-interaction-service.js";
@@ -41,6 +42,8 @@ import {
   DrizzleDecisionFieldRepository,
   DrizzleLLMInteractionRepository,
   DrizzleTemplateFieldAssignmentRepository,
+  DrizzleExportTemplateFieldAssignmentRepository,
+  DrizzleExportTemplateRepository,
   DrizzleFlaggedDecisionRepository,
   DrizzleDecisionTemplateRepository,
   DrizzleExpertTemplateRepository,
@@ -274,6 +277,21 @@ export function createMarkdownExportService(): MarkdownExportService {
     new DrizzleTemplateFieldAssignmentRepository(),
     new DrizzleDecisionFieldRepository(),
     new DrizzleMeetingRepository(),
+    new ExportTemplateService(
+      new DrizzleDecisionTemplateRepository(),
+      new DrizzleTemplateFieldAssignmentRepository(),
+      new DrizzleExportTemplateRepository(),
+      new DrizzleExportTemplateFieldAssignmentRepository(),
+    ),
+  );
+}
+
+export function createExportTemplateService(): ExportTemplateService {
+  return new ExportTemplateService(
+    new DrizzleDecisionTemplateRepository(),
+    new DrizzleTemplateFieldAssignmentRepository(),
+    new DrizzleExportTemplateRepository(),
+    new DrizzleExportTemplateFieldAssignmentRepository(),
   );
 }
 
@@ -293,6 +311,7 @@ export interface ServiceContainer {
   contentCreator: IContentCreator;
   flaggedDecisionService: FlaggedDecisionService;
   decisionTemplateService: DecisionTemplateService;
+  exportTemplateService: ExportTemplateService;
   globalContextService: GlobalContextService;
   decisionLogGenerator: IDecisionLogGenerator;
   eventBus: IEventBus;
@@ -315,6 +334,7 @@ export function createServices(): ServiceContainer {
     contentCreator: createContentCreator(),
     flaggedDecisionService: createFlaggedDecisionService(),
     decisionTemplateService: createDecisionTemplateService(),
+    exportTemplateService: createExportTemplateService(),
     globalContextService: createGlobalContextService(),
     decisionLogGenerator: createDecisionLogGenerator(),
     eventBus: createEventBus(),

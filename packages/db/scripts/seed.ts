@@ -12,11 +12,16 @@
 
 import { db, client } from "../src/client.js";
 import { CORE_FIELDS } from "../src/seed-data/decision-fields.js";
-import { prepareTemplatesForSeeding } from "../src/seed-data/decision-templates.js";
+import {
+  prepareDefaultExportTemplatesForSeeding,
+  prepareTemplatesForSeeding,
+} from "../src/seed-data/decision-templates.js";
 import {
   decisionFields,
   decisionTemplates,
   expertTemplates,
+  exportTemplateFieldAssignments,
+  exportTemplates,
   templateFieldAssignments,
 } from "../src/schema";
 import { and, eq } from "drizzle-orm";
@@ -122,6 +127,87 @@ async function seed() {
     }
 
     console.log(`  ✓ Ensured field assignments for ${templateSeed.name} template`);
+  }
+
+  console.log("\nSeeding default export templates...");
+  const seedExportTemplates = prepareDefaultExportTemplatesForSeeding();
+
+  const exportTemplatesByIdentity = new Map<string, typeof exportTemplates.$inferSelect>();
+  for (const exportTemplateSeed of seedExportTemplates) {
+    const parentTemplateId = templateIdByIdentity.get(
+      `${exportTemplateSeed.namespace}:${exportTemplateSeed.name.replace(/ Default Export$/, "")}:1`,
+    );
+
+    if (!parentTemplateId) {
+      continue;
+    }
+
+    const { fields: exportFields, ...exportTemplateRecord } = exportTemplateSeed;
+    const inserted = await db
+      .insert(exportTemplates)
+      .values({
+        ...exportTemplateRecord,
+        deliberationTemplateId: parentTemplateId,
+        isDefault: true,
+        version: 1,
+      })
+      .onConflictDoUpdate({
+        target: [exportTemplates.namespace, exportTemplates.name, exportTemplates.version],
+        set: {
+          deliberationTemplateId: parentTemplateId,
+          description: exportTemplateRecord.description,
+          isDefault: true,
+        },
+      })
+      .returning();
+
+    if (inserted[0]) {
+      exportTemplatesByIdentity.set(
+        `${inserted[0].namespace}:${inserted[0].name}:${inserted[0].version ?? 1}`,
+        inserted[0],
+      );
+    }
+
+    void exportFields;
+  }
+
+  console.log(`  ✓ Upserted ${exportTemplatesByIdentity.size} default export templates`);
+
+  console.log("\nSeeding export-template field assignments...");
+  for (const exportTemplateSeed of seedExportTemplates) {
+    const exportTemplateRow = exportTemplatesByIdentity.get(
+      `${exportTemplateSeed.namespace}:${exportTemplateSeed.name}:1`,
+    );
+
+    if (!exportTemplateRow) {
+      continue;
+    }
+
+    for (const assignment of exportTemplateSeed.fields) {
+      const existing = await db
+        .select()
+        .from(exportTemplateFieldAssignments)
+        .where(
+          and(
+            eq(exportTemplateFieldAssignments.exportTemplateId, exportTemplateRow.id),
+            eq(exportTemplateFieldAssignments.fieldId, assignment.fieldId),
+          ),
+        )
+        .limit(1);
+
+      if (existing[0]) {
+        continue;
+      }
+
+      await db.insert(exportTemplateFieldAssignments).values({
+        exportTemplateId: exportTemplateRow.id,
+        fieldId: assignment.fieldId,
+        order: assignment.order,
+        ...(assignment.title !== undefined ? { title: assignment.title } : {}),
+      });
+    }
+
+    console.log(`  ✓ Ensured field assignments for ${exportTemplateSeed.name}`);
   }
 
   // Seed Expert Templates

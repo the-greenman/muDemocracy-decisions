@@ -4,8 +4,13 @@
 
 import {
   decisionTemplates,
+  exportTemplateFieldAssignments,
+  exportTemplates,
   templateFieldAssignments,
   type DecisionTemplateSelect,
+  type ExportTemplateFieldAssignmentInsert,
+  type ExportTemplateFieldAssignmentSelect,
+  type ExportTemplateSelect,
   type TemplateFieldAssignmentSelect,
   type TemplateFieldAssignmentInsert,
 } from "../schema.js";
@@ -13,7 +18,10 @@ import { db } from "../client.js";
 import { eq, and, ilike, asc, inArray } from "drizzle-orm";
 import type {
   DecisionTemplate,
+  ExportTemplate,
+  ExportTemplateFieldAssignment,
   CreateDecisionTemplate,
+  CreateExportTemplate,
   TemplateFieldAssignment,
 } from "@repo/schema";
 
@@ -22,6 +30,42 @@ type DecisionTemplateIdentityLookup = {
   name: string;
   version?: number;
 };
+
+type DefinitionLineageInput = CreateExportTemplate["lineage"];
+type DefinitionProvenanceInput = CreateExportTemplate["provenance"];
+
+function sanitizeDefinitionLineage(lineage: DefinitionLineageInput) {
+  if (!lineage) return undefined;
+
+  const sanitized = {
+    ...(lineage.sourceDefinitionId !== undefined
+      ? { sourceDefinitionId: lineage.sourceDefinitionId }
+      : {}),
+    ...(lineage.sourceVersion !== undefined ? { sourceVersion: lineage.sourceVersion } : {}),
+    ...(lineage.forkedFromDefinitionId !== undefined
+      ? { forkedFromDefinitionId: lineage.forkedFromDefinitionId }
+      : {}),
+    ...(lineage.forkedFromVersion !== undefined
+      ? { forkedFromVersion: lineage.forkedFromVersion }
+      : {}),
+  };
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeDefinitionProvenance(provenance: DefinitionProvenanceInput) {
+  if (!provenance) return undefined;
+
+  const sanitized = {
+    ...(provenance.publisher !== undefined ? { publisher: provenance.publisher } : {}),
+    ...(provenance.sourcePackage !== undefined
+      ? { sourcePackage: provenance.sourcePackage }
+      : {}),
+    ...(provenance.importedAt !== undefined ? { importedAt: provenance.importedAt } : {}),
+  };
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
 
 // Interface definitions to avoid circular dependency
 interface IDecisionTemplateRepository {
@@ -52,6 +96,18 @@ interface ITemplateFieldAssignmentRepository {
   deleteByTemplate(templateId: string): Promise<boolean>;
 }
 
+interface IExportTemplateRepository {
+  create(data: CreateExportTemplate): Promise<ExportTemplate>;
+  findById(id: string): Promise<ExportTemplate | null>;
+  findByDeliberationTemplateId(deliberationTemplateId: string): Promise<ExportTemplate[]>;
+  findDefaultByDeliberationTemplateId(deliberationTemplateId: string): Promise<ExportTemplate | null>;
+}
+
+interface IExportTemplateFieldAssignmentRepository {
+  create(data: ExportTemplateFieldAssignmentInsert): Promise<ExportTemplateFieldAssignment>;
+  findByExportTemplateId(exportTemplateId: string): Promise<ExportTemplateFieldAssignment[]>;
+}
+
 function toDecisionTemplateInsert(
   data: CreateDecisionTemplate,
 ): typeof decisionTemplates.$inferInsert {
@@ -73,6 +129,20 @@ function toDecisionTemplateUpdate(
     ...(data.description !== undefined ? { description: data.description } : {}),
     ...(data.category !== undefined ? { category: data.category } : {}),
     ...(data.promptTemplate !== undefined ? { promptTemplate: data.promptTemplate } : {}),
+  };
+}
+
+function toExportTemplateInsert(data: CreateExportTemplate): typeof exportTemplates.$inferInsert {
+  const lineage = sanitizeDefinitionLineage(data.lineage);
+  const provenance = sanitizeDefinitionProvenance(data.provenance);
+
+  return {
+    deliberationTemplateId: data.deliberationTemplateId,
+    namespace: data.namespace,
+    name: data.name,
+    description: data.description,
+    ...(lineage !== undefined ? { lineage } : {}),
+    ...(provenance !== undefined ? { provenance } : {}),
   };
 }
 
@@ -488,5 +558,164 @@ export class DrizzleTemplateFieldAssignmentRepository
           );
       }
     });
+  }
+}
+
+export class DrizzleExportTemplateRepository implements IExportTemplateRepository {
+  private mapFieldAssignmentToSchema(
+    row: ExportTemplateFieldAssignmentSelect,
+  ): ExportTemplateFieldAssignment {
+    return {
+      id: row.id,
+      exportTemplateId: row.exportTemplateId,
+      fieldId: row.fieldId,
+      order: row.order,
+      ...(row.title !== null ? { title: row.title } : {}),
+    };
+  }
+
+  private mapToSchema(
+    row: ExportTemplateSelect & { fields?: ExportTemplateFieldAssignment[] },
+  ): ExportTemplate {
+    return {
+      id: row.id,
+      deliberationTemplateId: row.deliberationTemplateId,
+      namespace: row.namespace,
+      name: row.name,
+      description: row.description,
+      fields: row.fields || [],
+      version: row.version,
+      isDefault: row.isDefault,
+      isCustom: row.isCustom,
+      ...(sanitizeDefinitionLineage(row.lineage ?? undefined) !== undefined
+        ? { lineage: sanitizeDefinitionLineage(row.lineage ?? undefined) }
+        : {}),
+      ...(sanitizeDefinitionProvenance(row.provenance ?? undefined) !== undefined
+        ? { provenance: sanitizeDefinitionProvenance(row.provenance ?? undefined) }
+        : {}),
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  async create(data: CreateExportTemplate): Promise<ExportTemplate> {
+    const [row] = await db.insert(exportTemplates).values(toExportTemplateInsert(data)).returning();
+
+    if (!row) {
+      throw new Error("Failed to create export template");
+    }
+
+    return this.mapToSchema(row);
+  }
+
+  async findById(id: string): Promise<ExportTemplate | null> {
+    const [row] = await db.select().from(exportTemplates).where(eq(exportTemplates.id, id)).limit(1);
+
+    if (!row) return null;
+
+    const fields = await db
+      .select()
+      .from(exportTemplateFieldAssignments)
+      .where(eq(exportTemplateFieldAssignments.exportTemplateId, id))
+      .orderBy(asc(exportTemplateFieldAssignments.order));
+
+    return this.mapToSchema({
+      ...row,
+      fields: fields.map((field) => this.mapFieldAssignmentToSchema(field)),
+    });
+  }
+
+  async findByDeliberationTemplateId(deliberationTemplateId: string): Promise<ExportTemplate[]> {
+    const rows = await db
+      .select()
+      .from(exportTemplates)
+      .where(eq(exportTemplates.deliberationTemplateId, deliberationTemplateId))
+      .orderBy(asc(exportTemplates.name));
+
+    const exportTemplateIds = rows.map((row) => row.id);
+    const fields =
+      exportTemplateIds.length > 0
+        ? await db
+            .select()
+            .from(exportTemplateFieldAssignments)
+            .where(inArray(exportTemplateFieldAssignments.exportTemplateId, exportTemplateIds))
+            .orderBy(
+              asc(exportTemplateFieldAssignments.exportTemplateId),
+              asc(exportTemplateFieldAssignments.order),
+            )
+        : [];
+
+    const fieldsByTemplate = fields.reduce(
+      (acc, field) => {
+        const templateFields = acc[field.exportTemplateId] ?? [];
+        templateFields.push(this.mapFieldAssignmentToSchema(field));
+        acc[field.exportTemplateId] = templateFields;
+        return acc;
+      },
+      {} as Record<string, ExportTemplateFieldAssignment[]>,
+    );
+
+    return rows.map((row) => this.mapToSchema({ ...row, fields: fieldsByTemplate[row.id] || [] }));
+  }
+
+  async findDefaultByDeliberationTemplateId(
+    deliberationTemplateId: string,
+  ): Promise<ExportTemplate | null> {
+    const [row] = await db
+      .select()
+      .from(exportTemplates)
+      .where(
+        and(
+          eq(exportTemplates.deliberationTemplateId, deliberationTemplateId),
+          eq(exportTemplates.isDefault, true),
+        ),
+      )
+      .limit(1);
+
+    if (!row) return null;
+
+    const fields = await db
+      .select()
+      .from(exportTemplateFieldAssignments)
+      .where(eq(exportTemplateFieldAssignments.exportTemplateId, row.id))
+      .orderBy(asc(exportTemplateFieldAssignments.order));
+
+    return this.mapToSchema({
+      ...row,
+      fields: fields.map((field) => this.mapFieldAssignmentToSchema(field)),
+    });
+  }
+}
+
+export class DrizzleExportTemplateFieldAssignmentRepository
+  implements IExportTemplateFieldAssignmentRepository
+{
+  private mapToSchema(row: ExportTemplateFieldAssignmentSelect): ExportTemplateFieldAssignment {
+    return {
+      id: row.id,
+      exportTemplateId: row.exportTemplateId,
+      fieldId: row.fieldId,
+      order: row.order,
+      ...(row.title !== null ? { title: row.title } : {}),
+    };
+  }
+
+  async create(data: ExportTemplateFieldAssignmentInsert): Promise<ExportTemplateFieldAssignment> {
+    const [row] = await db.insert(exportTemplateFieldAssignments).values(data).returning();
+
+    if (!row) {
+      throw new Error("Failed to create export template field assignment");
+    }
+
+    return this.mapToSchema(row);
+  }
+
+  async findByExportTemplateId(exportTemplateId: string): Promise<ExportTemplateFieldAssignment[]> {
+    const rows = await db
+      .select()
+      .from(exportTemplateFieldAssignments)
+      .where(eq(exportTemplateFieldAssignments.exportTemplateId, exportTemplateId))
+      .orderBy(asc(exportTemplateFieldAssignments.order));
+
+    return rows.map((row) => this.mapToSchema(row));
   }
 }

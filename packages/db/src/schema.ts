@@ -89,6 +89,7 @@ export const templateCategoryEnum = pgEnum("template_category", [
   "budget",
   "policy",
   "proposal",
+  "deliberation",
 ]);
 export const expertTypeEnum = pgEnum("expert_type", [
   "technical",
@@ -339,6 +340,53 @@ export type DecisionTemplateSelect = typeof decisionTemplates.$inferSelect;
 export type DecisionTemplateInsert = typeof decisionTemplates.$inferInsert;
 
 // ============================================================================
+// EXPORT TEMPLATES
+// ============================================================================
+
+export const exportTemplates = pgTable(
+  "export_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    deliberationTemplateId: uuid("deliberation_template_id")
+      .notNull()
+      .references(() => decisionTemplates.id),
+    namespace: text("namespace").notNull().default("core"),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    version: integer("version").notNull().default(1),
+    isDefault: boolean("is_default").notNull().default(false),
+    isCustom: boolean("is_custom").notNull().default(false),
+    lineage: jsonb("lineage").$type<{
+      sourceDefinitionId?: string;
+      sourceVersion?: number;
+      forkedFromDefinitionId?: string;
+      forkedFromVersion?: number;
+    }>(),
+    provenance: jsonb("provenance").$type<{
+      publisher?: string;
+      sourcePackage?: string;
+      importedAt?: string;
+    }>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    deliberationTemplateIdx: index("idx_export_templates_deliberation_template").on(
+      table.deliberationTemplateId,
+    ),
+    namespaceIdx: index("idx_export_templates_namespace").on(table.namespace),
+    defaultIdx: index("idx_export_templates_is_default").on(table.isDefault),
+    namespaceNameVersionUq: uniqueIndex("uq_export_templates_namespace_name_version").on(
+      table.namespace,
+      table.name,
+      table.version,
+    ),
+  }),
+);
+
+export type ExportTemplateSelect = typeof exportTemplates.$inferSelect;
+export type ExportTemplateInsert = typeof exportTemplates.$inferInsert;
+
+// ============================================================================
 // TEMPLATE FIELD ASSIGNMENTS
 // ============================================================================
 
@@ -363,6 +411,32 @@ export const templateFieldAssignments = pgTable(
 
 export type TemplateFieldAssignmentSelect = typeof templateFieldAssignments.$inferSelect;
 export type TemplateFieldAssignmentInsert = typeof templateFieldAssignments.$inferInsert;
+
+// ============================================================================
+// EXPORT TEMPLATE FIELD ASSIGNMENTS
+// ============================================================================
+
+export const exportTemplateFieldAssignments = pgTable(
+  "export_template_field_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    exportTemplateId: uuid("export_template_id")
+      .notNull()
+      .references(() => exportTemplates.id),
+    fieldId: uuid("field_id")
+      .notNull()
+      .references(() => decisionFields.id),
+    order: integer("order").notNull(),
+    title: text("title"),
+  },
+  (table) => ({
+    exportTemplateIdx: index("idx_export_template_assignments_template").on(table.exportTemplateId),
+    fieldIdx: index("idx_export_template_assignments_field").on(table.fieldId),
+  }),
+);
+
+export type ExportTemplateFieldAssignmentSelect = typeof exportTemplateFieldAssignments.$inferSelect;
+export type ExportTemplateFieldAssignmentInsert = typeof exportTemplateFieldAssignments.$inferInsert;
 
 // ============================================================================
 // FLAGGED DECISIONS
@@ -638,7 +712,9 @@ export const schema = {
   decisionContextWindows,
   decisionFields,
   decisionTemplates,
+  exportTemplates,
   templateFieldAssignments,
+  exportTemplateFieldAssignments,
   flaggedDecisions,
   decisionContexts,
   decisionFeedback,

@@ -18,6 +18,7 @@ import {
   createDecisionContextRepository,
   createDecisionFieldService,
   createDecisionTemplateService,
+  createExportTemplateService,
   createExpertTemplateService,
   createDraftGenerationService,
   createFeedbackService,
@@ -81,6 +82,7 @@ import {
   listSupplementaryContentRoute,
   listTemplatesRoute,
   listTemplateFieldsRoute,
+  listTemplateExportTemplatesRoute,
   logDecisionRoute,
   lockFieldRoute,
   previewDecisionContextWindowRoute,
@@ -122,6 +124,7 @@ const llmInteractionService = useDatabase ? createLLMInteractionService() : null
 const decisionContextRepository = useDatabase ? createDecisionContextRepository() : null;
 const decisionFieldService = useDatabase ? createDecisionFieldService() : null;
 const decisionTemplateService = useDatabase ? createDecisionTemplateService() : null;
+const exportTemplateService = useDatabase ? createExportTemplateService() : null;
 const expertTemplateService = useDatabase ? createExpertTemplateService() : null;
 const mcpServerService = useDatabase ? createMCPServerService() : null;
 const templateFieldAssignmentRepository = useDatabase
@@ -1156,6 +1159,21 @@ app.openapi(listTemplatesRoute, async (c) => {
   return c.json({ templates });
 });
 
+app.openapi(listTemplateExportTemplatesRoute, async (c) => {
+  if (!decisionTemplateService || !exportTemplateService) {
+    return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
+  }
+
+  const { id } = c.req.valid("param");
+  const template = await decisionTemplateService.getTemplate(id);
+  if (!template) {
+    return c.json({ error: "Template not found" }, 404);
+  }
+
+  const exportTemplates = await exportTemplateService.getExportTemplatesForDeliberationTemplate(id);
+  return c.json({ exportTemplates });
+});
+
 app.openapi(createDecisionContextRoute, async (c) => {
   const services = getWorkflowServices();
   if (!services) {
@@ -1301,12 +1319,16 @@ app.openapi(exportMarkdownRoute, async (c) => {
     const { id } = c.req.valid("param");
     const query = c.req.valid("query");
     const exportOptions: {
+      exportTemplateId?: string;
       includeMetadata?: boolean;
       includeTimestamps?: boolean;
       includeParticipants?: boolean;
       fieldOrder?: "template" | "alphabetical";
       lockedFieldIndicator?: "prefix" | "suffix" | "none";
     } = {};
+    if (query.exportTemplateId !== undefined) {
+      exportOptions.exportTemplateId = query.exportTemplateId;
+    }
     if (query.includeMetadata !== undefined) {
       exportOptions.includeMetadata = query.includeMetadata;
     }

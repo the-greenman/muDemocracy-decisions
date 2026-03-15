@@ -7,13 +7,19 @@ import { IDecisionTemplateRepository } from "../interfaces/i-decision-template-r
 import { ITemplateFieldAssignmentRepository } from "../interfaces/i-decision-template-repository.js";
 import { IDecisionFieldRepository } from "../interfaces/i-decision-field-repository.js";
 import { IMeetingRepository } from "../interfaces/i-meeting-repository.js";
-import type { TemplateFieldAssignment, DecisionField } from "@repo/schema";
+import type { IExportTemplateService } from "../interfaces/i-export-template-service.js";
+import type {
+  TemplateFieldAssignment,
+  DecisionField,
+  ExportTemplateFieldAssignment,
+} from "@repo/schema";
 
 const FIELD_META_KEY = "__fieldMeta";
 
 type FieldMetaRecord = Record<string, { manuallyEdited?: boolean }>;
 
 export interface MarkdownExportOptions {
+  exportTemplateId?: string;
   includeMetadata?: boolean;
   includeTimestamps?: boolean;
   includeParticipants?: boolean;
@@ -28,6 +34,7 @@ export class MarkdownExportService {
     private fieldAssignmentRepo: ITemplateFieldAssignmentRepository,
     private fieldRepo: IDecisionFieldRepository,
     private meetingRepo: IMeetingRepository,
+    private exportTemplateService: IExportTemplateService,
   ) {}
 
   /**
@@ -35,11 +42,11 @@ export class MarkdownExportService {
    */
   async exportToMarkdown(contextId: string, options: MarkdownExportOptions = {}): Promise<string> {
     const {
+      exportTemplateId,
       includeMetadata = true,
       includeTimestamps = true,
       includeParticipants = true,
       fieldOrder = "template",
-      lockedFieldIndicator = "prefix",
     } = options;
 
     // Fetch all necessary data
@@ -55,6 +62,12 @@ export class MarkdownExportService {
 
     const meeting = await this.meetingRepo.findById(context.meetingId);
     const fieldAssignments = await this.fieldAssignmentRepo.findByTemplateId(template.id);
+    const exportTemplate = exportTemplateId
+      ? await this.exportTemplateService.getExportTemplate(template.id, exportTemplateId)
+      : await this.exportTemplateService.getDefaultExportTemplate(template.id);
+    const exportAssignmentsByFieldId = new Map<string, ExportTemplateFieldAssignment>(
+      exportTemplate.fields.map((assignment) => [assignment.fieldId, assignment]),
+    );
 
     // Get field details
     const fields = new Map<string, DecisionField>();
@@ -66,24 +79,38 @@ export class MarkdownExportService {
     }
 
     // Sort fields according to option
-    let sortedFields: Array<{ field: DecisionField; assignment: TemplateFieldAssignment }> = [];
+    let sortedFields: Array<{
+      field: DecisionField;
+      assignment: TemplateFieldAssignment;
+      exportAssignment?: ExportTemplateFieldAssignment;
+    }> = [];
     for (const assignment of fieldAssignments) {
       const field = fields.get(assignment.fieldId);
-      if (field) {
-        sortedFields.push({ field, assignment });
+      const exportAssignment = exportAssignmentsByFieldId.get(assignment.fieldId);
+      if (field && exportAssignment) {
+        sortedFields.push({ field, assignment, exportAssignment });
       }
     }
 
     if (fieldOrder === "alphabetical") {
-      sortedFields.sort((a, b) => a.field.name.localeCompare(b.field.name));
+      sortedFields.sort((a, b) =>
+        this.formatFieldHeading(a.field.name, a.exportAssignment?.title).localeCompare(
+          this.formatFieldHeading(b.field.name, b.exportAssignment?.title),
+        ),
+      );
     } else {
-      // Keep template order
-      sortedFields.sort((a, b) => a.assignment.order - b.assignment.order);
+      sortedFields.sort((a, b) => {
+        const left = a.exportAssignment;
+        const right = b.exportAssignment;
+        if (!left || !right) {
+          return 0;
+        }
+        return left.order - right.order;
+      });
     }
 
     // Fields section
     const draftData = context.draftData || {};
-    const lockedFields = context.lockedFields || [];
     const fieldMeta = this.getFieldMeta(draftData);
 
     // Build markdown
@@ -114,18 +141,12 @@ export class MarkdownExportService {
       markdown += `\n---\n\n`;
     }
 
-    for (const { field } of sortedFields) {
+    for (const { field, exportAssignment } of sortedFields) {
       const value = draftData[field.id] || "";
-      const isLocked = lockedFields.includes(field.id);
       const isManuallyEdited = fieldMeta[field.id]?.manuallyEdited === true;
 
-      // Field name with lock indicator
-      let fieldName = field.name;
-      if (isLocked && lockedFieldIndicator === "prefix") {
-        fieldName = `[LOCKED] ${fieldName}`;
-      } else if (isLocked && lockedFieldIndicator === "suffix") {
-        fieldName = `${fieldName} [LOCKED]`;
-      }
+      // Field name
+      let fieldName = this.formatFieldHeading(field.name, exportAssignment?.title);
       if (isManuallyEdited) {
         fieldName = `[MANUALLY EDITED] ${fieldName}`;
       }
@@ -180,7 +201,11 @@ export class MarkdownExportService {
   private resolveDecisionTitle(
     contextTitle: string | undefined,
     draftData: Record<string, unknown>,
-    sortedFields: Array<{ field: DecisionField; assignment: TemplateFieldAssignment }>,
+    sortedFields: Array<{
+      field: DecisionField;
+      assignment: TemplateFieldAssignment;
+      exportAssignment?: ExportTemplateFieldAssignment;
+    }>,
   ): string | null {
     if (typeof contextTitle === "string" && contextTitle.trim().length > 0) {
       return contextTitle.trim();
@@ -200,6 +225,15 @@ export class MarkdownExportService {
 
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private formatFieldHeading(fieldName: string, exportTitle?: string): string {
+    const base = typeof exportTitle === "string" && exportTitle.trim().length > 0 ? exportTitle : fieldName;
+
+    return base
+      .split("_")
+      .map((part) => (part.length > 0 ? part[0]!.toUpperCase() + part.slice(1) : part))
+      .join(" ");
   }
 
   /**

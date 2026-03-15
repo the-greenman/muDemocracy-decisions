@@ -1476,6 +1476,16 @@ describe("API E2E Tests", () => {
     expect(data.error).toBeDefined();
   });
 
+  it("GET /api/decision-contexts/:id/export/markdown - should return 400 for an invalid explicit export template selection", async () => {
+    const response = await app.request(
+      `/api/decision-contexts/${createdContextId}/export/markdown?exportTemplateId=11111111-1111-4111-8111-111111111111`,
+    );
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
   it("GET /api/decision-contexts/:id/llm-interactions - should return interactions array", async () => {
     const response = await app.request(
       `/api/decision-contexts/${createdContextId}/llm-interactions`,

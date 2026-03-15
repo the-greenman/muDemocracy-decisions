@@ -91,6 +91,27 @@ export interface DecisionTemplate {
   createdAt: string;
 }
 
+export interface ExportTemplateFieldAssignment {
+  id?: string;
+  exportTemplateId?: string;
+  fieldId: string;
+  order: number;
+  title?: string;
+}
+
+export interface ExportTemplate {
+  id: string;
+  deliberationTemplateId: string;
+  namespace: string;
+  name: string;
+  description: string;
+  fields: ExportTemplateFieldAssignment[];
+  version: number;
+  isDefault: boolean;
+  isCustom: boolean;
+  createdAt: string;
+}
+
 export interface DecisionContextPickerItem {
   id: string;
   contextId: string;

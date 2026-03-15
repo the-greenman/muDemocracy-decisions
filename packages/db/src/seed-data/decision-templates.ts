@@ -10,7 +10,7 @@
  * - Templates do not override field meaning — if different meaning is needed, use a different field
  */
 
-import type { CreateDecisionTemplate } from "@repo/schema";
+import type { CreateDecisionTemplate, CreateExportTemplate } from "@repo/schema";
 import { CORE_FIELD_IDS } from "./decision-fields.js";
 
 const assignment = (fieldId: string, order: number, required = true) => ({
@@ -43,7 +43,51 @@ export const STANDARD_TEMPLATE: CreateDecisionTemplate = {
   ],
 };
 
-// Technology Template - For technical decisions
+export const MINIMAL_DELIBERATION_TEMPLATE: CreateDecisionTemplate = {
+  namespace: "core",
+  name: "Minimal Decision",
+  description:
+    "A lightweight decision template for quick decisions. " +
+    "Captures the essential elements needed to clarify and record a decision.",
+  promptTemplate:
+    "You are extracting a minimal decision record from a discussion. " +
+    "Focus on identifying the decision question, the decision made, " +
+    "and when the decision should be revisited.",
+  category: "deliberation",
+  fields: [
+    assignment(CORE_FIELD_IDS.CONTEXT, 0),
+    assignment(CORE_FIELD_IDS.DECISION_QUESTION, 1),
+    assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 2),
+    assignment(CORE_FIELD_IDS.CONDITIONS_OF_ENOUGH, 3, false),
+  ],
+};
+
+export const DELIBERATION_TEMPLATE: CreateDecisionTemplate = {
+  namespace: "core",
+  name: "Deliberation Decision",
+  description:
+    "A structured template that guides groups through a full deliberation process. " +
+    "Helps clarify the problem, identify options, evaluate them, and record the final decision.",
+  promptTemplate:
+    "You are extracting a structured decision record from a meeting discussion. " +
+    "Reconstruct the deliberation process: identify the context, the tension driving the decision, " +
+    "the specific decision question, the options considered, the criteria used to evaluate them, " +
+    "and the final decision reached. Capture reasoning clearly and note when the decision should be revisited.",
+  category: "deliberation",
+  fields: [
+    assignment(CORE_FIELD_IDS.CONTEXT, 0),
+    assignment(CORE_FIELD_IDS.TENSION, 1),
+    assignment(CORE_FIELD_IDS.DECISION_QUESTION, 2),
+    assignment(CORE_FIELD_IDS.OPTIONS, 3),
+    assignment(CORE_FIELD_IDS.CRITERIA, 4, false),
+    assignment(CORE_FIELD_IDS.ANALYSIS, 5, false),
+    assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 6),
+    assignment(CORE_FIELD_IDS.OUTCOME, 7),
+    assignment(CORE_FIELD_IDS.CONDITIONS_OF_ENOUGH, 8, false),
+    assignment(CORE_FIELD_IDS.OUTSTANDING_ISSUES, 9, false),
+  ],
+};
+
 export const TECHNOLOGY_TEMPLATE: CreateDecisionTemplate = {
   namespace: "core",
   name: "Technology Selection",
@@ -170,6 +214,8 @@ export const PROPOSAL_TEMPLATE: CreateDecisionTemplate = {
 
 // Export all templates
 export const CORE_TEMPLATES: CreateDecisionTemplate[] = [
+  DELIBERATION_TEMPLATE,
+  MINIMAL_DELIBERATION_TEMPLATE,
   STANDARD_TEMPLATE,
   TECHNOLOGY_TEMPLATE,
   STRATEGY_TEMPLATE,
@@ -184,5 +230,18 @@ export function prepareTemplatesForSeeding(): CreateDecisionTemplate[] {
     ...template,
     // Set the first template (Standard) as the default
     isDefault: index === 0,
+  }));
+}
+
+export function prepareDefaultExportTemplatesForSeeding(): CreateExportTemplate[] {
+  return CORE_TEMPLATES.map((template) => ({
+    deliberationTemplateId: "00000000-0000-0000-0000-000000000000",
+    namespace: template.namespace,
+    name: `${template.name} Default Export`,
+    description: `Derived default export template for ${template.name}`,
+    fields: template.fields.map((field) => ({
+      fieldId: field.fieldId,
+      order: field.order,
+    })),
   }));
 }

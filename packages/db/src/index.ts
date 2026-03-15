@@ -19,6 +19,8 @@ export { DrizzleDecisionLogRepository } from "./repositories/decision-log-reposi
 export { DrizzleDecisionFieldRepository } from "./repositories/decision-field-repository.js";
 export {
   DrizzleDecisionTemplateRepository,
+  DrizzleExportTemplateFieldAssignmentRepository,
+  DrizzleExportTemplateRepository,
   DrizzleTemplateFieldAssignmentRepository,
 } from "./repositories/decision-template-repository.js";
 export {

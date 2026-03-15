@@ -3,6 +3,7 @@ import {
   DecisionLogSchema,
   DecisionContextSchema,
   DecisionTemplateSchema,
+  ExportTemplateSchema,
   DecisionFieldSchema,
   DecisionFeedbackSchema,
   DecisionFeedbackListSchema,
@@ -92,6 +93,7 @@ const CreateDecisionContextRequestSchema = DecisionContextSchema.omit({
 const GenerateDraftRequestSchema = z.object({}).openapi("GenerateDraftRequest");
 
 const MarkdownExportQuerySchema = z.object({
+  exportTemplateId: z.string().uuid().optional(),
   includeMetadata: z.coerce.boolean().optional(),
   includeTimestamps: z.coerce.boolean().optional(),
   includeParticipants: z.coerce.boolean().optional(),
@@ -217,6 +219,12 @@ const DecisionTemplateListResponseSchema = z
     templates: z.array(DecisionTemplateSchema),
   })
   .openapi("DecisionTemplateListResponse");
+
+const ExportTemplateListResponseSchema = z
+  .object({
+    exportTemplates: z.array(ExportTemplateSchema),
+  })
+  .openapi("ExportTemplateListResponse");
 
 const TemplateFieldsResponseSchema = z
   .object({
@@ -1132,6 +1140,41 @@ export const listTemplateFieldsRoute = createRoute({
         },
       },
       description: "Ordered template fields returned successfully",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Template not found",
+    },
+    503: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Database-backed endpoint unavailable",
+    },
+  },
+});
+
+export const listTemplateExportTemplatesRoute = createRoute({
+  method: "get",
+  path: "/api/templates/:id/export-templates",
+  tags: ["templates"],
+  request: {
+    params: UuidParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: ExportTemplateListResponseSchema,
+        },
+      },
+      description: "Export templates returned successfully",
     },
     404: {
       content: {

@@ -71,6 +71,20 @@
       "when": 1773330000000,
       "tag": "0009_meeting_status_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1773609000000,
+      "tag": "0010_export_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1773611400000,
+      "tag": "0011_template_category_deliberation",
+      "breakpoints": true
     }
   ]
 }

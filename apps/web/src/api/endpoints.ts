@@ -9,6 +9,7 @@ import type {
   DecisionContext,
   DecisionField,
   DecisionTemplate,
+  ExportTemplate,
   FlaggedDecision,
   FlaggedDecisionListItem,
   DecisionLog,
@@ -312,8 +313,20 @@ export function logDecision(
   });
 }
 
-export function exportMarkdown(contextId: string) {
-  return apiFetch<{ markdown: string }>(`/api/decision-contexts/${contextId}/export/markdown`);
+export function exportMarkdown(
+  contextId: string,
+  options?: {
+    exportTemplateId?: string;
+  },
+) {
+  const params = new URLSearchParams();
+  if (options?.exportTemplateId) {
+    params.set("exportTemplateId", options.exportTemplateId);
+  }
+  const query = params.toString();
+  return apiFetch<{ markdown: string }>(
+    `/api/decision-contexts/${contextId}/export/markdown${query ? `?${query}` : ""}` ,
+  );
 }
 
 export function listLLMInteractions(contextId: string) {
@@ -344,6 +357,12 @@ export function listTemplates() {
 
 export function getTemplateFields(templateId: string) {
   return apiFetch<{ fields: DecisionField[] }>(`/api/templates/${templateId}/fields`);
+}
+
+export function listTemplateExportTemplates(templateId: string) {
+  return apiFetch<{ exportTemplates: ExportTemplate[] }>(
+    `/api/templates/${templateId}/export-templates`,
+  );
 }
 
 // ── Supplementary Content ─────────────────────────────────────────

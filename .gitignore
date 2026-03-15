@@ -40,6 +40,7 @@ coverage/
 # Temporary
 tmp/
 temp/
+.tmp/
 
 # TypeScript incremental/build artifacts
 *.tsbuildinfo
@@ -47,3 +48,4 @@ temp/
 
 # Generated declaration output
 packages/schema/src/**/*.d.ts
+

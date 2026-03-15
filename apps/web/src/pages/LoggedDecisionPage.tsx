@@ -5,10 +5,11 @@ import {
   getDecisionLog,
   getDecisionContext,
   getTemplateFields,
-  exportDecisionLog,
+  listTemplateExportTemplates,
+  exportMarkdown,
 } from "@/api/endpoints";
 import { formatFieldName } from "@/api/adapters";
-import type { DecisionLog, DecisionField, DecisionContext } from "@/api/types";
+import type { DecisionLog, DecisionField, DecisionContext, ExportTemplate } from "@/api/types";
 import { MainHeader } from "@/components/shared/MainHeader";
 
 interface DisplayField {
@@ -22,6 +23,8 @@ export function LoggedDecisionPage() {
   const [log, setLog] = useState<DecisionLog | null>(null);
   const [context, setContext] = useState<DecisionContext | null>(null);
   const [templateFields, setTemplateFields] = useState<DecisionField[]>([]);
+  const [exportTemplates, setExportTemplates] = useState<ExportTemplate[]>([]);
+  const [selectedExportTemplateId, setSelectedExportTemplateId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -38,6 +41,10 @@ export function LoggedDecisionPage() {
       // Load template fields to resolve UUIDs → labels
       const { fields } = await getTemplateFields(logData.templateId);
       setTemplateFields(fields);
+      const { exportTemplates: availableExportTemplates } = await listTemplateExportTemplates(logData.templateId);
+      setExportTemplates(availableExportTemplates);
+      const defaultTemplate = availableExportTemplates.find((template) => template.isDefault) ?? availableExportTemplates[0];
+      setSelectedExportTemplateId(defaultTemplate?.id ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load decision");
     } finally {
@@ -71,13 +78,13 @@ export function LoggedDecisionPage() {
   })();
 
   async function handleExport() {
-    if (!id) return;
+    if (!id || !context) return;
     setExporting(true);
     try {
-      const { content } = await exportDecisionLog(id, "markdown");
-      const text = typeof content === "string" ? content : JSON.stringify(content, null, 2);
-      // Download as file
-      const blob = new Blob([text], { type: "text/markdown" });
+      const { markdown } = await exportMarkdown(context.id, {
+        ...(selectedExportTemplateId ? { exportTemplateId: selectedExportTemplateId } : {}),
+      });
+      const blob = new Blob([markdown], { type: "text/markdown" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -85,7 +92,6 @@ export function LoggedDecisionPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      // silently fail — user can retry
     } finally {
       setExporting(false);
     }
@@ -114,14 +120,28 @@ export function LoggedDecisionPage() {
             : []),
         ]}
         actions={
-          <button
-            onClick={() => void handleExport()}
-            disabled={exporting}
-            className="flex items-center gap-2 px-3 py-2 text-fac-meta text-text-muted border border-border rounded hover:border-border-strong hover:text-text-primary transition-colors disabled:opacity-50"
-          >
-            <Download size={14} />
-            {exporting ? "Exporting…" : "Export"}
-          </button>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedExportTemplateId}
+              onChange={(event) => setSelectedExportTemplateId(event.target.value)}
+              disabled={exporting || exportTemplates.length === 0}
+              className="px-3 py-2 text-fac-meta text-text-primary border border-border rounded bg-base disabled:opacity-50"
+            >
+              {exportTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => void handleExport()}
+              disabled={exporting || !context}
+              className="flex items-center gap-2 px-3 py-2 text-fac-meta text-text-muted border border-border rounded hover:border-border-strong hover:text-text-primary transition-colors disabled:opacity-50"
+            >
+              <Download size={14} />
+              {exporting ? "Exporting…" : "Export"}
+            </button>
+          </div>
         }
       />
       <main className="max-w-4xl mx-auto px-8 py-10">

@@ -5,10 +5,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   DrizzleDecisionTemplateRepository,
+  DrizzleExportTemplateFieldAssignmentRepository,
+  DrizzleExportTemplateRepository,
   DrizzleTemplateFieldAssignmentRepository,
 } from "../repositories/decision-template-repository";
 import { db } from "../client";
-import type { CreateDecisionTemplate, CreateTemplateFieldAssignment } from "@repo/core";
+import type {
+  CreateDecisionTemplate,
+  CreateExportTemplate,
+  CreateExportTemplateFieldAssignment,
+  CreateTemplateFieldAssignment,
+} from "@repo/schema";
 
 // Mock the database
 vi.mock("../client", () => ({
@@ -338,6 +345,202 @@ describe("DrizzleTemplateFieldAssignmentRepository", () => {
       await repository.updateOrder(templateId, assignments);
 
       expect(mockTransaction).toHaveBeenCalled();
+    });
+  });
+});
+
+
+describe("DrizzleExportTemplateRepository", () => {
+  let repository: DrizzleExportTemplateRepository;
+  let mockDb: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository = new DrizzleExportTemplateRepository();
+    mockDb = vi.mocked(db);
+  });
+
+  describe("create", () => {
+    it("should create an export template", async () => {
+      const data: CreateExportTemplate = {
+        deliberationTemplateId: "550e8400-e29b-41d4-a716-446655440008",
+        namespace: "core",
+        name: "Decision Record",
+        description: "Human-readable permanent log layout",
+        fields: [],
+      };
+
+      const expectedRow = {
+        id: "exp-123",
+        deliberationTemplateId: data.deliberationTemplateId,
+        namespace: data.namespace,
+        name: data.name,
+        description: data.description,
+        version: 1,
+        isDefault: false,
+        isCustom: false,
+        lineage: null,
+        provenance: null,
+        createdAt: new Date(),
+      };
+
+      const mockInsert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([expectedRow]),
+        }),
+      });
+      mockDb.insert = mockInsert;
+
+      const result = await repository.create(data);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(expectedRow.id);
+      expect(result.deliberationTemplateId).toBe(data.deliberationTemplateId);
+      expect(result.fields).toEqual([]);
+    });
+  });
+
+  describe("findByDeliberationTemplateId", () => {
+    it("should list export templates for a deliberation template", async () => {
+      const deliberationTemplateId = "550e8400-e29b-41d4-a716-446655440008";
+      const rows = [
+        {
+          id: "exp-1",
+          deliberationTemplateId,
+          namespace: "core",
+          name: "Decision Record",
+          description: "Human-readable permanent log layout",
+          version: 1,
+          isDefault: true,
+          isCustom: false,
+          lineage: null,
+          provenance: null,
+          createdAt: new Date(),
+        },
+      ];
+
+      const fieldRows = [
+        {
+          id: "efa-1",
+          exportTemplateId: "exp-1",
+          fieldId: "field-1",
+          order: 0,
+          title: "Decision",
+        },
+      ];
+
+      const mockSelect = vi
+        .fn()
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockResolvedValue(rows),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockResolvedValue(fieldRows),
+            }),
+          }),
+        });
+      mockDb.select = mockSelect;
+
+      const result = await repository.findByDeliberationTemplateId(deliberationTemplateId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.id).toBe("exp-1");
+      expect(result[0]?.fields).toHaveLength(1);
+    });
+  });
+
+  describe("findDefaultByDeliberationTemplateId", () => {
+    it("should resolve the default export template for a deliberation template", async () => {
+      const deliberationTemplateId = "550e8400-e29b-41d4-a716-446655440008";
+      const row = {
+        id: "exp-1",
+        deliberationTemplateId,
+        namespace: "core",
+        name: "Decision Record",
+        description: "Human-readable permanent log layout",
+        version: 1,
+        isDefault: true,
+        isCustom: false,
+        lineage: null,
+        provenance: null,
+        createdAt: new Date(),
+      };
+
+      const mockSelect = vi
+        .fn()
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([row]),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockResolvedValue([]),
+            }),
+          }),
+        });
+      mockDb.select = mockSelect;
+
+      const result = await repository.findDefaultByDeliberationTemplateId(deliberationTemplateId);
+
+      expect(result).not.toBeNull();
+      expect(result?.isDefault).toBe(true);
+      expect(result?.deliberationTemplateId).toBe(deliberationTemplateId);
+    });
+  });
+});
+
+describe("DrizzleExportTemplateFieldAssignmentRepository", () => {
+  let repository: DrizzleExportTemplateFieldAssignmentRepository;
+  let mockDb: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository = new DrizzleExportTemplateFieldAssignmentRepository();
+    mockDb = vi.mocked(db);
+  });
+
+  describe("create", () => {
+    it("should create an export-template field assignment", async () => {
+      const data: CreateExportTemplateFieldAssignment = {
+        fieldId: "field-123",
+        order: 0,
+        title: "Decision",
+      };
+
+      const dataWithTemplateId = {
+        exportTemplateId: "exp-123",
+        fieldId: data.fieldId,
+        order: data.order,
+        ...(data.title !== undefined ? { title: data.title } : {}),
+      };
+
+      const expectedRow = {
+        id: "efa-123",
+        ...dataWithTemplateId,
+      };
+
+      const mockInsert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([expectedRow]),
+        }),
+      });
+      mockDb.insert = mockInsert;
+
+      const result = await repository.create(dataWithTemplateId);
+
+      expect(result).toBeDefined();
+      expect(result.exportTemplateId).toBe("exp-123");
+      expect(result.title).toBe("Decision");
     });
   });
 });
