@@ -100,7 +100,7 @@ export function MeetingListPage() {
 
   return (
     <div className="density-facilitator min-h-screen bg-base">
-      <MainHeader title="μDemocracy:decisions" subtitle="Meeting sessions" />
+      <MainHeader title="μ democracy" subtitle="Meeting sessions" />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         {error && (

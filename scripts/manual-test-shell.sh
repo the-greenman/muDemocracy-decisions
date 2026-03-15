@@ -27,7 +27,7 @@ wait_for_postgres() {
   local attempt=1
 
   while [ "$attempt" -le "$max_attempts" ]; do
-    if docker inspect -f '{{.State.Health.Status}}' decision-logger-db 2>/dev/null | grep -q '^healthy$'; then
+    if docker inspect -f '{{.State.Health.Status}}' mu-democracy-db 2>/dev/null | grep -q '^healthy$'; then
       return
     fi
 
@@ -66,14 +66,14 @@ Environment:
   DATABASE_URL=$DATABASE_URL
 
 Available commands:
-  decision-logger meeting create "Test Meeting" --date 2026-02-27 --participants Alice,Bob
-  decision-logger meeting list
-  decision-logger transcript add --meeting-id <meeting-id> --speaker Alice --text "We should ship this."
-  decision-logger-api
+  dlogger meeting create "Test Meeting" --date 2026-02-27 --participants Alice,Bob
+  dlogger meeting list
+  dlogger transcript add --meeting-id <meeting-id> --speaker Alice --text "We should ship this."
+  mu-democracy-api
 
 Notes:
-  - 'decision-logger' runs the built CLI from apps/cli/dist/index.js
-  - 'decision-logger-api' starts the built API server in the current shell
+  - 'dlogger' runs the built CLI from apps/cli/dist/index.js
+  - 'mu-democracy-api' starts the built API server in the current shell
   - Checked-in SQL migrations are applied automatically during bootstrap
   - Use Ctrl+C to stop the API server when running it in the foreground
 EOF
@@ -85,15 +85,15 @@ write_rcfile() {
   cat >"$rcfile" <<EOF
 export DATABASE_URL='$DATABASE_URL'
 cd '$ROOT_DIR'
-alias decision-logger='node "$ROOT_DIR/apps/cli/dist/index.js"'
-alias decision-logger-api='DATABASE_URL="$DATABASE_URL" node "$ROOT_DIR/apps/api/dist/index.js"'
+alias dlogger='node "$ROOT_DIR/apps/cli/dist/index.js"'
+alias mu-democracy-api='DATABASE_URL="$DATABASE_URL" node "$ROOT_DIR/apps/api/dist/index.js"'
 echo
 echo "Entering manual test shell for $ROOT_DIR"
 echo "DATABASE_URL=$DATABASE_URL"
 echo
 echo "Aliases:"
-echo "  decision-logger"
-echo "  decision-logger-api"
+echo "  dlogger"
+echo "  mu-democracy-api"
 echo
 EOF
 }
@@ -118,8 +118,8 @@ setup_environment() {
 configure_current_shell() {
   export DATABASE_URL
   cd "$ROOT_DIR"
-  alias decision-logger="node \"$ROOT_DIR/apps/cli/dist/index.js\""
-  alias decision-logger-api="DATABASE_URL=\"$DATABASE_URL\" node \"$ROOT_DIR/apps/api/dist/index.js\""
+  alias dlogger="node \"$ROOT_DIR/apps/cli/dist/index.js\""
+  alias mu-democracy-api="DATABASE_URL=\"$DATABASE_URL\" node \"$ROOT_DIR/apps/api/dist/index.js\""
   print_ready_banner
 }
 

@@ -1659,7 +1659,7 @@ app.doc("/openapi.json", {
   openapi: "3.0.0",
   info: {
     version: "1.0.0",
-    title: "Decision Logger API",
+    title: "μ democracy API",
     description: "Context-driven decision logging system API",
   },
 });
@@ -1670,7 +1670,7 @@ app.get("/docs", (c) => {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Decision Logger API</title>
+  <title>μ democracy API</title>
   <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@3.52.5/swagger-ui.css" />
   <style>
     html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }

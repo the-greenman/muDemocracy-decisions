@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: decision-logger-db
+    container_name: mu-democracy-db
     environment:
       POSTGRES_USER: decision_logger
       POSTGRES_PASSWORD: decision_logger
@@ -21,7 +21,7 @@ services:
   # Uncomment if you want a web UI for the database
   # drizzle-studio:
   #   image: node:20-alpine
-  #   container_name: decision-logger-studio
+  #   container_name: mu-democracy-studio
   #   working_dir: /app
   #   volumes:
   #     - .:/app
@@ -38,7 +38,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: decision-logger-api
+    container_name: mu-democracy-api
     environment:
       DATABASE_URL: postgresql://decision_logger:decision_logger@postgres:5432/decision_logger_dev
       PORT: 3000
@@ -59,7 +59,7 @@ services:
     build:
       context: .
       dockerfile: apps/transcription/Dockerfile
-    container_name: decision-logger-transcription
+    container_name: mu-democracy-transcription
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       TRANSCRIPTION_PROVIDER: ${TRANSCRIPTION_PROVIDER:-openai}
