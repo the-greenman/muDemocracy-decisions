@@ -16,7 +16,7 @@ export class Logger {
       level = "info",
       prettyPrint = process.env.NODE_ENV !== "production",
       redactFields = DEFAULT_REDACT_FIELDS,
-      service = "decision-logger",
+      service = "mu-democracy",
     } = config;
 
     this.serviceName = service;
@@ -140,7 +140,7 @@ export class Logger {
 
 // Default logger instance
 export const logger = new Logger({
-  service: "decision-logger",
+  service: "mu-democracy",
   level: (process.env.LOG_LEVEL as LogLevel) || "info",
   prettyPrint: process.env.NODE_ENV !== "production",
 });

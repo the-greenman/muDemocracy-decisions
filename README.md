@@ -1,10 +1,10 @@
-# Decision Logger
+# μ democracy
 
 A context-driven decision logging system with LLM-assisted extraction, iterative field refinement with locking, and structured decision logs.
 
 ## Overview
 
-Decision Logger helps teams create structured decision logs from meeting transcripts through iterative, context-aware refinement. The system uses LLM (Claude) to detect decisions and extract structured information, while giving users full control over the refinement process through field locking and context tagging.
+μ democracy helps teams create structured decision logs from meeting transcripts through iterative, context-aware refinement. The system uses LLM (Claude) to detect decisions and extract structured information, while giving users full control over the refinement process through field locking and context tagging.
 
 ## Key Features
 
@@ -167,67 +167,67 @@ pnpm db:push
 
 ```bash
 # Create a meeting
-decision-logger meeting create "Housing Coop Committee - Feb 2026" \
+dlogger meeting create "Housing Coop Committee - Feb 2026" \
   --date 2026-02-27 \
   --participants "Alice,Bob,Carol,David"
 
 # Set active meeting context
-decision-logger context set-meeting mtg_abc123
+dlogger context set-meeting mtg_abc123
 
 # Upload transcript (uses active meeting)
-decision-logger transcript upload transcript.json
+dlogger transcript upload transcript.json
 
 # View flagged decisions (uses active meeting)
-decision-logger decisions flagged
+dlogger decisions flagged
 
 # Set decision context (uses default template if not specified)
-decision-logger context set-decision flag_xyz
+dlogger context set-decision flag_xyz
 
 # Or specify a template explicitly
-# decision-logger context set-decision flag_xyz --template budget-approval
+# dlogger context set-decision flag_xyz --template budget-approval
 
 # Add more content (auto-tagged with decision context)
-decision-logger transcript add \
+dlogger transcript add \
   --speaker "Alice" \
   --text "The contractor quoted £45,000 for full replacement"
 
 # Focus on specific field
-decision-logger context set-field options
+dlogger context set-field options
 
 # Add field-specific content
-decision-logger transcript add \
+dlogger transcript add \
   --speaker "Bob" \
   --text "Option 1: Full replacement for £45k, lasts 20 years"
 
 # Generate draft (uses active decision context)
-decision-logger draft generate
+dlogger draft generate
 
 # View draft
-decision-logger draft show
+dlogger draft show
 
 # Manually update a field value (provide feedback to AI)
-decision-logger draft update-field options \
+dlogger draft update-field options \
   --value "Option 1: Full replacement for £45k, lasts 20 years\nOption 2: Patch repair for £12k, lasts 3 years"
 
 # Request expert AI advice (with MCP access to policies and archive)
-decision-logger draft expert-advice policy-compliance
-decision-logger draft expert-advice risk-assessment --focus "budget implications"
+dlogger draft expert-advice policy-compliance
+dlogger draft expert-advice risk-assessment --focus "budget implications"
 
 # Lock satisfied fields
-decision-logger draft lock-field options
+dlogger draft lock-field options
 
 # Regenerate unlocked fields
-decision-logger draft regenerate
+dlogger draft regenerate
 
 # Log final decision (immutable once created)
-decision-logger decision log \
+dlogger decision log \
   --type "consensus" \
   --details "All committee members agreed" \
   --actors "Alice,Bob,Carol,David" \
   --logged-by "Alice"
 
 # Export
-decision-logger decision export log_final_123 --format markdown > decision.md
+dlogger decision export log_final_123 --format markdown > decision.md
 ```
 
 ## API

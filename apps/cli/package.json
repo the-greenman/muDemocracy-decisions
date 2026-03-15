@@ -1,7 +1,7 @@
 {
   "name": "decision-logger",
   "version": "1.0.0",
-  "description": "Decision Logger CLI",
+  "description": "μ democracy CLI",
   "main": "./dist/index.js",
   "type": "module",
   "bin": {
