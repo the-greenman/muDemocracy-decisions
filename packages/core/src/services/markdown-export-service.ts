@@ -14,9 +14,6 @@ import type {
   ExportTemplateFieldAssignment,
 } from "@repo/schema";
 
-const FIELD_META_KEY = "__fieldMeta";
-
-type FieldMetaRecord = Record<string, { manuallyEdited?: boolean }>;
 
 export interface MarkdownExportOptions {
   exportTemplateId?: string;
@@ -111,7 +108,6 @@ export class MarkdownExportService {
 
     // Fields section
     const draftData = context.draftData || {};
-    const fieldMeta = this.getFieldMeta(draftData);
 
     // Build markdown
     let markdown = "";
@@ -143,14 +139,8 @@ export class MarkdownExportService {
 
     for (const { field, exportAssignment } of sortedFields) {
       const value = draftData[field.id] || "";
-      const isManuallyEdited = fieldMeta[field.id]?.manuallyEdited === true;
 
-      // Field name
-      let fieldName = this.formatFieldHeading(field.name, exportAssignment?.title);
-      if (isManuallyEdited) {
-        fieldName = `[MANUALLY EDITED] ${fieldName}`;
-      }
-
+      const fieldName = this.formatFieldHeading(field.name, exportAssignment?.title);
       markdown += `## ${fieldName}\n\n`;
 
       // Field value
@@ -187,15 +177,6 @@ export class MarkdownExportService {
     }
 
     return markdown;
-  }
-
-  private getFieldMeta(draftData: Record<string, unknown>): FieldMetaRecord {
-    const meta = draftData[FIELD_META_KEY];
-    if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
-      return {};
-    }
-
-    return meta as FieldMetaRecord;
   }
 
   private resolveDecisionTitle(
