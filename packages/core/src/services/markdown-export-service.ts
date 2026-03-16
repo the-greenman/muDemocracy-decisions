@@ -115,6 +115,21 @@ export class MarkdownExportService {
     // Header with decision title (prefer explicit context title, then derived statement)
     const title =
       this.resolveDecisionTitle(context.title, draftData, sortedFields) || "Untitled Decision";
+
+    // Preamble (e.g. YAML frontmatter) rendered before the heading
+    if (exportTemplate.preamble) {
+      const date = context.createdAt.slice(0, 10);
+      const vars: Record<string, string> = {
+        "decision-id": context.id,
+        "flagged-decision-id": context.flaggedDecisionId ?? "",
+        date,
+        slug: this.buildSlug(title),
+        status: context.status,
+        title,
+      };
+      markdown += this.renderPreamble(exportTemplate.preamble, vars) + "\n\n";
+    }
+
     markdown += `# Decision: ${title}\n\n`;
 
     // Metadata section
@@ -206,6 +221,22 @@ export class MarkdownExportService {
 
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private renderPreamble(preamble: string, vars: Record<string, string>): string {
+    return Object.entries(vars).reduce(
+      (result, [key, value]) => result.replaceAll(`{{${key}}}`, value),
+      preamble,
+    );
+  }
+
+  private buildSlug(title: string): string {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
   }
 
   private formatFieldHeading(fieldName: string, exportTitle?: string): string {

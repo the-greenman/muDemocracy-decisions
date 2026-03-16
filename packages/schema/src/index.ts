@@ -1059,6 +1059,7 @@ export const ExportTemplateSchema = z
     name: z.string(),
     description: z.string(),
     fields: z.array(ExportTemplateFieldAssignmentSchema),
+    preamble: z.string().optional(),
     version: z.number().int().default(1),
     isDefault: z.boolean().default(false),
     isCustom: z.boolean().default(false),

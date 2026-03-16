@@ -13,6 +13,7 @@
 import { db, client } from "../src/client.js";
 import { CORE_FIELDS } from "../src/seed-data/decision-fields.js";
 import {
+  DELIBERATION_ADR_EXPORT_TEMPLATE,
   prepareDefaultExportTemplatesForSeeding,
   prepareTemplatesForSeeding,
 } from "../src/seed-data/decision-templates.js";
@@ -208,6 +209,57 @@ async function seed() {
     }
 
     console.log(`  ✓ Ensured field assignments for ${exportTemplateSeed.name}`);
+  }
+
+  // Seed ADR export template for Deliberation Decision
+  console.log("\nSeeding ADR export template...");
+  const deliberationTemplateId = templateIdByIdentity.get("core:Deliberation Decision:1");
+  if (deliberationTemplateId) {
+    const adrSeed = {
+      ...DELIBERATION_ADR_EXPORT_TEMPLATE,
+      deliberationTemplateId,
+    };
+    const { fields: adrFields, ...adrRecord } = adrSeed;
+
+    const insertedAdr = await db
+      .insert(exportTemplates)
+      .values({ ...adrRecord, version: 1 })
+      .onConflictDoUpdate({
+        target: [exportTemplates.namespace, exportTemplates.name, exportTemplates.version],
+        set: {
+          deliberationTemplateId,
+          description: adrRecord.description,
+          preamble: adrRecord.preamble,
+        },
+      })
+      .returning();
+
+    const adrRow = insertedAdr[0];
+    if (adrRow) {
+      for (const assignment of adrFields) {
+        const existing = await db
+          .select()
+          .from(exportTemplateFieldAssignments)
+          .where(
+            and(
+              eq(exportTemplateFieldAssignments.exportTemplateId, adrRow.id),
+              eq(exportTemplateFieldAssignments.fieldId, assignment.fieldId),
+            ),
+          )
+          .limit(1);
+
+        if (!existing[0]) {
+          await db.insert(exportTemplateFieldAssignments).values({
+            exportTemplateId: adrRow.id,
+            fieldId: assignment.fieldId,
+            order: assignment.order,
+          });
+        }
+      }
+      console.log("  ✓ Upserted ADR export template");
+    }
+  } else {
+    console.warn("  ⚠ Deliberation Decision template not found — skipping ADR export template");
   }
 
   // Seed Expert Templates

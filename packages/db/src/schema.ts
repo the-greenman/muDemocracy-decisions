@@ -353,6 +353,7 @@ export const exportTemplates = pgTable(
     namespace: text("namespace").notNull().default("core"),
     name: text("name").notNull(),
     description: text("description").notNull(),
+    preamble: text("preamble"),
     version: integer("version").notNull().default(1),
     isDefault: boolean("is_default").notNull().default(false),
     isCustom: boolean("is_custom").notNull().default(false),

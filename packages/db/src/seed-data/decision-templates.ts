@@ -212,6 +212,27 @@ export const PROPOSAL_TEMPLATE: CreateDecisionTemplate = {
   ],
 };
 
+export const DELIBERATION_ADR_EXPORT_TEMPLATE: CreateExportTemplate = {
+  deliberationTemplateId: "00000000-0000-0000-0000-000000000000", // resolved at seed time
+  namespace: "core",
+  name: "ADR Export",
+  description:
+    "Exports a Deliberation Decision as an Architectural Decision Record markdown file with YAML frontmatter.",
+  preamble: "---\ndecision-id: {{decision-id}}\ndate: {{date}}\nslug: {{slug}}\nstatus: {{status}}\n---",
+  fields: [
+    assignment(CORE_FIELD_IDS.CONTEXT, 0),
+    assignment(CORE_FIELD_IDS.TENSION, 1),
+    assignment(CORE_FIELD_IDS.DECISION_QUESTION, 2),
+    assignment(CORE_FIELD_IDS.OPTIONS, 3),
+    assignment(CORE_FIELD_IDS.CRITERIA, 4, false),
+    assignment(CORE_FIELD_IDS.ANALYSIS, 5, false),
+    assignment(CORE_FIELD_IDS.DECISION_STATEMENT, 6),
+    assignment(CORE_FIELD_IDS.OUTCOME, 7),
+    assignment(CORE_FIELD_IDS.CONDITIONS_OF_ENOUGH, 8, false),
+    assignment(CORE_FIELD_IDS.OUTSTANDING_ISSUES, 9, false),
+  ],
+};
+
 // Export all templates
 export const CORE_TEMPLATES: CreateDecisionTemplate[] = [
   DELIBERATION_TEMPLATE,

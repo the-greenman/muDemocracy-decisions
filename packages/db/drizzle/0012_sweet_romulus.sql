@@ -1,0 +1,1 @@
+ALTER TABLE "export_templates" ADD COLUMN "preamble" text;

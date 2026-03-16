@@ -85,6 +85,13 @@
       "when": 1773611400000,
       "tag": "0011_template_category_deliberation",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1773689936822,
+      "tag": "0012_sweet_romulus",
+      "breakpoints": true
     }
   ]
 }

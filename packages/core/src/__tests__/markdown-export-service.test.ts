@@ -272,6 +272,133 @@ describe("MarkdownExportService", () => {
     expect(markdown).not.toContain("## decision_statement");
   });
 
+  it("renders preamble before the # Decision heading when template has a preamble", async () => {
+    mockContextRepo.findById.mockResolvedValue({
+      ...context,
+      id: "5f9f814e-3eda-429a-81d1-222ac47ac6f0",
+      flaggedDecisionId: "fd-abc",
+      status: "logged",
+      title: "Adopt ADR Process",
+      createdAt: "2026-03-16T10:00:00Z",
+    });
+    mockTemplateRepo.findById.mockResolvedValue(template);
+    mockMeetingRepo.findById.mockResolvedValue(meeting);
+    mockFieldAssignmentRepo.findByTemplateId.mockResolvedValue([
+      { fieldId: "field-1", order: 0, required: true },
+    ]);
+    mockFieldRepo.findById.mockResolvedValue(decisionField);
+    mockExportTemplateService.getDefaultExportTemplate.mockResolvedValue({
+      id: "exp-adr",
+      deliberationTemplateId: "tpl-123",
+      namespace: "core",
+      name: "ADR Export",
+      description: "ADR export with frontmatter",
+      preamble: "---\ndecision-id: {{decision-id}}\ndate: {{date}}\nslug: {{slug}}\nstatus: {{status}}\n---",
+      fields: [{ fieldId: "field-1", order: 0, title: "Decision Statement" }],
+      version: 1,
+      isDefault: false,
+      isCustom: false,
+      createdAt: "2026-03-16T10:00:00Z",
+    });
+
+    const markdown = await service.exportToMarkdown("ctx-123", {
+      includeMetadata: false,
+    });
+
+    expect(markdown).toMatch(/^---\n/);
+    expect(markdown).toContain("decision-id: 5f9f814e-3eda-429a-81d1-222ac47ac6f0");
+    expect(markdown).toContain("date: 2026-03-16");
+    expect(markdown).toContain("slug: adopt-adr-process");
+    expect(markdown).toContain("status: logged");
+    expect(markdown).toContain("---\n\n# Decision:");
+    // preamble must appear before the heading
+    expect(markdown.indexOf("---")).toBeLessThan(markdown.indexOf("# Decision:"));
+  });
+
+  it("substitutes {{title}} variable in preamble", async () => {
+    mockContextRepo.findById.mockResolvedValue({
+      ...context,
+      title: "Use PostgreSQL",
+    });
+    mockTemplateRepo.findById.mockResolvedValue(template);
+    mockMeetingRepo.findById.mockResolvedValue(meeting);
+    mockFieldAssignmentRepo.findByTemplateId.mockResolvedValue([
+      { fieldId: "field-1", order: 0, required: true },
+    ]);
+    mockFieldRepo.findById.mockResolvedValue(decisionField);
+    mockExportTemplateService.getDefaultExportTemplate.mockResolvedValue({
+      id: "exp-title",
+      deliberationTemplateId: "tpl-123",
+      namespace: "core",
+      name: "Title Export",
+      description: "Export with title var",
+      preamble: "title: {{title}}",
+      fields: [{ fieldId: "field-1", order: 0 }],
+      version: 1,
+      isDefault: false,
+      isCustom: false,
+      createdAt: "2026-03-16T10:00:00Z",
+    });
+
+    const markdown = await service.exportToMarkdown("ctx-123", { includeMetadata: false });
+
+    expect(markdown).toContain("title: Use PostgreSQL");
+  });
+
+  it("leaves unknown variables unreplaced when preamble contains missing vars", async () => {
+    mockContextRepo.findById.mockResolvedValue(context);
+    mockTemplateRepo.findById.mockResolvedValue(template);
+    mockMeetingRepo.findById.mockResolvedValue(meeting);
+    mockFieldAssignmentRepo.findByTemplateId.mockResolvedValue([
+      { fieldId: "field-1", order: 0, required: true },
+    ]);
+    mockFieldRepo.findById.mockResolvedValue(decisionField);
+    mockExportTemplateService.getDefaultExportTemplate.mockResolvedValue({
+      id: "exp-unknown",
+      deliberationTemplateId: "tpl-123",
+      namespace: "core",
+      name: "Unknown Var Export",
+      description: "Has unknown var",
+      preamble: "foo: {{unknown-var}}\nbar: {{date}}",
+      fields: [{ fieldId: "field-1", order: 0 }],
+      version: 1,
+      isDefault: false,
+      isCustom: false,
+      createdAt: "2026-03-16T10:00:00Z",
+    });
+
+    const markdown = await service.exportToMarkdown("ctx-123", { includeMetadata: false });
+
+    expect(markdown).toContain("foo: {{unknown-var}}");
+    expect(markdown).toContain("bar: 2026-03-15");
+  });
+
+  it("does not prepend preamble when template has no preamble field", async () => {
+    mockContextRepo.findById.mockResolvedValue(context);
+    mockTemplateRepo.findById.mockResolvedValue(template);
+    mockMeetingRepo.findById.mockResolvedValue(meeting);
+    mockFieldAssignmentRepo.findByTemplateId.mockResolvedValue([
+      { fieldId: "field-1", order: 0, required: true },
+    ]);
+    mockFieldRepo.findById.mockResolvedValue(decisionField);
+    mockExportTemplateService.getDefaultExportTemplate.mockResolvedValue({
+      id: "exp-default",
+      deliberationTemplateId: "tpl-123",
+      namespace: "core",
+      name: "Standard Decision Default Export",
+      description: "Derived default export template for Standard Decision",
+      fields: [{ fieldId: "field-1", order: 0, title: "Decision Statement" }],
+      version: 1,
+      isDefault: true,
+      isCustom: false,
+      createdAt: "2026-03-15T18:00:00Z",
+    });
+
+    const markdown = await service.exportToMarkdown("ctx-123", { includeMetadata: false });
+
+    expect(markdown).toMatch(/^# Decision:/);
+  });
+
   it("uses an explicitly selected export template when exportTemplateId is provided", async () => {
     mockContextRepo.findById.mockResolvedValue(context);
     mockTemplateRepo.findById.mockResolvedValue(template);
