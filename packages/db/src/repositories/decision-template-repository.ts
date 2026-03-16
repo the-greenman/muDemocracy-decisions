@@ -141,6 +141,7 @@ function toExportTemplateInsert(data: CreateExportTemplate): typeof exportTempla
     namespace: data.namespace,
     name: data.name,
     description: data.description,
+    ...(data.preamble !== undefined ? { preamble: data.preamble } : {}),
     ...(lineage !== undefined ? { lineage } : {}),
     ...(provenance !== undefined ? { provenance } : {}),
   };
@@ -583,6 +584,7 @@ export class DrizzleExportTemplateRepository implements IExportTemplateRepositor
       namespace: row.namespace,
       name: row.name,
       description: row.description,
+      ...(row.preamble !== null && row.preamble !== undefined ? { preamble: row.preamble } : {}),
       fields: row.fields || [],
       version: row.version,
       isDefault: row.isDefault,
