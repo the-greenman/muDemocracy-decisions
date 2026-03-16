@@ -19,6 +19,7 @@ const SetActiveDecisionRequestSchema = z
   .object({
     flaggedDecisionId: z.string().uuid(),
     templateId: z.string().uuid().optional(),
+    contextId: z.string().uuid().optional(),
   })
   .openapi("SetActiveDecisionRequest");
 

@@ -22,7 +22,7 @@ export interface IGlobalContextStore {
 export interface IGlobalContextService {
   setActiveMeeting(meetingId: string): Promise<void>;
   clearMeeting(): Promise<void>;
-  setActiveDecision(flaggedDecisionId: string, templateId?: string): Promise<DecisionContext>;
+  setActiveDecision(flaggedDecisionId: string, templateId?: string, contextId?: string): Promise<DecisionContext>;
   clearDecision(): Promise<void>;
   setActiveField(fieldId: string): Promise<void>;
   clearField(): Promise<void>;

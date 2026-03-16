@@ -412,10 +412,11 @@ export function setActiveDecision(
   meetingId: string,
   flaggedDecisionId: string,
   templateId?: string,
+  contextId?: string,
 ) {
   return apiFetch<GlobalContext>(`/api/meetings/${meetingId}/context/decision`, {
     method: "POST",
-    ...jsonBody({ flaggedDecisionId, templateId }),
+    ...jsonBody({ flaggedDecisionId, templateId, contextId }),
   });
 }
 

@@ -428,11 +428,12 @@ app.openapi(setDecisionContextRoute, async (c) => {
 
   try {
     const { id } = c.req.valid("param");
-    const { flaggedDecisionId, templateId } = c.req.valid("json");
+    const { flaggedDecisionId, templateId, contextId } = c.req.valid("json");
     await globalContextService.setActiveMeeting(id);
     const decisionContext = await globalContextService.setActiveDecision(
       flaggedDecisionId,
       templateId,
+      contextId,
     );
     if (decisionContext.meetingId !== id) {
       return c.json({ error: "Flagged decision not found" }, 404);

@@ -170,6 +170,10 @@ class MockDecisionContextService implements IDecisionContextService {
     throw new Error("Not implemented");
   }
 
+  async getById(id: string): Promise<DecisionContext | null> {
+    return this.contexts.get(id) ?? null;
+  }
+
   async getContextByFlaggedDecision(flaggedDecisionId: string): Promise<DecisionContext | null> {
     return (
       Array.from(this.contexts.values()).find(

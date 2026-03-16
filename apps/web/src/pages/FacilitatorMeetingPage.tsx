@@ -509,6 +509,7 @@ export function FacilitatorMeetingPage() {
       meetingId,
       selectedDecision.id,
       selectedDecision.suggestedTemplateId ?? undefined,
+      activeApiContextId,
     ).catch(() => {
       // no-op
     });

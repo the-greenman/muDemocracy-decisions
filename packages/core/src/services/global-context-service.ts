@@ -69,7 +69,14 @@ export class GlobalContextService implements IGlobalContextService {
       throw new Error("Ended meetings cannot be selected as the active context");
     }
 
-    await this.store.save({ activeMeetingId: meetingId });
+    const current = await this.store.load();
+    if (current.activeMeetingId === meetingId) {
+      // Same meeting — preserve decision context
+      await this.store.save({ ...current, activeMeetingId: meetingId });
+    } else {
+      // Different meeting — clear decision context
+      await this.store.save({ activeMeetingId: meetingId });
+    }
   }
 
   async clearMeeting(): Promise<void> {
@@ -79,14 +86,17 @@ export class GlobalContextService implements IGlobalContextService {
   async setActiveDecision(
     flaggedDecisionId: string,
     templateId?: string,
+    contextId?: string,
   ): Promise<DecisionContext> {
     const decision = await this.flaggedDecisionService.getDecisionById(flaggedDecisionId);
     if (!decision) {
       throw new Error("Flagged decision not found");
     }
 
-    const existing =
-      await this.decisionContextService.getContextByFlaggedDecision(flaggedDecisionId);
+    const existing = contextId
+      ? ((await this.decisionContextService.getById(contextId)) ?? undefined)
+      : ((await this.decisionContextService.getContextByFlaggedDecision(flaggedDecisionId)) ??
+        undefined);
     const context =
       existing ??
       (await this.decisionContextService.createContext({
@@ -177,10 +187,12 @@ export class GlobalContextService implements IGlobalContextService {
     const activeDecision = state.activeDecisionId
       ? ((await this.flaggedDecisionService.getDecisionById(state.activeDecisionId)) ?? undefined)
       : undefined;
-    const activeDecisionContext = state.activeDecisionId
-      ? ((await this.decisionContextService.getContextByFlaggedDecision(state.activeDecisionId)) ??
-        undefined)
-      : undefined;
+    const activeDecisionContext = state.activeDecisionContextId
+      ? ((await this.decisionContextService.getById(state.activeDecisionContextId)) ?? undefined)
+      : state.activeDecisionId
+        ? ((await this.decisionContextService.getContextByFlaggedDecision(state.activeDecisionId)) ??
+          undefined)
+        : undefined;
     const activeTemplate = activeDecisionContext?.templateId
       ? await this.getTemplateById(activeDecisionContext.templateId)
       : undefined;
