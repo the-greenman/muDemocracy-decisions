@@ -2,6 +2,8 @@
 
 Standalone Whisper transcription client for Decision Logger.
 
+This README covers only the transcription-service surface. For project overview and architecture, start with `../../README.md` and `../../docs/transcription-architecture.md`.
+
 ## What This Supports
 
 - Local verification: `transcribe-local`

@@ -2,6 +2,8 @@
 
 This guide covers setting up your local development environment for the Decision Logger project.
 
+Use the root `README.md` for the top-level project summary and `docs/OVERVIEW.md` for the documentation map and architecture hub. This document owns local setup, validation flow, and troubleshooting.
+
 ## Prerequisites
 
 - **Node.js**: 20+ (LTS recommended)
@@ -15,18 +17,15 @@ This guide covers setting up your local development environment for the Decision
 
 ```bash
 git clone <repository-url>
-cd windsurf-project
+cd decision-logger
 pnpm install
 ```
 
-### 2. Start Database
+### 2. Start Local Stack
 
 ```bash
-# Start PostgreSQL 16
-docker compose up -d
-
-# Verify database is running
-docker compose ps
+# Recommended: start postgres + apply committed migrations + build/start API
+pnpm up:stack
 ```
 
 ### 3. Configure Environment
@@ -39,13 +38,13 @@ cp .env.example .env
 # Required: ANTHROPIC_API_KEY or OPENAI_API_KEY
 ```
 
-### 4. Run Migrations
+### 4. Run Database Commands
 
 ```bash
-# Generate initial migration (Phase 1)
+# Generate committed migration artifacts after schema changes
 pnpm db:generate
 
-# Apply migrations
+# Apply committed migrations
 pnpm db:migrate
 
 # Optional: Open Drizzle Studio to inspect DB
@@ -68,12 +67,12 @@ pnpm test:coverage
 ### 6. Start Development
 
 ```bash
-# Start all apps in dev mode (Turborepo)
+# Start all app/package dev tasks (Turborepo)
 pnpm dev
 
 # Or start specific apps
-pnpm dev --filter=@repo/api
-pnpm dev --filter=@repo/cli
+pnpm --filter @repo/api dev
+pnpm --filter @repo/web dev
 ```
 
 ## Database Management

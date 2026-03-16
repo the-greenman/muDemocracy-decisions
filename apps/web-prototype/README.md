@@ -2,6 +2,8 @@
 
 Simple projection-friendly interface prototype for Decision Logger.
 
+This directory is a prototype/reference surface, not the main shipped web app entrypoint. For the active repository overview, use `../../README.md`. For current UX direction, use `../../docs/ui-ux-overview.md`.
+
 ## Run locally
 
 From repo root:
