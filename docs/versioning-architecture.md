@@ -13,6 +13,7 @@ The target model is field-centric versioning, not whole-draft snapshot versionin
 This document is authoritative for semantic rules.
 
 Use `docs/field-template-versioning-explainer.md` for the expanded rationale, examples, and strategy discussion.
+Use `docs/plans/iterative-implementation-plan.md` and the versioning proposal docs for rollout state and incomplete implementation details.
 
 ## Goals
 

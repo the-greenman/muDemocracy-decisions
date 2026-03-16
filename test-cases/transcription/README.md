@@ -2,6 +2,8 @@
 
 These fixtures are sampled from a real Whisper transcription run and are intended for local tests (T0/T1 prep).
 
+This README is fixture-local only. For the transcription service and architecture context, use `../../apps/transcription/README.md` and `../../docs/transcription-architecture.md`.
+
 ## Files
 
 - `whisper-output.sample.json`: Combined sample containing mapped `events` and a trimmed Whisper `rawResponse`

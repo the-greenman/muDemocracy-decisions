@@ -1,12 +1,46 @@
 # Decision Logger Overview
 
-**Document Role**: This is the consolidated product overview and scope summary. Specialist docs own detailed behavior, schema additions, and endpoint families for their domain. `packages/schema` is the single source of truth for domain contracts.
+**Document Role**: This is the consolidated product overview, repository orientation, and scope summary. Specialist docs own detailed behavior, schema additions, and endpoint families for their domain. `packages/schema` is the single source of truth for domain contracts.
 
-A context-driven decision logging system with LLM-assisted extraction, iterative field refinement with locking, CLI interface, and API backend for managing meeting transcripts and structured decision logs.
+Decision Logger is a schema-first monorepo for turning meeting discussion into structured decision records. It combines transcript ingestion, AI-assisted decision triage and draft generation, iterative field refinement, and exportable final decision logs across a shared core used by the API, CLI, web UI, and a separate transcription service.
+
+## Recommended Reading Order
+
+- `../README.md`
+  - top-level repository entrypoint and quick start
+- `docs/OVERVIEW.md`
+  - product scope, domain model, package boundaries, and doc map
+- `docs/development-setup.md`
+  - local setup, migrations, validation, troubleshooting
+- `docs/agentic-development-standards.md`
+  - layering, schema ownership, and service boundaries
+- `docs/plans/iterative-implementation-plan.md`
+  - current delivery status and milestone sequencing
+
+Then move into the specialist architecture docs for the area you are changing.
+
+## Repository Shape
+
+The repository is organised as a monorepo with shared business logic and multiple interfaces:
+
+- `apps/api`
+  - Hono API and OpenAPI surface
+- `apps/cli`
+  - HTTP client CLI over the API
+- `apps/web`
+  - facilitator and shared-display UI
+- `apps/transcription`
+  - separate audio-to-text service that feeds text events into the API
+- `packages/core`
+  - business logic, orchestration, LLM integration, service layer
+- `packages/db`
+  - Drizzle schema, migrations, repositories, seed data
+- `packages/schema`
+  - canonical Zod schemas and inferred shared types
 
 ## Architecture Document Map
 
-Use this document as the hub for the architecture set.
+Use this document as the hub for the architecture set. Use the root `README.md` for top-level orientation, then move here for the fuller doc map and package/domain boundaries.
 
 ### Core product and domain overview
 
@@ -84,6 +118,14 @@ Use this document as the hub for the architecture set.
 - If an architecture doc needs to mention schema or API changes that are not yet canonical, it should reference the relevant `docs/plans/` document instead of restating speculative structure inline.
 - `docs/plans/` owns temporal sequencing, rollout order, and proposed-but-not-yet-canonical changes.
 
+## Current Product Shape
+
+- The API, CLI, web UI, and transcription service are all part of the working repository surface.
+- The API and CLI share business behavior through `packages/core`.
+- The web app is the primary meeting UI surface, with a facilitator route and a separate shared-display route.
+- The transcription service remains outside the core API boundary and delivers text events into the system.
+- Evergreen docs in `docs/` should describe stable semantics and boundaries; detailed rollout or incomplete proposals should stay in `docs/plans/`.
+
 ## Core Requirements (Finalized)
 
 ### What We're Building
@@ -102,16 +144,17 @@ Use this document as the hub for the architecture set.
 9. **Operational Observability** - Emit structured logs with correlation IDs so requests, commands, streaming, and LLM operations can be debugged live
 10. **Expert System** - Support core and custom experts, with MCP-backed tool access and advice history
 11. **Decision Methods** - Record how decision was made (text metadata)
-12. **CLI Interface** - Command-line tool for testing workflow
-13. **API Backend** - API is sufficient to support future UI consumers even though no dedicated web app is in scope
-14. **Export** - Markdown/JSON export of final decisions
+12. **CLI Interface** - Command-line and automation-friendly workflow over the API
+13. **API Backend** - API surface supporting CLI, web UI, and service integrations
+14. **Web UI** - facilitator workflow and shared-display meeting interface
+15. **Export** - Markdown/JSON export of final decisions
 
 **Not in Scope:**
 - ❌ Audio capture and raw audio processing inside the core system
 - ❌ Actor identification from transcripts
 - ❌ Real-time collaboration
 - ❌ Authentication
-- ❌ A dedicated first-party web application within the current product scope
+- ❌ Embedding audio-processing infrastructure directly into the core API
 
 **Integration Assumptions:**
 - Transcript ingestion is transport-agnostic: the core system accepts text transcript events, not raw audio.

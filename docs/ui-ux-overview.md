@@ -8,9 +8,11 @@
 
 Maintain a text-first, durable description of the UI/UX so implementation stays aligned with meeting realities and does not drift into cluttered, developer-only screens.
 
+This document describes the current web product surface and UX rules. Use `README.md` for repository orientation, `docs/OVERVIEW.md` for the architecture/doc map, and `docs/web-ui-plan.md` for rollout detail and implementation sequencing.
+
 ## Primary Product UX Goal (v1)
 
-Provide a simple, presentable interface for larger meetings that is easy to project and easy to follow.
+Provide a simple, presentable interface for larger meetings that is easy to project and easy to follow, while keeping facilitator controls separate from the shared display.
 
 Required characteristics:
 - High readability at distance (large text, strong contrast, minimal visual noise).

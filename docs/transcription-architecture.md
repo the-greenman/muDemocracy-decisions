@@ -10,6 +10,8 @@ Define how audio gets converted to text and delivered to the core Decision Logge
 
 The core API is transport-agnostic: it accepts text events. The transcription service is a separate process that owns audio capture, speech-to-text, and delivery to those text endpoints.
 
+Use `README.md` for top-level repository orientation and `docs/OVERVIEW.md` for the wider architecture/document map. This document owns only the transcription boundary and transcription-specific flow semantics.
+
 ## Decision Summary
 
 1. The transcription service runs as a **separate container** - not embedded in the core API.
