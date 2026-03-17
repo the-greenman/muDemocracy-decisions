@@ -92,7 +92,7 @@ export function registerConnectionEventsRoute(
               await stream.writeSSE({
                 id: String(nextEventId++),
                 event: event.type,
-                data: JSON.stringify(event.data),
+                data: event.type === "resync" ? "{}" : JSON.stringify(event.data),
               });
             }
           }
@@ -112,7 +112,7 @@ export function registerConnectionEventsRoute(
             await stream.writeSSE({
               id: String(nextEventId++),
               event: event.type,
-              data: JSON.stringify(event.data),
+              data: event.type === "resync" ? "{}" : JSON.stringify(event.data),
             });
           });
 
