@@ -11,9 +11,9 @@ import type {
   GlobalContextState,
   IGlobalContextService,
   IGlobalContextStore,
-  ConnectionSSEEvent,
-} from "../interfaces/i-global-context-service";
-import type { DecisionContext, DecisionTemplate, TranscriptChunk, FlaggedDecision } from "@repo/schema";
+  BusEvent,
+} from "../interfaces/i-global-context-service.js";
+import type { DecisionContext, DecisionTemplate, TranscriptChunk, FlaggedDecision, DecisionLog } from "@repo/schema";
 import { ContextEventBus } from "../events/context-event-bus.js";
 
 // ---------------------------------------------------------------------------
@@ -95,7 +95,7 @@ export class GlobalContextService implements IGlobalContextService {
 
     // Emit context event
     const context = await this.getContext(connectionId);
-    this.eventBus.emit(connectionId, "context", context);
+    this.eventBus.emit(connectionId, { type: "context", data: context });
   }
 
   async clearMeeting(connectionId: string): Promise<void> {
@@ -108,7 +108,7 @@ export class GlobalContextService implements IGlobalContextService {
 
     // Emit context event
     const context = await this.getContext(connectionId);
-    this.eventBus.emit(connectionId, "context", context);
+    this.eventBus.emit(connectionId, { type: "context", data: context });
   }
 
   async setActiveDecision(
@@ -141,7 +141,7 @@ export class GlobalContextService implements IGlobalContextService {
 
     // Emit context event
     const globalContext = await this.getContext(connectionId);
-    this.eventBus.emit(connectionId, "context", globalContext);
+    this.eventBus.emit(connectionId, { type: "context", data: globalContext });
 
     return context;
   }
@@ -157,7 +157,7 @@ export class GlobalContextService implements IGlobalContextService {
 
     // Emit context event
     const context = await this.getContext(connectionId);
-    this.eventBus.emit(connectionId, "context", context);
+    this.eventBus.emit(connectionId, { type: "context", data: context });
   }
 
   async setActiveField(connectionId: string, fieldId: string): Promise<void> {
@@ -174,7 +174,7 @@ export class GlobalContextService implements IGlobalContextService {
 
     // Emit context event
     const context = await this.getContext(connectionId);
-    this.eventBus.emit(connectionId, "context", context);
+    this.eventBus.emit(connectionId, { type: "context", data: context });
   }
 
   async clearField(connectionId: string): Promise<void> {
@@ -190,7 +190,7 @@ export class GlobalContextService implements IGlobalContextService {
 
     // Emit context event
     const context = await this.getContext(connectionId);
-    this.eventBus.emit(connectionId, "context", context);
+    this.eventBus.emit(connectionId, { type: "context", data: context });
   }
 
   async getContext(connectionId: string): Promise<GlobalContext> {
@@ -269,19 +269,23 @@ export class GlobalContextService implements IGlobalContextService {
   }
 
   // Phase 2: SSE event subscription
-  subscribe(connectionId: string, listener: (event: ConnectionSSEEvent) => void): () => void {
+  subscribe(connectionId: string, listener: (event: BusEvent) => void): () => void {
     return this.eventBus.subscribe(connectionId, listener);
   }
 
   emitChunk(connectionId: string, chunk: TranscriptChunk): void {
-    this.eventBus.emit(connectionId, "chunk", chunk);
+    this.eventBus.emit(connectionId, { type: "chunk", data: chunk });
   }
 
   emitFlagged(connectionId: string, decision: FlaggedDecision): void {
-    this.eventBus.emit(connectionId, "flagged", decision);
+    this.eventBus.emit(connectionId, { type: "flagged", data: decision });
   }
 
-  replayEvents(connectionId: string, afterId: number): ConnectionSSEEvent[] | "resync" | undefined {
+  emitLogged(connectionId: string, log: DecisionLog): void {
+    this.eventBus.emit(connectionId, { type: "logged", data: log });
+  }
+
+  replayEvents(connectionId: string, afterId: number): BusEvent[] | "resync" | undefined {
     return this.eventBus.replay(connectionId, afterId);
   }
 }

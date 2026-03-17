@@ -121,10 +121,13 @@ export function registerConnectionEventsRoute(
             await stream.writeSSE({ data: "" });
           }, 30000);
 
-          // Cleanup on abort
-          stream.onAbort(() => {
-            unsubscribe();
-            clearInterval(heartbeat);
+          // Keep the stream open until the client disconnects
+          await new Promise<void>((resolve) => {
+            stream.onAbort(() => {
+              unsubscribe();
+              clearInterval(heartbeat);
+              resolve();
+            });
           });
         } catch (error) {
           console.error("Error in SSE stream:", error);

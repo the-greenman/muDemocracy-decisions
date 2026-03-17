@@ -36,43 +36,52 @@ const { app } = await import("../index");
 // ---------------------------------------------------------------------------
 
 /**
- * Reads SSE events from the response body until `count` events have arrived
- * or the controller signals abort.  Returns the raw text of collected chunks.
+ * Persistent SSE reader state.  Create once per response with `openSSE()` and
+ * pass to `readSSEEvents()` for every subsequent read on the same stream.
+ * Keeping the reader alive across calls avoids the "ReadableStream is locked"
+ * error that occurs when `getReader()` is called twice on the same body.
+ */
+interface SSEReaderState {
+  reader: ReadableStreamDefaultReader<Uint8Array>;
+  buffer: string;
+  decoder: TextDecoder;
+}
+
+function openSSE(body: ReadableStream<Uint8Array>): SSEReaderState {
+  return { reader: body.getReader(), buffer: "", decoder: new TextDecoder() };
+}
+
+/**
+ * Reads `count` SSE events from `state`, advancing the internal buffer between
+ * calls so the same reader can be reused for follow-up reads.
  */
 async function readSSEEvents(
-  body: ReadableStream<Uint8Array>,
+  state: SSEReaderState,
   count: number,
   timeoutMs = 3000,
 ): Promise<string[]> {
-  const decoder = new TextDecoder();
-  const reader = body.getReader();
   const events: string[] = [];
-  let buffer = "";
 
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error(`SSE timeout after ${timeoutMs}ms`)), timeoutMs),
   );
 
-  try {
-    await Promise.race([
-      (async () => {
-        while (events.length < count) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          // Split on double newline (SSE event boundary)
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop() ?? "";
-          for (const part of parts) {
-            if (part.trim()) events.push(part.trim());
-          }
+  await Promise.race([
+    (async () => {
+      while (events.length < count) {
+        const { value, done } = await state.reader.read();
+        if (done) break;
+        state.buffer += state.decoder.decode(value, { stream: true });
+        // Split on double newline (SSE event boundary)
+        const parts = state.buffer.split("\n\n");
+        state.buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          if (part.trim()) events.push(part.trim());
         }
-      })(),
-      timeout,
-    ]);
-  } finally {
-    reader.cancel();
-  }
+      }
+    })(),
+    timeout,
+  ]);
 
   return events;
 }
@@ -126,7 +135,7 @@ describe("GET /api/connections/:id/events (SSE)", () => {
       headers: { "X-Connection-ID": connId },
     });
 
-    const events = await readSSEEvents(response.body!, 1);
+    const events = await readSSEEvents(openSSE(response.body!), 1);
     expect(events).toHaveLength(1);
 
     const parsed = parseSSEEvent(events[0]);
@@ -142,8 +151,11 @@ describe("GET /api/connections/:id/events (SSE)", () => {
       headers: { "X-Connection-ID": connId },
     });
 
+    // Open a persistent reader — reused for both reads on the same stream
+    const stream = openSSE(sseResponse.body!);
+
     // Read the initial context snapshot
-    await readSSEEvents(sseResponse.body!, 1);
+    await readSSEEvents(stream, 1);
 
     // Trigger a context mutation on the same connection
     await app.request("/api/context/meeting", {
@@ -152,7 +164,7 @@ describe("GET /api/connections/:id/events (SSE)", () => {
     });
 
     // The stream should emit a second context event reflecting the cleared state
-    const followUpEvents = await readSSEEvents(sseResponse.body!, 1);
+    const followUpEvents = await readSSEEvents(stream, 1);
     expect(followUpEvents).toHaveLength(1);
 
     const parsed = parseSSEEvent(followUpEvents[0]);
@@ -170,8 +182,11 @@ describe("GET /api/connections/:id/events (SSE)", () => {
       headers: { "X-Connection-ID": connB },
     });
 
+    // Open a persistent reader for B's stream
+    const streamB = openSSE(responseB.body!);
+
     // Consume the initial event for B
-    await readSSEEvents(responseB.body!, 1);
+    await readSSEEvents(streamB, 1);
 
     // Mutate connection A's context
     await app.request("/api/context/meeting", {
@@ -180,7 +195,7 @@ describe("GET /api/connections/:id/events (SSE)", () => {
     });
 
     // B's stream should NOT receive an additional event — timeout is expected
-    await expect(readSSEEvents(responseB.body!, 1, 300)).rejects.toThrow("SSE timeout");
+    await expect(readSSEEvents(streamB, 1, 300)).rejects.toThrow("SSE timeout");
   });
 
   it("each SSE event carries a monotonically increasing id", async () => {
@@ -190,8 +205,10 @@ describe("GET /api/connections/:id/events (SSE)", () => {
       headers: { "X-Connection-ID": connId },
     });
 
+    const stream = openSSE(sseResponse.body!);
+
     // Initial event
-    const firstEvents = await readSSEEvents(sseResponse.body!, 1);
+    const firstEvents = await readSSEEvents(stream, 1);
     const first = parseSSEEvent(firstEvents[0]);
 
     // Trigger mutation
@@ -201,7 +218,7 @@ describe("GET /api/connections/:id/events (SSE)", () => {
     });
 
     // Second event
-    const secondEvents = await readSSEEvents(sseResponse.body!, 1);
+    const secondEvents = await readSSEEvents(stream, 1);
     const second = parseSSEEvent(secondEvents[0]);
 
     expect(Number(first.id)).toBeGreaterThanOrEqual(0);
@@ -232,7 +249,7 @@ describe("GET /api/connections/:id/events (SSE)", () => {
     });
 
     expect(response.status).toBe(200);
-    const events = await readSSEEvents(response.body!, 2);
+    const events = await readSSEEvents(openSSE(response.body!), 2);
     expect(events).toHaveLength(2);
 
     const ids = events.map((e) => Number(parseSSEEvent(e).id));
@@ -256,7 +273,7 @@ describe("GET /api/connections/:id/events (SSE)", () => {
     });
 
     expect(response.status).toBe(200);
-    const events = await readSSEEvents(response.body!, 1);
+    const events = await readSSEEvents(openSSE(response.body!), 1);
     const parsed = parseSSEEvent(events[0]);
 
     // If the server has no ring buffer for this connection (first connect) it sends

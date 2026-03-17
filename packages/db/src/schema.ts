@@ -180,6 +180,7 @@ export const transcriptChunks = pgTable(
     wordCount: integer("word_count"),
     contexts: text("contexts").array().notNull(),
     topics: text("topics").array(),
+    streamSource: text("stream_source"), // Phase 3: Track source of streaming chunks
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
@@ -726,6 +727,35 @@ export type ConnectionSelect = typeof connections.$inferSelect;
 export type ConnectionInsert = typeof connections.$inferInsert;
 
 // ============================================================================
+// STREAM EVENTS (Phase 3)
+// ============================================================================
+
+export const streamEvents = pgTable(
+  "stream_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    meetingId: uuid("meeting_id").notNull().references(() => meetings.id),
+    type: text("type").notNull(), // "text" | "metadata" | etc.
+    text: text("text"), // Extracted text content for text events
+    speaker: text("speaker"),
+    startTime: timestamp("start_time", { withTimezone: true }),
+    endTime: timestamp("end_time", { withTimezone: true }),
+    streamSource: text("stream_source"), // e.g., "transcription", "local-audio"
+    data: jsonb("data").notNull(), // Full event payload
+    flushed: boolean("flushed").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    meetingIdx: index("stream_events_meeting_idx").on(table.meetingId),
+    flushedIdx: index("stream_events_flushed_idx").on(table.flushed),
+    meetingFlushedIdx: index("stream_events_meeting_flushed_idx").on(table.meetingId, table.flushed),
+  }),
+);
+
+export type StreamEventSelect = typeof streamEvents.$inferSelect;
+export type StreamEventInsert = typeof streamEvents.$inferInsert;
+
+// ============================================================================
 // SCHEMA EXPORT
 // ============================================================================
 
@@ -734,6 +764,7 @@ export const schema = {
   meetings,
   rawTranscripts,
   transcriptChunks,
+  streamEvents,
   chunkRelevance,
   decisionContextWindows,
   decisionFields,

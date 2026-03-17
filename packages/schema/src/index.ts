@@ -140,6 +140,7 @@ export const TranscriptChunkSchema = z
     wordCount: z.number().int().optional(),
     contexts: z.array(z.string()).default([]),
     topics: z.array(z.string()).optional(),
+    streamSource: z.string().optional(), // Phase 3: Track source of streaming chunks
     createdAt: z.string().datetime({ offset: true }),
   })
   .openapi("TranscriptChunk", {
@@ -158,6 +159,7 @@ export const TranscriptChunkSchema = z
       wordCount: 7,
       contexts: ["meeting:550e8400-e29b-41d4-a716-446655440000"],
       topics: ["architecture"],
+      streamSource: "transcription",
       createdAt: "2026-02-27T10:00:00Z",
     },
   });
@@ -177,6 +179,7 @@ export const CreateTranscriptChunkSchema = TranscriptChunkSchema.pick({
   wordCount: true,
   contexts: true,
   topics: true,
+  streamSource: true,
 });
 
 export type CreateTranscriptChunk = z.infer<typeof CreateTranscriptChunkSchema>;

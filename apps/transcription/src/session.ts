@@ -91,9 +91,10 @@ function buildBatchDependencies(
 ): BatchTranscriptionDependencies {
   const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
+  const connectionId = process.env.DECISION_LOGGER_CONNECTION_ID;
   return {
     provider: deps?.provider ?? createProviderFromEnv(),
-    apiClient: deps?.apiClient ?? new DecisionLoggerApiClient(apiUrl, apiKey),
+    apiClient: deps?.apiClient ?? new DecisionLoggerApiClient(apiUrl, apiKey, fetch, connectionId),
     readAudioFile: deps?.readAudioFile ?? readFile,
     sleep: deps?.sleep ?? wait,
     deliveryConfig: resolveDeliveryConfig(deps?.deliveryConfig),
@@ -111,6 +112,7 @@ function createDefaultLiveDependencies(
 ): LiveTranscriptionDependencies {
   const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
+  const connectionId = process.env.DECISION_LOGGER_CONNECTION_ID;
   const defaultRegisterSignalHandlers = (onShutdown: CleanupFn): CleanupFn => {
     let shutdownPromise: Promise<void> | null = null;
     const handler = () => {
@@ -129,7 +131,7 @@ function createDefaultLiveDependencies(
 
   return {
     provider: deps?.provider ?? createProviderFromEnv(),
-    apiClient: deps?.apiClient ?? new DecisionLoggerApiClient(apiUrl, apiKey),
+    apiClient: deps?.apiClient ?? new DecisionLoggerApiClient(apiUrl, apiKey, fetch, connectionId),
     createChunkSource: deps?.createChunkSource ?? createFfmpegChunkSource,
     registerSignalHandlers: deps?.registerSignalHandlers ?? defaultRegisterSignalHandlers,
     sleep: deps?.sleep ?? wait,
@@ -442,7 +444,8 @@ export async function runLocalTranscription(options: LocalTranscriptionOptions):
 export async function runUploadSmoke(options: UploadSmokeOptions): Promise<void> {
   const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
-  const apiClient = new DecisionLoggerApiClient(apiUrl, apiKey);
+  const connectionId = process.env.DECISION_LOGGER_CONNECTION_ID;
+  const apiClient = new DecisionLoggerApiClient(apiUrl, apiKey, fetch, connectionId);
 
   let meetingId = options.meetingId;
   if (!meetingId) {

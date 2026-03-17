@@ -347,9 +347,10 @@ async function normalizeAudioChunkWithFfmpeg(audio: Buffer): Promise<Buffer> {
 export async function startWebServer(options?: StartWebServerOptions): Promise<RunningWebServer> {
   const apiUrl = resolveDecisionLoggerApiUrl();
   const apiKey = process.env.DECISION_LOGGER_API_KEY;
+  const connectionId = process.env.DECISION_LOGGER_CONNECTION_ID;
 
   const provider = options?.provider ?? createProviderFromEnv();
-  const apiClient = options?.apiClient ?? new DecisionLoggerApiClient(apiUrl, apiKey);
+  const apiClient = options?.apiClient ?? new DecisionLoggerApiClient(apiUrl, apiKey, fetch, connectionId);
   const sleep = options?.sleep ?? wait;
   const deliveryConfig = resolveDeliveryConfig(options?.deliveryConfig);
   const maxChunkBytes =

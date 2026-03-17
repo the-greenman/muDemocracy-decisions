@@ -22,6 +22,7 @@ export class DecisionLoggerApiClient {
     private readonly baseUrl: string,
     private readonly apiKey?: string,
     private readonly fetchImpl: FetchLike = fetch,
+    private readonly connectionId?: string,
   ) {}
 
   async postStreamEvent(meetingId: string, event: TranscriptEvent): Promise<void> {
@@ -35,6 +36,7 @@ export class DecisionLoggerApiClient {
             ? undefined
             : formatSecondsAsTimestamp(event.startTimeSeconds),
         sequenceNumber: event.sequenceNumber,
+        streamSource: "transcription", // Phase 3: Add streamSource label
       },
     });
   }
@@ -94,6 +96,10 @@ export class DecisionLoggerApiClient {
 
     if (this.apiKey !== undefined) {
       headers["x-api-key"] = this.apiKey;
+    }
+
+    if (this.connectionId !== undefined) {
+      headers["x-connection-id"] = this.connectionId;
     }
 
     const requestInit: RequestInit = {
