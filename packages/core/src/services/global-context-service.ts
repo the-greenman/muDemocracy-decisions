@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import { homedir } from "os";
 import type { IMeetingRepository } from "../interfaces/i-meeting-repository";
@@ -45,7 +45,9 @@ export class FileGlobalContextStore implements IGlobalContextStore {
 
   async save(state: GlobalContextState): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
-    await writeFile(this.filePath, JSON.stringify(state, null, 2), "utf-8");
+    const tmp = `${this.filePath}.tmp`;
+    await writeFile(tmp, JSON.stringify(state, null, 2), "utf-8");
+    await rename(tmp, this.filePath);
   }
 }
 
