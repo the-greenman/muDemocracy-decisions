@@ -9,6 +9,9 @@ vi.stubGlobal("fetch", fetchMock);
 const stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 const baseUrl =
   process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? "http://localhost:3001";
+const connId = process.env.DECISION_LOGGER_CONNECTION_ID ?? "";
+const connHeader = { "X-Connection-ID": connId };
+const jsonConnHeader = { "Content-Type": "application/json", "X-Connection-ID": connId };
 
 describe("CLI client request shapes", () => {
   beforeEach(() => {
@@ -28,7 +31,7 @@ describe("CLI client request shapes", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(`${baseUrl}/api/decision-contexts/ctx/lock-field`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonConnHeader,
       body: JSON.stringify({ fieldId: "field-1" }),
     });
   });
@@ -64,7 +67,7 @@ describe("CLI client request shapes", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/meetings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonConnHeader,
       body: JSON.stringify({
         title: "Q1 Planning",
         date: "2026-03-10T00:00:00Z",
@@ -129,13 +132,16 @@ describe("CLI command request shapes", () => {
       from: "node",
     });
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/context`, { method: "GET" });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/context`, {
+      method: "GET",
+      headers: connHeader,
+    });
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${baseUrl}/api/decision-contexts/ctx-1/lock-field`,
       {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: jsonConnHeader,
         body: JSON.stringify({ fieldId: "field-1" }),
       },
     );
@@ -164,7 +170,7 @@ describe("CLI command request shapes", () => {
       `${baseUrl}/api/decision-contexts/ctx-1/lock-field`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: jsonConnHeader,
         body: JSON.stringify({ fieldId: "field-1" }),
       },
     );
@@ -193,13 +199,16 @@ describe("CLI command request shapes", () => {
       { from: "node" },
     );
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/context`, { method: "GET" });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/context`, {
+      method: "GET",
+      headers: connHeader,
+    });
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${baseUrl}/api/meetings/meeting-1/context/decision`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: jsonConnHeader,
         body: JSON.stringify({ flaggedDecisionId: "decision-1", templateId: "template-1" }),
       },
     );
@@ -223,6 +232,7 @@ describe("CLI command request shapes", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/context/meeting`, {
       method: "DELETE",
+      headers: connHeader,
     });
   });
 
@@ -251,7 +261,7 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${baseUrl}/api/meetings/meeting-1/context/decision`,
-      { method: "DELETE" },
+      { method: "DELETE", headers: connHeader },
     );
   });
 
@@ -274,7 +284,7 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${baseUrl}/api/meetings/meeting-1/context/field`,
-      { method: "DELETE" },
+      { method: "DELETE", headers: connHeader },
     );
   });
 
@@ -294,7 +304,7 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/meetings/meeting-1/flagged-decisions`,
-      { method: "GET" },
+      { method: "GET", headers: connHeader },
     );
   });
 
@@ -325,7 +335,7 @@ describe("CLI command request shapes", () => {
       `${baseUrl}/api/meetings/meeting-1/flagged-decisions`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: jsonConnHeader,
         body: JSON.stringify({
           suggestedTitle: "Approve migration",
           contextSummary: "",
@@ -374,7 +384,7 @@ describe("CLI command request shapes", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(2, `${baseUrl}/api/decision-contexts/ctx-1/log`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonConnHeader,
       body: JSON.stringify({
         loggedBy: "Tester",
         decisionMethod: { type: "manual", details: "Confirmed in review" },
@@ -395,7 +405,7 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/decisions/log-1/export?format=markdown`,
-      { method: "GET" },
+      { method: "GET", headers: connHeader },
     );
   });
 
@@ -414,7 +424,7 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/decisions/log-1/export?format=json`,
-      { method: "GET" },
+      { method: "GET", headers: connHeader },
     );
   });
 
@@ -439,7 +449,10 @@ describe("CLI command request shapes", () => {
     const { statusCommand } = await import("../commands/status.js");
     await statusCommand.parseAsync(["node", "status"], { from: "node" });
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/status`, { method: "GET" });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, `${baseUrl}/api/status`, {
+      method: "GET",
+      headers: connHeader,
+    });
 
     consoleLogSpy.mockRestore();
   });
@@ -471,7 +484,7 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/meetings/meeting-1/transcript-reading`,
-      { method: "GET" },
+      { method: "GET", headers: connHeader },
     );
 
     consoleLogSpy.mockRestore();
@@ -532,15 +545,16 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/meetings/meeting-1/streaming/status`,
-      { method: "GET" },
+      { method: "GET", headers: connHeader },
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${baseUrl}/api/meetings/meeting-1/transcript-reading`,
-      { method: "GET" },
+      { method: "GET", headers: connHeader },
     );
     expect(fetchMock).toHaveBeenNthCalledWith(3, `${baseUrl}/api/meetings/meeting-1/chunks`, {
       method: "GET",
+      headers: connHeader,
     });
     expect(fetchMock).toHaveBeenNthCalledWith(4, "http://localhost:8788/health", { method: "GET" });
     expect(fetchMock).toHaveBeenNthCalledWith(5, "http://localhost:8788/status", {
@@ -570,7 +584,7 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/meetings/meeting-1/streaming/flush`,
-      { method: "POST" },
+      { method: "POST", headers: connHeader },
     );
 
     consoleLogSpy.mockRestore();
@@ -709,12 +723,12 @@ describe("CLI command request shapes", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/api/meetings/meeting-1/streaming/flush`,
-      { method: "POST" },
+      { method: "POST", headers: connHeader },
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${baseUrl}/api/meetings/meeting-1/transcript-reading`,
-      { method: "GET" },
+      { method: "GET", headers: connHeader },
     );
 
     consoleLogSpy.mockRestore();
