@@ -1,0 +1,2302 @@
+{
+  "id": "13c695be-2054-463a-8e04-d23a3d7aa663",
+  "prevId": "6eeb15a3-821a-435a-8434-0657075d4d89",
+  "version": "5",
+  "dialect": "pg",
+  "tables": {
+    "chunk_relevance": {
+      "name": "chunk_relevance",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "chunk_id": {
+          "name": "chunk_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision_context_id": {
+          "name": "decision_context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relevance": {
+          "name": "relevance",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tagged_by": {
+          "name": "tagged_by",
+          "type": "tagged_by",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tagged_at": {
+          "name": "tagged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_chunk_relevance_chunk": {
+          "name": "idx_chunk_relevance_chunk",
+          "columns": [
+            "chunk_id"
+          ],
+          "isUnique": false
+        },
+        "idx_chunk_relevance_context": {
+          "name": "idx_chunk_relevance_context",
+          "columns": [
+            "decision_context_id"
+          ],
+          "isUnique": false
+        },
+        "idx_chunk_relevance_field": {
+          "name": "idx_chunk_relevance_field",
+          "columns": [
+            "field_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "chunk_relevance_chunk_id_transcript_chunks_id_fk": {
+          "name": "chunk_relevance_chunk_id_transcript_chunks_id_fk",
+          "tableFrom": "chunk_relevance",
+          "tableTo": "transcript_chunks",
+          "columnsFrom": [
+            "chunk_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "connections": {
+      "name": "connections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "active_meeting_id": {
+          "name": "active_meeting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active_decision_id": {
+          "name": "active_decision_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active_decision_context_id": {
+          "name": "active_decision_context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active_field": {
+          "name": "active_field",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_seen": {
+          "name": "last_seen",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "connections_active_meeting_id_meetings_id_fk": {
+          "name": "connections_active_meeting_id_meetings_id_fk",
+          "tableFrom": "connections",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "active_meeting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "connections_active_decision_id_flagged_decisions_id_fk": {
+          "name": "connections_active_decision_id_flagged_decisions_id_fk",
+          "tableFrom": "connections",
+          "tableTo": "flagged_decisions",
+          "columnsFrom": [
+            "active_decision_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "connections_active_decision_context_id_decision_contexts_id_fk": {
+          "name": "connections_active_decision_context_id_decision_contexts_id_fk",
+          "tableFrom": "connections",
+          "tableTo": "decision_contexts",
+          "columnsFrom": [
+            "active_decision_context_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "decision_context_windows": {
+      "name": "decision_context_windows",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "decision_context_id": {
+          "name": "decision_context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chunk_ids": {
+          "name": "chunk_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selection_strategy": {
+          "name": "selection_strategy",
+          "type": "selection_strategy",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_tokens": {
+          "name": "total_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_chunks": {
+          "name": "total_chunks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relevance_scores": {
+          "name": "relevance_scores",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "used_for": {
+          "name": "used_for",
+          "type": "used_for",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_context_windows_context": {
+          "name": "idx_context_windows_context",
+          "columns": [
+            "decision_context_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "decision_contexts": {
+      "name": "decision_contexts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "meeting_id": {
+          "name": "meeting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "flagged_decision_id": {
+          "name": "flagged_decision_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_field": {
+          "name": "active_field",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locked_fields": {
+          "name": "locked_fields",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
+        "draft_data": {
+          "name": "draft_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "draft_versions": {
+          "name": "draft_versions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "suggested_tags": {
+          "name": "suggested_tags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "decision_context_status",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'drafting'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_decision_contexts_meeting": {
+          "name": "idx_decision_contexts_meeting",
+          "columns": [
+            "meeting_id"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_contexts_flagged": {
+          "name": "idx_decision_contexts_flagged",
+          "columns": [
+            "flagged_decision_id"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_contexts_status": {
+          "name": "idx_decision_contexts_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "decision_contexts_meeting_id_meetings_id_fk": {
+          "name": "decision_contexts_meeting_id_meetings_id_fk",
+          "tableFrom": "decision_contexts",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "meeting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "decision_contexts_flagged_decision_id_flagged_decisions_id_fk": {
+          "name": "decision_contexts_flagged_decision_id_flagged_decisions_id_fk",
+          "tableFrom": "decision_contexts",
+          "tableTo": "flagged_decisions",
+          "columnsFrom": [
+            "flagged_decision_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "decision_contexts_template_id_decision_templates_id_fk": {
+          "name": "decision_contexts_template_id_decision_templates_id_fk",
+          "tableFrom": "decision_contexts",
+          "tableTo": "decision_templates",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "decision_contexts_active_field_decision_fields_id_fk": {
+          "name": "decision_contexts_active_field_decision_fields_id_fk",
+          "tableFrom": "decision_contexts",
+          "tableTo": "decision_fields",
+          "columnsFrom": [
+            "active_field"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "decision_feedback": {
+      "name": "decision_feedback",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "decision_context_id": {
+          "name": "decision_context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "draft_version_number": {
+          "name": "draft_version_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "field_version_id": {
+          "name": "field_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rating": {
+          "name": "rating",
+          "type": "feedback_rating",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "feedback_source",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text_reference": {
+          "name": "text_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference_id": {
+          "name": "reference_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference_url": {
+          "name": "reference_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "exclude_from_regeneration": {
+          "name": "exclude_from_regeneration",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_decision_feedback_context": {
+          "name": "idx_decision_feedback_context",
+          "columns": [
+            "decision_context_id"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_feedback_field": {
+          "name": "idx_decision_feedback_field",
+          "columns": [
+            "field_id"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_feedback_context_field": {
+          "name": "idx_decision_feedback_context_field",
+          "columns": [
+            "decision_context_id",
+            "field_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "decision_feedback_decision_context_id_decision_contexts_id_fk": {
+          "name": "decision_feedback_decision_context_id_decision_contexts_id_fk",
+          "tableFrom": "decision_feedback",
+          "tableTo": "decision_contexts",
+          "columnsFrom": [
+            "decision_context_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "decision_feedback_field_id_decision_fields_id_fk": {
+          "name": "decision_feedback_field_id_decision_fields_id_fk",
+          "tableFrom": "decision_feedback",
+          "tableTo": "decision_fields",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "decision_fields": {
+      "name": "decision_fields",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "namespace": {
+          "name": "namespace",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'core'"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "field_category",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "extraction_prompt": {
+          "name": "extraction_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "instructions": {
+          "name": "instructions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "field_type": {
+          "name": "field_type",
+          "type": "field_type",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placeholder": {
+          "name": "placeholder",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "validation_rules": {
+          "name": "validation_rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "is_custom": {
+          "name": "is_custom",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_decision_fields_namespace": {
+          "name": "idx_decision_fields_namespace",
+          "columns": [
+            "namespace"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_fields_category": {
+          "name": "idx_decision_fields_category",
+          "columns": [
+            "category"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_fields_name": {
+          "name": "idx_decision_fields_name",
+          "columns": [
+            "name"
+          ],
+          "isUnique": false
+        },
+        "uq_decision_fields_namespace_name_version": {
+          "name": "uq_decision_fields_namespace_name_version",
+          "columns": [
+            "namespace",
+            "name",
+            "version"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "decision_logs": {
+      "name": "decision_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "meeting_id": {
+          "name": "meeting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision_context_id": {
+          "name": "decision_context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "template_version": {
+          "name": "template_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fields": {
+          "name": "fields",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision_method": {
+          "name": "decision_method",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_chunk_ids": {
+          "name": "source_chunk_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "logged_at": {
+          "name": "logged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "logged_by": {
+          "name": "logged_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "idx_decision_logs_meeting": {
+          "name": "idx_decision_logs_meeting",
+          "columns": [
+            "meeting_id"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_logs_context": {
+          "name": "idx_decision_logs_context",
+          "columns": [
+            "decision_context_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "decision_logs_meeting_id_meetings_id_fk": {
+          "name": "decision_logs_meeting_id_meetings_id_fk",
+          "tableFrom": "decision_logs",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "meeting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "decision_logs_decision_context_id_decision_contexts_id_fk": {
+          "name": "decision_logs_decision_context_id_decision_contexts_id_fk",
+          "tableFrom": "decision_logs",
+          "tableTo": "decision_contexts",
+          "columnsFrom": [
+            "decision_context_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "decision_logs_template_id_decision_templates_id_fk": {
+          "name": "decision_logs_template_id_decision_templates_id_fk",
+          "tableFrom": "decision_logs",
+          "tableTo": "decision_templates",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "decision_templates": {
+      "name": "decision_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "namespace": {
+          "name": "namespace",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'core'"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_template": {
+          "name": "prompt_template",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category": {
+          "name": "category",
+          "type": "template_category",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_custom": {
+          "name": "is_custom",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_decision_templates_namespace": {
+          "name": "idx_decision_templates_namespace",
+          "columns": [
+            "namespace"
+          ],
+          "isUnique": false
+        },
+        "idx_decision_templates_category": {
+          "name": "idx_decision_templates_category",
+          "columns": [
+            "category"
+          ],
+          "isUnique": false
+        },
+        "uq_decision_templates_namespace_name_version": {
+          "name": "uq_decision_templates_namespace_name_version",
+          "columns": [
+            "namespace",
+            "name",
+            "version"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "expert_advice": {
+      "name": "expert_advice",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "decision_context_id": {
+          "name": "decision_context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expert_id": {
+          "name": "expert_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expert_name": {
+          "name": "expert_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request": {
+          "name": "request",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "response": {
+          "name": "response",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mcp_tools_used": {
+          "name": "mcp_tools_used",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_expert_advice_context": {
+          "name": "idx_expert_advice_context",
+          "columns": [
+            "decision_context_id"
+          ],
+          "isUnique": false
+        },
+        "idx_expert_advice_expert": {
+          "name": "idx_expert_advice_expert",
+          "columns": [
+            "expert_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "expert_advice_decision_context_id_decision_contexts_id_fk": {
+          "name": "expert_advice_decision_context_id_decision_contexts_id_fk",
+          "tableFrom": "expert_advice",
+          "tableTo": "decision_contexts",
+          "columnsFrom": [
+            "decision_context_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "expert_advice_expert_id_expert_templates_id_fk": {
+          "name": "expert_advice_expert_id_expert_templates_id_fk",
+          "tableFrom": "expert_advice",
+          "tableTo": "expert_templates",
+          "columnsFrom": [
+            "expert_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "expert_templates": {
+      "name": "expert_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "expert_type",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_template": {
+          "name": "prompt_template",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mcp_access": {
+          "name": "mcp_access",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "output_schema": {
+          "name": "output_schema",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_expert_templates_type": {
+          "name": "idx_expert_templates_type",
+          "columns": [
+            "type"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "export_template_field_assignments": {
+      "name": "export_template_field_assignments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "export_template_id": {
+          "name": "export_template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_export_template_assignments_template": {
+          "name": "idx_export_template_assignments_template",
+          "columns": [
+            "export_template_id"
+          ],
+          "isUnique": false
+        },
+        "idx_export_template_assignments_field": {
+          "name": "idx_export_template_assignments_field",
+          "columns": [
+            "field_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "export_template_field_assignments_export_template_id_export_templates_id_fk": {
+          "name": "export_template_field_assignments_export_template_id_export_templates_id_fk",
+          "tableFrom": "export_template_field_assignments",
+          "tableTo": "export_templates",
+          "columnsFrom": [
+            "export_template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "export_template_field_assignments_field_id_decision_fields_id_fk": {
+          "name": "export_template_field_assignments_field_id_decision_fields_id_fk",
+          "tableFrom": "export_template_field_assignments",
+          "tableTo": "decision_fields",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "export_templates": {
+      "name": "export_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "deliberation_template_id": {
+          "name": "deliberation_template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "namespace": {
+          "name": "namespace",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'core'"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preamble": {
+          "name": "preamble",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_custom": {
+          "name": "is_custom",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "lineage": {
+          "name": "lineage",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provenance": {
+          "name": "provenance",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_export_templates_deliberation_template": {
+          "name": "idx_export_templates_deliberation_template",
+          "columns": [
+            "deliberation_template_id"
+          ],
+          "isUnique": false
+        },
+        "idx_export_templates_namespace": {
+          "name": "idx_export_templates_namespace",
+          "columns": [
+            "namespace"
+          ],
+          "isUnique": false
+        },
+        "idx_export_templates_is_default": {
+          "name": "idx_export_templates_is_default",
+          "columns": [
+            "is_default"
+          ],
+          "isUnique": false
+        },
+        "uq_export_templates_namespace_name_version": {
+          "name": "uq_export_templates_namespace_name_version",
+          "columns": [
+            "namespace",
+            "name",
+            "version"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "export_templates_deliberation_template_id_decision_templates_id_fk": {
+          "name": "export_templates_deliberation_template_id_decision_templates_id_fk",
+          "tableFrom": "export_templates",
+          "tableTo": "decision_templates",
+          "columnsFrom": [
+            "deliberation_template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "flagged_decisions": {
+      "name": "flagged_decisions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "meeting_id": {
+          "name": "meeting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "suggested_title": {
+          "name": "suggested_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "context_summary": {
+          "name": "context_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chunk_ids": {
+          "name": "chunk_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "suggested_template_id": {
+          "name": "suggested_template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "template_confidence": {
+          "name": "template_confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "flagged_decision_status",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_flagged_decisions_meeting": {
+          "name": "idx_flagged_decisions_meeting",
+          "columns": [
+            "meeting_id"
+          ],
+          "isUnique": false
+        },
+        "idx_flagged_decisions_status": {
+          "name": "idx_flagged_decisions_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        },
+        "idx_flagged_decisions_priority": {
+          "name": "idx_flagged_decisions_priority",
+          "columns": [
+            "priority"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "flagged_decisions_meeting_id_meetings_id_fk": {
+          "name": "flagged_decisions_meeting_id_meetings_id_fk",
+          "tableFrom": "flagged_decisions",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "meeting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "flagged_decisions_suggested_template_id_decision_templates_id_fk": {
+          "name": "flagged_decisions_suggested_template_id_decision_templates_id_fk",
+          "tableFrom": "flagged_decisions",
+          "tableTo": "decision_templates",
+          "columnsFrom": [
+            "suggested_template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "llm_interactions": {
+      "name": "llm_interactions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "decision_context_id": {
+          "name": "decision_context_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "operation": {
+          "name": "operation",
+          "type": "llm_interaction_operation",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_segments": {
+          "name": "prompt_segments",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_text": {
+          "name": "prompt_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "response_text": {
+          "name": "response_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parsed_result": {
+          "name": "parsed_result",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latency_ms": {
+          "name": "latency_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_count": {
+          "name": "token_count",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "llm_interactions_decision_context_idx": {
+          "name": "llm_interactions_decision_context_idx",
+          "columns": [
+            "decision_context_id"
+          ],
+          "isUnique": false
+        },
+        "llm_interactions_field_idx": {
+          "name": "llm_interactions_field_idx",
+          "columns": [
+            "field_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "mcp_servers": {
+      "name": "mcp_servers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "mcp_server_type",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "connection_config": {
+          "name": "connection_config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "capabilities": {
+          "name": "capabilities",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "mcp_server_status",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_mcp_servers_name": {
+          "name": "idx_mcp_servers_name",
+          "columns": [
+            "name"
+          ],
+          "isUnique": false
+        },
+        "idx_mcp_servers_status": {
+          "name": "idx_mcp_servers_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "mcp_servers_name_unique": {
+          "name": "mcp_servers_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      }
+    },
+    "meetings": {
+      "name": "meetings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "participants": {
+          "name": "participants",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "meeting_status",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'proposed'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_meetings_status": {
+          "name": "idx_meetings_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        },
+        "idx_meetings_date": {
+          "name": "idx_meetings_date",
+          "columns": [
+            "date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "raw_transcripts": {
+      "name": "raw_transcripts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "meeting_id": {
+          "name": "meeting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "transcript_source",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "format": {
+          "name": "format",
+          "type": "transcript_format",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_raw_transcripts_meeting": {
+          "name": "idx_raw_transcripts_meeting",
+          "columns": [
+            "meeting_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "raw_transcripts_meeting_id_meetings_id_fk": {
+          "name": "raw_transcripts_meeting_id_meetings_id_fk",
+          "tableFrom": "raw_transcripts",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "meeting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "supplementary_content": {
+      "name": "supplementary_content",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "meeting_id": {
+          "name": "meeting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_type": {
+          "name": "source_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
+        "contexts": {
+          "name": "contexts",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_supcontent_meeting": {
+          "name": "idx_supcontent_meeting",
+          "columns": [
+            "meeting_id"
+          ],
+          "isUnique": false
+        },
+        "idx_supcontent_contexts": {
+          "name": "idx_supcontent_contexts",
+          "columns": [
+            "contexts"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "supplementary_content_meeting_id_meetings_id_fk": {
+          "name": "supplementary_content_meeting_id_meetings_id_fk",
+          "tableFrom": "supplementary_content",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "meeting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "template_field_assignments": {
+      "name": "template_field_assignments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "required": {
+          "name": "required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "idx_template_assignments_template": {
+          "name": "idx_template_assignments_template",
+          "columns": [
+            "template_id"
+          ],
+          "isUnique": false
+        },
+        "idx_template_assignments_field": {
+          "name": "idx_template_assignments_field",
+          "columns": [
+            "field_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "template_field_assignments_template_id_decision_templates_id_fk": {
+          "name": "template_field_assignments_template_id_decision_templates_id_fk",
+          "tableFrom": "template_field_assignments",
+          "tableTo": "decision_templates",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "template_field_assignments_field_id_decision_fields_id_fk": {
+          "name": "template_field_assignments_field_id_decision_fields_id_fk",
+          "tableFrom": "template_field_assignments",
+          "tableTo": "decision_fields",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "transcript_chunks": {
+      "name": "transcript_chunks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "meeting_id": {
+          "name": "meeting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw_transcript_id": {
+          "name": "raw_transcript_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence_number": {
+          "name": "sequence_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "speaker": {
+          "name": "speaker",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chunk_strategy": {
+          "name": "chunk_strategy",
+          "type": "chunk_strategy",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_count": {
+          "name": "token_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "word_count": {
+          "name": "word_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contexts": {
+          "name": "contexts",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "topics": {
+          "name": "topics",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_transcript_chunks_meeting": {
+          "name": "idx_transcript_chunks_meeting",
+          "columns": [
+            "meeting_id"
+          ],
+          "isUnique": false
+        },
+        "idx_transcript_chunks_raw": {
+          "name": "idx_transcript_chunks_raw",
+          "columns": [
+            "raw_transcript_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "transcript_chunks_meeting_id_meetings_id_fk": {
+          "name": "transcript_chunks_meeting_id_meetings_id_fk",
+          "tableFrom": "transcript_chunks",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "meeting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transcript_chunks_raw_transcript_id_raw_transcripts_id_fk": {
+          "name": "transcript_chunks_raw_transcript_id_raw_transcripts_id_fk",
+          "tableFrom": "transcript_chunks",
+          "tableTo": "raw_transcripts",
+          "columnsFrom": [
+            "raw_transcript_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {
+    "chunk_strategy": {
+      "name": "chunk_strategy",
+      "values": {
+        "fixed": "fixed",
+        "semantic": "semantic",
+        "speaker": "speaker",
+        "streaming": "streaming"
+      }
+    },
+    "decision_context_status": {
+      "name": "decision_context_status",
+      "values": {
+        "drafting": "drafting",
+        "reviewing": "reviewing",
+        "locked": "locked",
+        "logged": "logged"
+      }
+    },
+    "decision_method": {
+      "name": "decision_method",
+      "values": {
+        "consensus": "consensus",
+        "vote": "vote",
+        "authority": "authority",
+        "defer": "defer",
+        "reject": "reject"
+      }
+    },
+    "expert_type": {
+      "name": "expert_type",
+      "values": {
+        "technical": "technical",
+        "legal": "legal",
+        "stakeholder": "stakeholder",
+        "custom": "custom"
+      }
+    },
+    "feedback_rating": {
+      "name": "feedback_rating",
+      "values": {
+        "approved": "approved",
+        "needs_work": "needs_work",
+        "rejected": "rejected"
+      }
+    },
+    "feedback_source": {
+      "name": "feedback_source",
+      "values": {
+        "user": "user",
+        "expert_agent": "expert_agent",
+        "peer_user": "peer_user"
+      }
+    },
+    "field_category": {
+      "name": "field_category",
+      "values": {
+        "context": "context",
+        "evaluation": "evaluation",
+        "outcome": "outcome",
+        "metadata": "metadata"
+      }
+    },
+    "field_type": {
+      "name": "field_type",
+      "values": {
+        "text": "text",
+        "textarea": "textarea",
+        "select": "select",
+        "multiselect": "multiselect",
+        "number": "number",
+        "date": "date",
+        "url": "url"
+      }
+    },
+    "flagged_decision_status": {
+      "name": "flagged_decision_status",
+      "values": {
+        "pending": "pending",
+        "accepted": "accepted",
+        "rejected": "rejected",
+        "dismissed": "dismissed"
+      }
+    },
+    "llm_interaction_operation": {
+      "name": "llm_interaction_operation",
+      "values": {
+        "generate_draft": "generate_draft",
+        "regenerate_field": "regenerate_field"
+      }
+    },
+    "mcp_server_status": {
+      "name": "mcp_server_status",
+      "values": {
+        "active": "active",
+        "inactive": "inactive",
+        "error": "error"
+      }
+    },
+    "mcp_server_type": {
+      "name": "mcp_server_type",
+      "values": {
+        "stdio": "stdio",
+        "http": "http",
+        "sse": "sse"
+      }
+    },
+    "meeting_status": {
+      "name": "meeting_status",
+      "values": {
+        "proposed": "proposed",
+        "in_session": "in_session",
+        "ended": "ended"
+      }
+    },
+    "selection_strategy": {
+      "name": "selection_strategy",
+      "values": {
+        "all": "all",
+        "relevant": "relevant",
+        "recent": "recent",
+        "weighted": "weighted"
+      }
+    },
+    "tagged_by": {
+      "name": "tagged_by",
+      "values": {
+        "llm": "llm",
+        "rule": "rule",
+        "manual": "manual"
+      }
+    },
+    "template_category": {
+      "name": "template_category",
+      "values": {
+        "standard": "standard",
+        "technology": "technology",
+        "strategy": "strategy",
+        "budget": "budget",
+        "policy": "policy",
+        "proposal": "proposal",
+        "deliberation": "deliberation"
+      }
+    },
+    "transcript_format": {
+      "name": "transcript_format",
+      "values": {
+        "json": "json",
+        "txt": "txt",
+        "vtt": "vtt",
+        "srt": "srt"
+      }
+    },
+    "transcript_source": {
+      "name": "transcript_source",
+      "values": {
+        "upload": "upload",
+        "stream": "stream",
+        "import": "import"
+      }
+    },
+    "used_for": {
+      "name": "used_for",
+      "values": {
+        "draft": "draft",
+        "regenerate": "regenerate",
+        "field-specific": "field-specific"
+      }
+    }
+  },
+  "schemas": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

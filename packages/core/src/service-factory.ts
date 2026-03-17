@@ -15,7 +15,7 @@ import { FlaggedDecisionService } from "./services/flagged-decision-service.js";
 import { DecisionTemplateService } from "./services/decision-template-service.js";
 import { ExportTemplateService } from "./services/export-template-service.js";
 import { ExpertTemplateService } from "./services/expert-template-service.js";
-import { GlobalContextService, FileGlobalContextStore } from "./services/global-context-service.js";
+import { GlobalContextService } from "./services/global-context-service.js";
 import { LLMInteractionService } from "./services/llm-interaction-service.js";
 import { MarkdownExportService } from "./services/markdown-export-service.js";
 import { MCPServerService } from "./services/mcp-server-service.js";
@@ -50,6 +50,7 @@ import {
   DrizzleMCPServerRepository,
   DrizzleFeedbackRepository,
   DrizzleSupplementaryContentRepository,
+  DrizzleConnectionRepository,
 } from "@repo/db";
 
 function shouldUseMockLlm(): boolean {
@@ -207,11 +208,11 @@ export function createMCPServerService(): MCPServerService {
 }
 
 /**
- * Creates a GlobalContextService with file-backed persistence for CLI usage.
+ * Creates a GlobalContextService backed by the PostgreSQL connections table.
  */
 export function createGlobalContextService(): GlobalContextService {
   return new GlobalContextService(
-    new FileGlobalContextStore(),
+    new DrizzleConnectionRepository(),
     new DrizzleMeetingRepository(),
     new FlaggedDecisionService(
       new DrizzleFlaggedDecisionRepository(),

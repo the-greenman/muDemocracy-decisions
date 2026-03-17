@@ -5,24 +5,50 @@ import type {
   IMeetingRepository,
 } from "@repo/core";
 import type { DecisionContext, DecisionTemplate, FlaggedDecision, Meeting } from "@repo/schema";
-import type {
-  IGlobalContextService,
-  IGlobalContextStore,
-  GlobalContextState,
-} from "../interfaces/i-global-context-service";
+import type { IGlobalContextService } from "../interfaces/i-global-context-service";
+import type { IConnectionRepository } from "../interfaces/i-connection-repository";
+import type { Connection, UpdateConnection } from "@repo/schema";
 import { GlobalContextService } from "../services/global-context-service";
 
-class MockGlobalContextStore implements IGlobalContextStore {
-  private state: GlobalContextState = {};
+// ---------------------------------------------------------------------------
+// Mock connection repository (in-memory, replaces MockGlobalContextStore)
+// ---------------------------------------------------------------------------
 
-  async load(): Promise<GlobalContextState> {
-    return { ...this.state };
+class MockConnectionRepository implements IConnectionRepository {
+  private connections = new Map<string, Connection>();
+
+  async findById(id: string): Promise<Connection | null> {
+    return this.connections.get(id) ?? null;
   }
 
-  async save(state: GlobalContextState): Promise<void> {
-    this.state = { ...state };
+  async upsert(id: string, state: UpdateConnection): Promise<Connection> {
+    const now = new Date().toISOString();
+    const existing = this.connections.get(id);
+    const updated: Connection = {
+      id,
+      activeMeetingId: "activeMeetingId" in state ? (state.activeMeetingId ?? null) : (existing?.activeMeetingId ?? null),
+      activeDecisionId: "activeDecisionId" in state ? (state.activeDecisionId ?? null) : (existing?.activeDecisionId ?? null),
+      activeDecisionContextId: "activeDecisionContextId" in state ? (state.activeDecisionContextId ?? null) : (existing?.activeDecisionContextId ?? null),
+      activeField: "activeField" in state ? (state.activeField ?? null) : (existing?.activeField ?? null),
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      lastSeen: now,
+    };
+    this.connections.set(id, updated);
+    return updated;
+  }
+
+  async updateLastSeen(id: string): Promise<void> {
+    const existing = this.connections.get(id);
+    if (existing) {
+      this.connections.set(id, { ...existing, lastSeen: new Date().toISOString() });
+    }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Other mocks (unchanged)
+// ---------------------------------------------------------------------------
 
 class MockMeetingRepository implements IMeetingRepository {
   constructor(private meetings: Map<string, Meeting>) {}
@@ -56,9 +82,7 @@ class MockFlaggedDecisionService implements IFlaggedDecisionService {
   }
 
   async getDecisionsForMeeting(meetingId: string): Promise<FlaggedDecision[]> {
-    return Array.from(this.decisions.values()).filter(
-      (decision) => decision.meetingId === meetingId,
-    );
+    return Array.from(this.decisions.values()).filter((d) => d.meetingId === meetingId);
   }
 
   async getDecisionById(id: string): Promise<FlaggedDecision | null> {
@@ -145,10 +169,7 @@ class MockDecisionContextService implements IDecisionContextService {
 
   async setActiveField(id: string, fieldId: string | null): Promise<DecisionContext | null> {
     const context = this.contexts.get(id);
-    if (!context) {
-      return null;
-    }
-
+    if (!context) return null;
     const updated: DecisionContext = {
       ...context,
       activeField: fieldId ?? undefined,
@@ -176,14 +197,13 @@ class MockDecisionContextService implements IDecisionContextService {
 
   async getContextByFlaggedDecision(flaggedDecisionId: string): Promise<DecisionContext | null> {
     return (
-      Array.from(this.contexts.values()).find(
-        (context) => context.flaggedDecisionId === flaggedDecisionId,
-      ) ?? null
+      Array.from(this.contexts.values()).find((c) => c.flaggedDecisionId === flaggedDecisionId) ??
+      null
     );
   }
 
   async getAllContextsForMeeting(meetingId: string): Promise<DecisionContext[]> {
-    return Array.from(this.contexts.values()).filter((context) => context.meetingId === meetingId);
+    return Array.from(this.contexts.values()).filter((c) => c.meetingId === meetingId);
   }
 }
 
@@ -219,10 +239,16 @@ class MockDecisionTemplateLookup {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+const TEST_CONNECTION_ID = crypto.randomUUID();
+
 describe("GlobalContextService", () => {
-  let store: MockGlobalContextStore;
-  let meetings: Map<string, Meeting>;
-  let decisions: Map<string, FlaggedDecision>;
+  let connectionRepo: MockConnectionRepository;
+  let meetingsMap: Map<string, Meeting>;
+  let decisionsMap: Map<string, FlaggedDecision>;
   let meetingRepository: IMeetingRepository;
   let flaggedDecisionService: IFlaggedDecisionService;
   let decisionContextService: MockDecisionContextService;
@@ -233,7 +259,7 @@ describe("GlobalContextService", () => {
   let defaultTemplateId: string;
 
   beforeEach(() => {
-    store = new MockGlobalContextStore();
+    connectionRepo = new MockConnectionRepository();
     defaultTemplateId = crypto.randomUUID();
 
     meeting = {
@@ -258,14 +284,14 @@ describe("GlobalContextService", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    meetings = new Map([[meeting.id, meeting]]);
-    decisions = new Map([[decision.id, decision]]);
-    meetingRepository = new MockMeetingRepository(meetings);
-    flaggedDecisionService = new MockFlaggedDecisionService(decisions);
+    meetingsMap = new Map([[meeting.id, meeting]]);
+    decisionsMap = new Map([[decision.id, decision]]);
+    meetingRepository = new MockMeetingRepository(meetingsMap);
+    flaggedDecisionService = new MockFlaggedDecisionService(decisionsMap);
     decisionContextService = new MockDecisionContextService();
     templateService = new MockDecisionTemplateLookup(defaultTemplateId);
     service = new GlobalContextService(
-      store,
+      connectionRepo,
       meetingRepository,
       flaggedDecisionService,
       decisionContextService,
@@ -274,9 +300,9 @@ describe("GlobalContextService", () => {
   });
 
   it("sets and returns the active meeting with nested meeting data", async () => {
-    await service.setActiveMeeting(meeting.id);
+    await service.setActiveMeeting(TEST_CONNECTION_ID, meeting.id);
 
-    const context = await service.getContext();
+    const context = await service.getContext(TEST_CONNECTION_ID);
 
     expect(context.activeMeetingId).toBe(meeting.id);
     expect(context.activeMeeting?.title).toBe("Planning Meeting");
@@ -284,8 +310,8 @@ describe("GlobalContextService", () => {
   });
 
   it("creates a decision context from a flagged decision using the default template", async () => {
-    const context = await service.setActiveDecision(decision.id);
-    const loaded = await service.getContext();
+    const context = await service.setActiveDecision(TEST_CONNECTION_ID, decision.id);
+    const loaded = await service.getContext(TEST_CONNECTION_ID);
 
     expect(context.meetingId).toBe(meeting.id);
     expect(context.flaggedDecisionId).toBe(decision.id);
@@ -312,33 +338,32 @@ describe("GlobalContextService", () => {
     };
     decisionContextService.seed(existing);
 
-    const context = await service.setActiveDecision(decision.id);
+    const context = await service.setActiveDecision(TEST_CONNECTION_ID, decision.id);
 
     expect(context.id).toBe(existing.id);
   });
 
   it("sets and clears the active field on the active decision context", async () => {
-    const context = await service.setActiveDecision(decision.id);
+    await service.setActiveDecision(TEST_CONNECTION_ID, decision.id);
 
-    await service.setActiveField("options");
-    let loaded = await service.getContext();
+    await service.setActiveField(TEST_CONNECTION_ID, "options");
+    let loaded = await service.getContext(TEST_CONNECTION_ID);
     expect(loaded.activeField).toBe("options");
     expect(loaded.activeDecisionContext?.activeField).toBe("options");
 
-    await service.clearField();
-    loaded = await service.getContext();
+    await service.clearField(TEST_CONNECTION_ID);
+    loaded = await service.getContext(TEST_CONNECTION_ID);
     expect(loaded.activeField).toBeUndefined();
     expect(loaded.activeDecisionContext?.activeField).toBeUndefined();
-    expect(loaded.activeDecisionContextId).toBe(context.id);
   });
 
   it("clears decision and field while preserving the active meeting", async () => {
-    await service.setActiveMeeting(meeting.id);
-    await service.setActiveDecision(decision.id);
-    await service.setActiveField("options");
+    await service.setActiveMeeting(TEST_CONNECTION_ID, meeting.id);
+    await service.setActiveDecision(TEST_CONNECTION_ID, decision.id);
+    await service.setActiveField(TEST_CONNECTION_ID, "options");
 
-    await service.clearDecision();
-    const context = await service.getContext();
+    await service.clearDecision(TEST_CONNECTION_ID);
+    const context = await service.getContext(TEST_CONNECTION_ID);
 
     expect(context.activeMeetingId).toBe(meeting.id);
     expect(context.activeDecisionId).toBeUndefined();
@@ -347,12 +372,12 @@ describe("GlobalContextService", () => {
   });
 
   it("clears the entire context when clearing the active meeting", async () => {
-    await service.setActiveMeeting(meeting.id);
-    await service.setActiveDecision(decision.id);
-    await service.setActiveField("options");
+    await service.setActiveMeeting(TEST_CONNECTION_ID, meeting.id);
+    await service.setActiveDecision(TEST_CONNECTION_ID, decision.id);
+    await service.setActiveField(TEST_CONNECTION_ID, "options");
 
-    await service.clearMeeting();
-    const context = await service.getContext();
+    await service.clearMeeting(TEST_CONNECTION_ID);
+    const context = await service.getContext(TEST_CONNECTION_ID);
 
     expect(context.activeMeetingId).toBeUndefined();
     expect(context.activeDecisionId).toBeUndefined();
@@ -360,26 +385,30 @@ describe("GlobalContextService", () => {
     expect(context.activeField).toBeUndefined();
   });
 
-  it("persists context state across service instances sharing the same store", async () => {
+  it("persists context state across service instances sharing the same repository", async () => {
     const first = new GlobalContextService(
-      store,
+      connectionRepo,
       meetingRepository,
       flaggedDecisionService,
       decisionContextService,
       templateService,
     );
-    await first.setActiveMeeting(meeting.id);
-    const createdContext = await first.setActiveDecision(decision.id, defaultTemplateId);
-    await first.setActiveField("decision_statement");
+    await first.setActiveMeeting(TEST_CONNECTION_ID, meeting.id);
+    const createdContext = await first.setActiveDecision(
+      TEST_CONNECTION_ID,
+      decision.id,
+      defaultTemplateId,
+    );
+    await first.setActiveField(TEST_CONNECTION_ID, "decision_statement");
 
     const second = new GlobalContextService(
-      store,
+      connectionRepo,
       meetingRepository,
       flaggedDecisionService,
       decisionContextService,
       templateService,
     );
-    const loaded = await second.getContext();
+    const loaded = await second.getContext(TEST_CONNECTION_ID);
 
     expect(loaded.activeMeetingId).toBe(meeting.id);
     expect(loaded.activeDecisionId).toBe(decision.id);

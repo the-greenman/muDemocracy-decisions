@@ -7,6 +7,7 @@ export { db, client, type Database } from "./client.js";
 export * from "./client.js";
 
 // Repositories
+export { DrizzleConnectionRepository } from "./repositories/connection-repository.js";
 export { DrizzleMeetingRepository } from "./repositories/meeting-repository.js";
 export { DrizzleRawTranscriptRepository } from "./repositories/raw-transcript-repository.js";
 export { DrizzleTranscriptChunkRepository } from "./repositories/transcript-chunk-repository.js";

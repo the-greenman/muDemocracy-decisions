@@ -705,7 +705,32 @@ export const llmInteractions = pgTable(
   }),
 );
 
+// ============================================================================
+// CONNECTIONS
+// ============================================================================
+
+export const connections = pgTable("connections", {
+  id: text("id").primaryKey(),
+  activeMeetingId: uuid("active_meeting_id").references(() => meetings.id),
+  activeDecisionId: uuid("active_decision_id").references(() => flaggedDecisions.id),
+  activeDecisionContextId: uuid("active_decision_context_id").references(
+    () => decisionContexts.id,
+  ),
+  activeField: uuid("active_field"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ConnectionSelect = typeof connections.$inferSelect;
+export type ConnectionInsert = typeof connections.$inferInsert;
+
+// ============================================================================
+// SCHEMA EXPORT
+// ============================================================================
+
 export const schema = {
+  connections,
   meetings,
   rawTranscripts,
   transcriptChunks,

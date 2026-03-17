@@ -263,7 +263,10 @@ app.openapi(getContextRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
-  const context = await globalContextService.getContext();
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
+  const context = await globalContextService.getContext(connectionId);
   return c.json(context);
 });
 
@@ -272,8 +275,11 @@ app.openapi(getInSessionMeetingsContextSummaryRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
   const [currentContext, meetings] = await Promise.all([
-    globalContextService.getContext(),
+    globalContextService.getContext(connectionId),
     meetingService.findAll(),
   ]);
 
@@ -290,10 +296,13 @@ app.openapi(setMeetingContextRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
   try {
     const { meetingId } = c.req.valid("json");
-    await globalContextService.setActiveMeeting(meetingId);
-    return c.json(await globalContextService.getContext());
+    await globalContextService.setActiveMeeting(connectionId, meetingId);
+    return c.json(await globalContextService.getContext(connectionId));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     if (isNotFoundErrorMessage(message)) {
@@ -417,8 +426,11 @@ app.openapi(clearMeetingContextRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
-  await globalContextService.clearMeeting();
-  return c.json(await globalContextService.getContext());
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
+  await globalContextService.clearMeeting(connectionId);
+  return c.json(await globalContextService.getContext(connectionId));
 });
 
 app.openapi(setDecisionContextRoute, async (c) => {
@@ -426,11 +438,15 @@ app.openapi(setDecisionContextRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
   try {
     const { id } = c.req.valid("param");
     const { flaggedDecisionId, templateId, contextId } = c.req.valid("json");
-    await globalContextService.setActiveMeeting(id);
+    await globalContextService.setActiveMeeting(connectionId, id);
     const decisionContext = await globalContextService.setActiveDecision(
+      connectionId,
       flaggedDecisionId,
       templateId,
       contextId,
@@ -439,7 +455,7 @@ app.openapi(setDecisionContextRoute, async (c) => {
       return c.json({ error: "Flagged decision not found" }, 404);
     }
 
-    return c.json(await globalContextService.getContext());
+    return c.json(await globalContextService.getContext(connectionId));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     if (isNotFoundErrorMessage(message)) {
@@ -455,14 +471,17 @@ app.openapi(clearDecisionContextRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
   const { id } = c.req.valid("param");
-  const context = await globalContextService.getContext();
+  const context = await globalContextService.getContext(connectionId);
   if (context.activeMeetingId !== undefined && context.activeMeetingId !== id) {
     return c.json({ error: "Active meeting does not match requested meeting" }, 400);
   }
 
-  await globalContextService.clearDecision();
-  return c.json(await globalContextService.getContext());
+  await globalContextService.clearDecision(connectionId);
+  return c.json(await globalContextService.getContext(connectionId));
 });
 
 app.openapi(setFieldContextRoute, async (c) => {
@@ -470,16 +489,19 @@ app.openapi(setFieldContextRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
   try {
     const { id } = c.req.valid("param");
     const { fieldId } = c.req.valid("json");
-    const context = await globalContextService.getContext();
+    const context = await globalContextService.getContext(connectionId);
     if (context.activeMeetingId !== undefined && context.activeMeetingId !== id) {
       return c.json({ error: "Active meeting does not match requested meeting" }, 400);
     }
 
-    await globalContextService.setActiveField(fieldId);
-    return c.json(await globalContextService.getContext());
+    await globalContextService.setActiveField(connectionId, fieldId);
+    return c.json(await globalContextService.getContext(connectionId));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     if (isNotFoundErrorMessage(message)) {
@@ -495,14 +517,17 @@ app.openapi(clearFieldContextRoute, async (c) => {
     return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
   }
 
+  const connectionId = c.req.header("X-Connection-ID");
+  if (!connectionId) return c.json({ error: "X-Connection-ID header is required" }, 400);
+
   const { id } = c.req.valid("param");
-  const context = await globalContextService.getContext();
+  const context = await globalContextService.getContext(connectionId);
   if (context.activeMeetingId !== undefined && context.activeMeetingId !== id) {
     return c.json({ error: "Active meeting does not match requested meeting" }, 400);
   }
 
-  await globalContextService.clearField();
-  return c.json(await globalContextService.getContext());
+  await globalContextService.clearField(connectionId);
+  return c.json(await globalContextService.getContext(connectionId));
 });
 
 app.openapi(createMeetingRoute, async (c) => {
@@ -545,9 +570,12 @@ app.openapi(updateMeetingRoute, async (c) => {
     if (status !== undefined) {
       const meeting = await meetingService.updateStatus(id, status);
       if (status === "ended" && globalContextService) {
-        const context = await globalContextService.getContext();
-        if (context.activeMeetingId === id) {
-          await globalContextService.clearMeeting();
+        const connectionId = c.req.header("X-Connection-ID");
+        if (connectionId) {
+          const context = await globalContextService.getContext(connectionId);
+          if (context.activeMeetingId === id) {
+            await globalContextService.clearMeeting(connectionId);
+          }
         }
       }
 
@@ -759,7 +787,10 @@ app.openapi(streamTranscriptRoute, async (c) => {
 
   const { id } = c.req.valid("param");
   const event = c.req.valid("json");
-  const globalContext = await globalContextService.getContext();
+  const connectionId = c.req.header("X-Connection-ID");
+  const globalContext = connectionId
+    ? await globalContextService.getContext(connectionId)
+    : {};
   const autoContexts = [`meeting:${id}`];
 
   if (globalContext.activeDecisionContextId) {

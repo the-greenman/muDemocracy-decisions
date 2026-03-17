@@ -20,11 +20,11 @@ export interface IGlobalContextStore {
 }
 
 export interface IGlobalContextService {
-  setActiveMeeting(meetingId: string): Promise<void>;
-  clearMeeting(): Promise<void>;
-  setActiveDecision(flaggedDecisionId: string, templateId?: string, contextId?: string): Promise<DecisionContext>;
-  clearDecision(): Promise<void>;
-  setActiveField(fieldId: string): Promise<void>;
-  clearField(): Promise<void>;
-  getContext(): Promise<GlobalContext>;
+  setActiveMeeting(connectionId: string, meetingId: string): Promise<void>;
+  clearMeeting(connectionId: string): Promise<void>;
+  setActiveDecision(connectionId: string, flaggedDecisionId: string, templateId?: string, contextId?: string): Promise<DecisionContext>;
+  clearDecision(connectionId: string): Promise<void>;
+  setActiveField(connectionId: string, fieldId: string): Promise<void>;
+  clearField(connectionId: string): Promise<void>;
+  getContext(connectionId: string): Promise<GlobalContext>;
 }

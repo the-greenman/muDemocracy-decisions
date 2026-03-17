@@ -1667,3 +1667,37 @@ export const CreateLLMInteractionSchema = LLMInteractionSchema.omit({
 });
 
 export type CreateLLMInteraction = z.infer<typeof CreateLLMInteractionSchema>;
+
+// ---------------------------------------------------------------------------
+// Connection
+// ---------------------------------------------------------------------------
+
+export const ConnectionSchema = z
+  .object({
+    id: z.string().min(1),
+    activeMeetingId: z.string().uuid().nullable(),
+    activeDecisionId: z.string().uuid().nullable(),
+    activeDecisionContextId: z.string().uuid().nullable(),
+    activeField: z.string().uuid().nullable(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+    lastSeen: z.string().datetime(),
+  })
+  .openapi("Connection");
+
+export const CreateConnectionSchema = ConnectionSchema.pick({ id: true }).openapi(
+  "CreateConnection",
+);
+
+export const UpdateConnectionSchema = ConnectionSchema.pick({
+  activeMeetingId: true,
+  activeDecisionId: true,
+  activeDecisionContextId: true,
+  activeField: true,
+})
+  .partial()
+  .openapi("UpdateConnection");
+
+export type Connection = z.infer<typeof ConnectionSchema>;
+export type CreateConnection = z.infer<typeof CreateConnectionSchema>;
+export type UpdateConnection = z.infer<typeof UpdateConnectionSchema>;
