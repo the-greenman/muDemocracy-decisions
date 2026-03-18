@@ -31,7 +31,7 @@ export interface ITranscriptChunkRepository {
 
 export interface IStreamingBufferRepository {
   appendEvent(meetingId: string, event: any): Promise<void>;
-  getStatus(meetingId: string): Promise<{ status: string; eventCount: number }>;
+  getStatus(meetingId: string): Promise<{ status: "active" | "idle"; eventCount: number }>;
   flush(meetingId: string): Promise<TranscriptChunk[]>;
   clear(meetingId: string): Promise<void>;
 }

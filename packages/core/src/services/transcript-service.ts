@@ -495,7 +495,7 @@ export class TranscriptService {
     await this.streamingBuffer.appendEvent(meetingId, event);
   }
 
-  async getStreamStatus(meetingId: string): Promise<{ status: string; eventCount: number }> {
+  async getStreamStatus(meetingId: string): Promise<{ status: "active" | "idle"; eventCount: number }> {
     return this.streamingBuffer.getStatus(meetingId);
   }
 

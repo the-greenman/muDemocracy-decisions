@@ -603,18 +603,16 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         });
 
         const normalizedEvents = normalizeSequenceNumbers(dedupedEvents, session.nextSequenceNumber).map(
-          (event) => ({
+          (event): TranscriptEvent => ({
             ...event,
-            contentType: event.contentType ?? ("speech" as const),
+            contentType: event.contentType ?? "speech",
             streamSource: session.streamSource,
-            startTimeMs:
-              event.startTimeSeconds !== undefined
-                ? Math.round(event.startTimeSeconds * 1000)
-                : undefined,
-            endTimeMs:
-              event.endTimeSeconds !== undefined
-                ? Math.round(event.endTimeSeconds * 1000)
-                : undefined,
+            ...(event.startTimeSeconds !== undefined
+              ? { startTimeMs: Math.round(event.startTimeSeconds * 1000) }
+              : {}),
+            ...(event.endTimeSeconds !== undefined
+              ? { endTimeMs: Math.round(event.endTimeSeconds * 1000) }
+              : {}),
           }),
         );
         normalizedEvents.forEach((event) => {
