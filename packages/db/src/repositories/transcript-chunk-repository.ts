@@ -2,7 +2,7 @@
  * Drizzle implementation of ITranscriptChunkRepository
  */
 
-import { eq, and, ilike, arrayContains, inArray } from "drizzle-orm";
+import { eq, and, ilike, arrayContains, inArray, gte, lte } from "drizzle-orm";
 import { db } from "../client.js";
 import { transcriptChunks, TranscriptChunkSelect, TranscriptChunkInsert } from "../schema.js";
 import { TranscriptChunk } from "@repo/schema";
@@ -113,6 +113,42 @@ export class DrizzleTranscriptChunkRepository {
       .filter((row): row is TranscriptChunkSelect => Boolean(row))
       .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
     return bySequence.map((row) => this.mapToSchema(row));
+  }
+
+  async addContextsByTimeRange(
+    meetingId: string,
+    from: string,
+    to: string,
+    contexts: string[],
+  ): Promise<number> {
+    if (contexts.length === 0) return 0;
+
+    const dedupedContexts = Array.from(new Set(contexts));
+
+    const conditions = [
+      eq(transcriptChunks.meetingId, meetingId),
+      gte(transcriptChunks.startTime, from),
+      lte(transcriptChunks.startTime, to),
+    ];
+
+    const rows = await db
+      .select({ id: transcriptChunks.id, contexts: transcriptChunks.contexts })
+      .from(transcriptChunks)
+      .where(and(...conditions));
+
+    if (rows.length === 0) return 0;
+
+    await Promise.all(
+      rows.map(async (row) => {
+        const merged = Array.from(new Set([...(row.contexts ?? []), ...dedupedContexts]));
+        await db
+          .update(transcriptChunks)
+          .set({ contexts: merged })
+          .where(eq(transcriptChunks.id, row.id));
+      }),
+    );
+
+    return rows.length;
   }
 
   private mapToSchema(row: TranscriptChunkSelect): TranscriptChunk {

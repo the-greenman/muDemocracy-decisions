@@ -44,6 +44,7 @@ export interface StreamEventData {
     rawTranscriptId?: string;
     contexts?: string[];
     topics?: string[];
+    streamSource?: string;
     [key: string]: any;
   };
 }
@@ -186,6 +187,15 @@ export class TranscriptService {
 
   async searchChunks(meetingId: string, query: string): Promise<TranscriptChunk[]> {
     return this.chunkRepo.search(meetingId, query);
+  }
+
+  async tagChunksByTimeRange(
+    meetingId: string,
+    from: string,
+    to: string,
+    contexts: string[],
+  ): Promise<number> {
+    return this.chunkRepo.addContextsByTimeRange(meetingId, from, to, contexts);
   }
 
   async processTranscript(

@@ -37,11 +37,13 @@ import {
 import { DrizzleMeetingRepository } from "@repo/db";
 import { MockMeetingRepository } from "./mock-repository.js";
 import {
+  clearBroadcastContextRoute,
   clearDecisionContextRoute,
   clearFieldContextRoute,
   clearMeetingContextRoute,
   getInSessionMeetingsContextSummaryRoute,
   getContextRoute,
+  setBroadcastContextRoute,
   setDecisionContextRoute,
   setFieldContextRoute,
   setMeetingContextRoute,
@@ -97,6 +99,7 @@ import {
   updateDecisionContextRoute,
   updateFlaggedDecisionRoute,
   updateFieldValueRoute,
+  tagChunksByTimeRangeRoute,
   uploadTranscriptRoute,
 } from "./routes/decision-workflow.js";
 
@@ -531,6 +534,31 @@ app.openapi(clearFieldContextRoute, async (c) => {
   return c.json(await globalContextService.getContext(connectionId));
 });
 
+app.openapi(setBroadcastContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
+  }
+
+  const { id } = c.req.valid("param");
+  const { decisionContextId, fieldId } = c.req.valid("json");
+  const result = await globalContextService.setBroadcastContext(
+    id,
+    decisionContextId ?? null,
+    fieldId ?? null,
+  );
+  return c.json(result);
+});
+
+app.openapi(clearBroadcastContextRoute, async (c) => {
+  if (!globalContextService) {
+    return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
+  }
+
+  const { id } = c.req.valid("param");
+  await globalContextService.clearBroadcastContext(id);
+  return c.json({ decisionContextId: null, fieldId: null });
+});
+
 app.openapi(createMeetingRoute, async (c) => {
   try {
     const data = c.req.valid("json");
@@ -803,6 +831,15 @@ app.openapi(streamTranscriptRoute, async (c) => {
     }
   }
 
+  // Merge broadcast context — facilitator-pushed context applies to all streams
+  const broadcastContext = await globalContextService.getBroadcastContext(id);
+  if (broadcastContext.decisionContextId) {
+    autoContexts.push(`decision:${broadcastContext.decisionContextId}`);
+    if (broadcastContext.fieldId) {
+      autoContexts.push(`decision:${broadcastContext.decisionContextId}:${broadcastContext.fieldId}`);
+    }
+  }
+
   const appliedContexts = Array.from(new Set([...autoContexts, ...(event.contexts ?? [])]));
 
   const streamEventData: {
@@ -811,6 +848,7 @@ app.openapi(streamTranscriptRoute, async (c) => {
     speaker?: string;
     startTime?: string;
     sequenceNumber?: number;
+    streamSource?: string;
   } = {
     text: event.text,
     contexts: appliedContexts,
@@ -826,6 +864,10 @@ app.openapi(streamTranscriptRoute, async (c) => {
 
   if (event.sequenceNumber !== undefined) {
     streamEventData.sequenceNumber = event.sequenceNumber;
+  }
+
+  if (event.streamSource !== undefined) {
+    streamEventData.streamSource = event.streamSource;
   }
 
   await services.transcriptService.addStreamEvent(id, {
@@ -878,6 +920,18 @@ app.openapi(clearStreamingBufferRoute, async (c) => {
   const { id } = c.req.valid("param");
   await services.transcriptService.clearStream(id);
   return c.body(null, 204);
+});
+
+app.openapi(tagChunksByTimeRangeRoute, async (c) => {
+  const services = getWorkflowServices();
+  if (!services) {
+    return c.json({ error: "This endpoint requires DATABASE_URL to be configured" }, 503);
+  }
+
+  const { id } = c.req.valid("param");
+  const { from, to, contexts } = c.req.valid("json");
+  const updatedCount = await services.transcriptService.tagChunksByTimeRange(id, from, to, contexts);
+  return c.json({ updatedCount });
 });
 
 app.openapi(listExpertsRoute, async (c) => {

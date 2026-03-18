@@ -72,20 +72,41 @@ export class DrizzleStreamingBufferRepository {
         return [];
       }
 
-      // Create a fallback raw transcript if needed
-      const fallbackRawTranscriptId = await this.createFallbackRawTranscript(meetingId, events);
+      // Group events by streamSource, create one raw_transcript per group
+      const NO_SOURCE = "__no_source__";
+      const eventsBySource = new Map<string, typeof events>();
+      for (const event of events) {
+        const key = event.streamSource ?? NO_SOURCE;
+        if (!eventsBySource.has(key)) eventsBySource.set(key, []);
+        eventsBySource.get(key)!.push(event);
+      }
 
-      // Create chunks from events
+      const rawTranscriptBySource = new Map<string, string>();
+      for (const [source, sourceEvents] of eventsBySource) {
+        const id = await this.createFallbackRawTranscript(
+          meetingId,
+          sourceEvents,
+          source === NO_SOURCE ? undefined : source,
+        );
+        rawTranscriptBySource.set(source, id);
+      }
+
+      // Create chunks from events, sequence numbers reset per source
       const chunks: TranscriptChunk[] = [];
-      let sequenceNumber = 1;
+      const seqBySource = new Map<string, number>();
 
       for (const event of events) {
         if (event.type === "text" && event.text) {
           const eventData = event.data as any;
+          const sourceKey = event.streamSource ?? NO_SOURCE;
+          const rawTranscriptId = eventData.rawTranscriptId ?? rawTranscriptBySource.get(sourceKey)!;
+          const seq = (seqBySource.get(sourceKey) ?? 0) + 1;
+          seqBySource.set(sourceKey, seq);
+
           const chunkData: CreateTranscriptChunk = {
             meetingId,
-            rawTranscriptId: eventData.rawTranscriptId || fallbackRawTranscriptId,
-            sequenceNumber: sequenceNumber++,
+            rawTranscriptId,
+            sequenceNumber: seq,
             text: event.text,
             speaker: event.speaker || undefined,
             startTime: event.startTime?.toISOString(),
@@ -143,12 +164,21 @@ export class DrizzleStreamingBufferRepository {
   private async createFallbackRawTranscript(
     meetingId: string,
     events: any[],
+    streamSource?: string,
   ): Promise<string> {
     const combinedText = events
       .filter((event) => event.type === "text" && typeof event.text === "string")
       .map((event) => event.text.trim())
       .filter(Boolean)
       .join("\n");
+
+    const metadata: Record<string, unknown> = {
+      generatedBy: "streaming-buffer-flush",
+      eventCount: events.length,
+    };
+    if (streamSource !== undefined) {
+      metadata.streamSource = streamSource;
+    }
 
     const [rawTranscript] = await db
       .insert(rawTranscripts)
@@ -157,10 +187,7 @@ export class DrizzleStreamingBufferRepository {
         source: "stream",
         format: "txt",
         content: combinedText.length > 0 ? combinedText : "[stream flush without text payload]",
-        metadata: {
-          generatedBy: "streaming-buffer-flush",
-          eventCount: events.length,
-        },
+        metadata,
       })
       .returning({ id: rawTranscripts.id });
 

@@ -191,6 +191,7 @@ export const StreamTranscriptEventSchema = z
     timestamp: z.string().optional(),
     sequenceNumber: z.number().int().positive().optional(),
     contexts: z.array(z.string().min(1)).optional(),
+    streamSource: z.string().optional(),
   })
   .openapi("StreamTranscriptEvent", {
     description: "A streaming transcript text event submitted during an active meeting",
@@ -198,6 +199,7 @@ export const StreamTranscriptEventSchema = z
       text: "We decided to defer the vendor selection",
       speaker: "Alice",
       timestamp: "00:12:33",
+      streamSource: "mic:front",
       contexts: ["custom:note"],
     },
   });

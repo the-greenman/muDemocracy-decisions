@@ -12,6 +12,7 @@ import type {
   IGlobalContextService,
   IGlobalContextStore,
   BusEvent,
+  BroadcastContext,
 } from "../interfaces/i-global-context-service.js";
 import type { DecisionContext, DecisionTemplate, TranscriptChunk, FlaggedDecision, DecisionLog } from "@repo/schema";
 import { ContextEventBus } from "../events/context-event-bus.js";
@@ -96,6 +97,38 @@ export class GlobalContextService implements IGlobalContextService {
     // Emit context event
     const context = await this.getContext(connectionId);
     this.eventBus.emit(connectionId, { type: "context", data: context });
+  }
+
+  async setBroadcastContext(
+    meetingId: string,
+    decisionContextId: string | null,
+    fieldId: string | null,
+  ): Promise<BroadcastContext> {
+    const broadcastId = `broadcast:${meetingId}`;
+    await this.connectionRepository.upsert(broadcastId, {
+      activeMeetingId: meetingId,
+      activeDecisionContextId: decisionContextId,
+      activeField: fieldId,
+    });
+    return { decisionContextId, fieldId };
+  }
+
+  async clearBroadcastContext(meetingId: string): Promise<void> {
+    const broadcastId = `broadcast:${meetingId}`;
+    await this.connectionRepository.upsert(broadcastId, {
+      activeMeetingId: null,
+      activeDecisionContextId: null,
+      activeField: null,
+    });
+  }
+
+  async getBroadcastContext(meetingId: string): Promise<BroadcastContext> {
+    const broadcastId = `broadcast:${meetingId}`;
+    const conn = await this.connectionRepository.findById(broadcastId);
+    return {
+      decisionContextId: conn?.activeDecisionContextId ?? null,
+      fieldId: conn?.activeField ?? null,
+    };
   }
 
   async clearMeeting(connectionId: string): Promise<void> {

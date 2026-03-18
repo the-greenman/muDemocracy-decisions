@@ -29,6 +29,20 @@ const SetActiveFieldRequestSchema = z
   })
   .openapi("SetActiveFieldRequest");
 
+const SetBroadcastContextRequestSchema = z
+  .object({
+    decisionContextId: z.string().uuid().nullable().optional(),
+    fieldId: z.string().min(1).nullable().optional(),
+  })
+  .openapi("SetBroadcastContextRequest");
+
+const BroadcastContextResponseSchema = z
+  .object({
+    decisionContextId: z.string().uuid().nullable(),
+    fieldId: z.string().nullable(),
+  })
+  .openapi("BroadcastContextResponse");
+
 export const getContextRoute = createRoute({
   method: "get",
   path: "/api/context",
@@ -300,6 +314,67 @@ export const clearFieldContextRoute = createRoute({
         },
       },
       description: "Requested meeting does not match the active meeting context",
+    },
+    503: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Database-backed endpoint unavailable",
+    },
+  },
+});
+
+export const setBroadcastContextRoute = createRoute({
+  method: "put",
+  path: "/api/meetings/:id/context/broadcast",
+  tags: ["context"],
+  request: {
+    params: MeetingIdParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: SetBroadcastContextRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: BroadcastContextResponseSchema,
+        },
+      },
+      description: "Broadcast context set — all subsequent stream events for this meeting will receive these contexts regardless of connection",
+    },
+    503: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Database-backed endpoint unavailable",
+    },
+  },
+});
+
+export const clearBroadcastContextRoute = createRoute({
+  method: "delete",
+  path: "/api/meetings/:id/context/broadcast",
+  tags: ["context"],
+  request: {
+    params: MeetingIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: BroadcastContextResponseSchema,
+        },
+      },
+      description: "Broadcast context cleared",
     },
     503: {
       content: {

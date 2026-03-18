@@ -290,6 +290,42 @@ describe("DrizzleStreamingBufferRepository (DB-backed)", () => {
       expect(transcriptionChunks).toHaveLength(2);
       expect(localAudioChunks).toHaveLength(1);
     });
+
+    it("creates one raw_transcript per streamSource group on flush", async () => {
+      await repository.appendEvent(testMeetingId, {
+        type: "text",
+        data: { text: "Transcription chunk 1", streamSource: "mic:front" },
+      });
+      await repository.appendEvent(testMeetingId, {
+        type: "text",
+        data: { text: "Huddle chunk 1", streamSource: "slack-huddle" },
+      });
+      await repository.appendEvent(testMeetingId, {
+        type: "text",
+        data: { text: "Transcription chunk 2", streamSource: "mic:front" },
+      });
+
+      const chunks = await repository.flush(testMeetingId);
+      expect(chunks).toHaveLength(3);
+
+      // Each source group should have its own raw_transcript row
+      const micChunks = chunks.filter((c) => c.streamSource === "mic:front");
+      const huddleChunks = chunks.filter((c) => c.streamSource === "slack-huddle");
+
+      expect(micChunks).toHaveLength(2);
+      expect(huddleChunks).toHaveLength(1);
+
+      // The two sources must not share a rawTranscriptId
+      expect(micChunks[0]!.rawTranscriptId).toBe(micChunks[1]!.rawTranscriptId);
+      expect(huddleChunks[0]!.rawTranscriptId).not.toBe(micChunks[0]!.rawTranscriptId);
+
+      // Two distinct raw_transcript rows should exist for this meeting
+      const rawRows = await db
+        .select()
+        .from(rawTranscripts)
+        .where(eq(rawTranscripts.meetingId, testMeetingId));
+      expect(rawRows).toHaveLength(2);
+    });
   });
 
   // ---------------------------------------------------------------------------

@@ -44,9 +44,17 @@ export type ConnectionSSEEvent =
  */
 export type BusEvent = ConnectionSSEEvent & { id: number };
 
+export type BroadcastContext = {
+  decisionContextId: string | null;
+  fieldId: string | null;
+};
+
 export interface IGlobalContextService {
   setActiveMeeting(connectionId: string, meetingId: string): Promise<void>;
   clearMeeting(connectionId: string): Promise<void>;
+  setBroadcastContext(meetingId: string, decisionContextId: string | null, fieldId: string | null): Promise<BroadcastContext>;
+  clearBroadcastContext(meetingId: string): Promise<void>;
+  getBroadcastContext(meetingId: string): Promise<BroadcastContext>;
   setActiveDecision(
     connectionId: string,
     flaggedDecisionId: string,
