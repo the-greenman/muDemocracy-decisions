@@ -17,7 +17,7 @@ interface TranscriptReadingRow {
 }
 
 interface StreamingStatusResponse {
-  status: "active" | "idle" | "flushing";
+  status: "active" | "idle";
   eventCount: number;
 }
 

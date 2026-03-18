@@ -911,7 +911,7 @@ app.openapi(getStreamingStatusRoute, async (c) => {
   const { id } = c.req.valid("param");
   const status = await services.transcriptService.getStreamStatus(id);
   return c.json({
-    status: status.status as "active" | "idle" | "flushing",
+    status: status.status,
     eventCount: status.eventCount,
   });
 });

@@ -263,7 +263,7 @@ export const StreamTranscriptResponseSchema = z
 
 export const StreamStatusResponseSchema = z
   .object({
-    status: z.enum(["active", "idle", "flushing"]),
+    status: z.enum(["active", "idle"]),
     eventCount: z.number().int().min(0),
   })
   .openapi("StreamStatusResponse", {

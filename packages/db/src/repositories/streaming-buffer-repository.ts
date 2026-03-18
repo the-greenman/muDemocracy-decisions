@@ -8,7 +8,7 @@
 import { db } from "../client.js";
 import { streamEvents, transcriptChunks, rawTranscripts } from "../schema.js";
 import { TranscriptChunk, CreateTranscriptChunk } from "@repo/schema";
-import { eq, and, sql, count } from "drizzle-orm";
+import { eq, and, sql, count, asc } from "drizzle-orm";
 
 interface StreamingEvent {
   type: "text" | "metadata";
@@ -17,7 +17,7 @@ interface StreamingEvent {
 }
 
 interface BufferStatus {
-  status: "idle" | "active" | "flushing";
+  status: "idle" | "active";
   eventCount: number;
 }
 
@@ -61,12 +61,13 @@ export class DrizzleStreamingBufferRepository {
       // Acquire advisory lock using raw SQL
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`);
 
-      // Get unflushed events ordered by creation time
+      // Get unflushed events ordered by (createdAt, id) for stable ordering
+      // when multiple rows share the same timestamp granularity.
       const events = await tx
         .select()
         .from(streamEvents)
         .where(and(eq(streamEvents.meetingId, meetingId), eq(streamEvents.flushed, false)))
-        .orderBy(streamEvents.createdAt);
+        .orderBy(asc(streamEvents.createdAt), asc(streamEvents.id));
 
       if (events.length === 0) {
         return [];
@@ -84,6 +85,7 @@ export class DrizzleStreamingBufferRepository {
       const rawTranscriptBySource = new Map<string, string>();
       for (const [source, sourceEvents] of eventsBySource) {
         const id = await this.createFallbackRawTranscript(
+          tx,
           meetingId,
           sourceEvents,
           source === NO_SOURCE ? undefined : source,
@@ -172,6 +174,7 @@ export class DrizzleStreamingBufferRepository {
   }
 
   private async createFallbackRawTranscript(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
     meetingId: string,
     events: any[],
     streamSource?: string,
@@ -190,7 +193,7 @@ export class DrizzleStreamingBufferRepository {
       metadata.streamSource = streamSource;
     }
 
-    const [rawTranscript] = await db
+    const [rawTranscript] = await tx
       .insert(rawTranscripts)
       .values({
         meetingId,
