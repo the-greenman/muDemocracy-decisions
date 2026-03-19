@@ -2016,4 +2016,66 @@ describe("Phase 1b — transcription_complete meeting state", () => {
     const result = MeetingStatusSchema.safeParse("transcription_complete");
     expect(result.success).toBe(true);
   });
+
+  // ── Connection management endpoints ───────────────────────────────────────
+
+  it("POST /api/connections - creates a new connection with a UUID id", async () => {
+    const response = await app.request("/api/connections", { method: "POST" });
+
+    expect(response.status).toBe(201);
+    const data = await response.json();
+    expect(data.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    expect(data.activeMeetingId).toBeNull();
+    expect(data.createdAt).toBeDefined();
+  });
+
+  it("POST /api/connections - does not require X-Connection-ID header", async () => {
+    const response = await app.request("/api/connections", { method: "POST" });
+    expect(response.status).toBe(201);
+  });
+
+  it("GET /api/connections - returns list of connections ordered by lastSeen desc", async () => {
+    // Create two connections so we have something to list
+    await app.request("/api/connections", { method: "POST" });
+    await app.request("/api/connections", { method: "POST" });
+
+    const response = await app.request("/api/connections");
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(Array.isArray(data.connections)).toBe(true);
+    expect(data.connections.length).toBeGreaterThanOrEqual(2);
+    // Most recent first
+    const dates = data.connections.map((c: { lastSeen: string }) => new Date(c.lastSeen).getTime());
+    for (let i = 1; i < dates.length; i++) {
+      expect(dates[i - 1]).toBeGreaterThanOrEqual(dates[i]);
+    }
+  });
+
+  it("GET /api/connections?limit=1 - returns at most one connection", async () => {
+    const response = await app.request("/api/connections?limit=1");
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.connections.length).toBeLessThanOrEqual(1);
+  });
+
+  it("GET /api/connections - does not require X-Connection-ID header", async () => {
+    const response = await app.request("/api/connections");
+    expect(response.status).toBe(200);
+  });
+
+  it("GET /api/connections/{id}/events - allows missing X-Connection-ID header (falls back to path param)", async () => {
+    // Create a connection to subscribe to
+    const created = await app.request("/api/connections", { method: "POST" });
+    const { id } = await created.json();
+
+    // Open SSE without header — should not return 400
+    const controller = new AbortController();
+    const response = await app.request(`/api/connections/${id}/events`, {
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    expect(response.status).not.toBe(400);
+    expect(response.status).not.toBe(403);
+  });
 });

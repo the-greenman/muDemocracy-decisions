@@ -3,17 +3,51 @@ import { logHttpRequest, logHttpResponse } from "./runtime.js";
 const BASE_URL =
   process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? "http://localhost:3001";
 
-const CONNECTION_ID = process.env.DECISION_LOGGER_CONNECTION_ID;
-if (!CONNECTION_ID) {
-  throw new Error(
-    "DECISION_LOGGER_CONNECTION_ID is required. Generate a UUID and add it to your .env file.",
-  );
+/**
+ * Resolve the connection ID to use for this CLI session.
+ *
+ * Priority:
+ * 1. DECISION_LOGGER_CONNECTION_ID env var
+ * 2. GET /api/connections?limit=1 → most recent connection
+ * 3. POST /api/connections → create new
+ */
+async function resolveConnectionId(): Promise<string> {
+  if (process.env.DECISION_LOGGER_CONNECTION_ID) {
+    return process.env.DECISION_LOGGER_CONNECTION_ID;
+  }
+
+  // Bootstrap without X-Connection-ID header (these endpoints don't require it)
+  const listRes = await fetch(`${BASE_URL}/api/connections?limit=1`);
+  if (listRes.ok) {
+    const data = (await listRes.json()) as { connections: Array<{ id: string }> };
+    if (data.connections.length > 0 && data.connections[0]) return data.connections[0].id;
+  }
+
+  const createRes = await fetch(`${BASE_URL}/api/connections`, { method: "POST" });
+  if (!createRes.ok) throw new Error("Failed to create connection");
+  const conn = (await createRes.json()) as { id: string };
+  return conn.id;
+}
+
+// Initialised synchronously from env var; bootstrapped lazily on first request if absent
+let _connectionId: string | null = process.env.DECISION_LOGGER_CONNECTION_ID ?? null;
+
+async function getConnectionId(): Promise<string> {
+  if (!_connectionId) _connectionId = await resolveConnectionId();
+  return _connectionId;
+}
+
+/** Returns the connection ID once it has been resolved (safe to call after any api.* call). */
+export function resolvedConnectionId(): string | null {
+  return _connectionId;
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const init: RequestInit = { method };
-  const headers: Record<string, string> = { "X-Connection-ID": CONNECTION_ID as string };
+  // Use sync value when available to avoid microtask delay on already-cached ID
+  const connectionId = _connectionId ?? (await getConnectionId());
+  const headers: Record<string, string> = { "X-Connection-ID": connectionId };
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
     init.body = JSON.stringify(body);

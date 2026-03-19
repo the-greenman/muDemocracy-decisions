@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { api, getContext, requireActiveMeeting, type GlobalContext } from "../client.js";
+import { api, getContext, requireActiveMeeting, resolvedConnectionId, type GlobalContext } from "../client.js";
 import { confirmAction } from "../runtime.js";
 
 function printContext(ctx: GlobalContext) {
@@ -24,6 +24,7 @@ contextCommand
   .description("Show current active context")
   .action(async () => {
     const ctx = await getContext();
+    console.log(chalk.gray(`  Connection:       ${resolvedConnectionId() ?? "(unknown)"}`));
     printContext(ctx);
   });
 

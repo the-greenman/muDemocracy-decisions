@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "../client.js";
 import { connections, ConnectionSelect } from "../schema.js";
 import type { Connection, UpdateConnection } from "@repo/schema";
@@ -39,6 +39,22 @@ export class DrizzleConnectionRepository {
   async findById(id: string): Promise<Connection | null> {
     const [row] = await db.select().from(connections).where(eq(connections.id, id)).limit(1);
     return row ? toConnection(row) : null;
+  }
+
+  async findAll(opts?: { limit?: number }): Promise<Connection[]> {
+    const query = db.select().from(connections).orderBy(desc(connections.lastSeen));
+    const rows = opts?.limit ? await query.limit(opts.limit) : await query;
+    return rows.map(toConnection);
+  }
+
+  async create(id: string): Promise<Connection> {
+    const now = new Date();
+    const [row] = await db
+      .insert(connections)
+      .values({ id, updatedAt: now, lastSeen: now })
+      .returning();
+    if (!row) throw new Error(`Failed to create connection ${id}`);
+    return toConnection(row);
   }
 
   async upsert(id: string, state: UpdateConnection): Promise<Connection> {

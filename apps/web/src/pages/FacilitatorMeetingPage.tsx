@@ -28,6 +28,7 @@ import { useMeeting } from "@/hooks/useMeeting";
 import { useMeetingAgenda } from "@/hooks/useMeetingAgenda";
 import { useDecisionContext } from "@/hooks/useDecisionContext";
 import { useTemplates } from "@/hooks/useTemplates";
+import { useConnectionContext } from "@/context/ConnectionContext";
 import {
   lockField,
   unlockField,
@@ -212,6 +213,21 @@ export function FacilitatorMeetingPage() {
   );
   const [leftTab, setLeftTab] = useState<"candidates" | "agenda">("agenda");
   const [zoomedFieldId, setZoomedFieldId] = useState<string | null>(null);
+  const { globalContext } = useConnectionContext();
+
+  // Sync zoom with remote focus changes — React no-ops on same value so no loop
+  useEffect(() => {
+    setZoomedFieldId(globalContext?.activeField ?? null);
+  }, [globalContext?.activeField]);
+
+  // Sync active decision context with remote focus changes
+  useEffect(() => {
+    const remoteContextId = globalContext?.activeDecisionContextId ?? null;
+    if (remoteContextId) {
+      setActiveApiContextId(remoteContextId);
+    }
+  }, [globalContext?.activeDecisionContextId]);
+
   const [modal, setModal] = useState<ModalState>(null);
   const [supplementary, setSupplementary] = useState<SupplementaryItem[]>([]);
   const [fieldFeedback, setFieldFeedback] = useState<DecisionFeedback[]>([]);

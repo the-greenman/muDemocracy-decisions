@@ -207,6 +207,10 @@ export function createMCPServerService(): MCPServerService {
   return new MCPServerService(new DrizzleMCPServerRepository());
 }
 
+export function createConnectionRepository(): DrizzleConnectionRepository {
+  return new DrizzleConnectionRepository();
+}
+
 /**
  * Creates a GlobalContextService backed by the PostgreSQL connections table.
  */

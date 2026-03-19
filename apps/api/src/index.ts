@@ -23,6 +23,7 @@ import {
   createDraftGenerationService,
   createFeedbackService,
   createFlaggedDecisionService,
+  createConnectionRepository,
   createGlobalContextService,
   createLLMInteractionService,
   createMarkdownExportService,
@@ -48,7 +49,7 @@ import {
   setFieldContextRoute,
   setMeetingContextRoute,
 } from "./routes/context.js";
-import { registerConnectionEventsRoute } from "./routes/connections.js";
+import { registerConnectionRoutes } from "./routes/connections.js";
 import {
   clearStreamingBufferRoute,
   changeDecisionContextTemplateRoute,
@@ -122,6 +123,7 @@ const decisionLogGenerator = useDatabase ? createDecisionLogGenerator() : null;
 const draftGenerationService = useDatabase ? createDraftGenerationService() : null;
 const feedbackService = useDatabase ? createFeedbackService() : null;
 const globalContextService = useDatabase ? createGlobalContextService() : null;
+const connectionRepository = useDatabase ? createConnectionRepository() : null;
 const supplementaryContentService = useDatabase ? createSupplementaryContentService() : null;
 const markdownExportService = useDatabase ? createMarkdownExportService() : null;
 const llmInteractionService = useDatabase ? createLLMInteractionService() : null;
@@ -1779,9 +1781,9 @@ app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Register SSE route for connection events
-if (globalContextService) {
-  registerConnectionEventsRoute(app, globalContextService);
+// Register connection management + SSE routes
+if (connectionRepository && globalContextService) {
+  registerConnectionRoutes(app, connectionRepository, globalContextService);
 }
 
 // OpenAPI documentation
@@ -1873,8 +1875,14 @@ if (isMainModule) {
     res.statusCode = response.status;
     res.statusMessage = response.statusText;
     response.headers.forEach((value, key) => res.setHeader(key, value));
-    const responseBody = await response.text();
-    res.end(responseBody);
+
+    if (response.body) {
+      const { Readable } = await import("stream");
+      const nodeStream = Readable.fromWeb(response.body as import("stream/web").ReadableStream);
+      nodeStream.pipe(res);
+    } else {
+      res.end();
+    }
   });
 
   server.listen(port, () => {

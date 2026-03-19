@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { X, ZoomIn } from "lucide-react";
+import { ZoomIn } from "lucide-react";
 import { FieldCard } from "@/components/shared/FieldCard";
 import { AgendaList } from "@/components/shared/AgendaList";
 import { TagPill } from "@/components/shared/TagPill";
@@ -198,16 +198,6 @@ export function SharedMeetingPage() {
           <div className="w-full max-w-5xl rounded-card border border-border bg-surface p-8">
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-display-title text-text-primary">{zoomedField.label}</h2>
-              <button
-                onClick={() => {
-                  setZoomedFieldId(null);
-                  if (currentFocusKey) setDismissedFocusKey(currentFocusKey);
-                }}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded border border-border text-fac-meta text-text-muted hover:text-text-primary"
-              >
-                <X size={14} />
-                Close
-              </button>
             </div>
             {zoomedField.instructions && (
               <p className="text-display-meta text-text-muted leading-snug mt-4">

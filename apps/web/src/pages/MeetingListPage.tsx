@@ -18,10 +18,9 @@ import { Input } from "@/components/ui/Input";
 import { Panel } from "@/components/ui/Panel";
 import { ParticipantAddWidget } from "@/components/shared/ParticipantAddWidget";
 import { MainHeader } from "@/components/shared/MainHeader";
-import { listMeetings, createMeeting, getInSessionMeetingsContextSummary } from "@/api/endpoints";
-import type { InSessionMeetingsContextSummary, Meeting } from "@/api/types";
-
-const CONTEXT_SUMMARY_LOAD_ERROR = "Failed to load active meeting context";
+import { listMeetings, createMeeting } from "@/api/endpoints";
+import { useConnectionContext } from "@/context/ConnectionContext";
+import type { Meeting } from "@/api/types";
 
 function nowAsLocalDateTimeInputValue() {
   const now = new Date();
@@ -56,10 +55,10 @@ function formatMeetingDate(value: string): string {
 
 export function MeetingListPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [activeSummary, setActiveSummary] = useState<InSessionMeetingsContextSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const { globalContext } = useConnectionContext();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,14 +66,6 @@ export function MeetingListPage() {
     try {
       const { meetings: data } = await listMeetings();
       setMeetings(data);
-
-      try {
-        const summary = await getInSessionMeetingsContextSummary();
-        setActiveSummary(summary);
-      } catch (summaryError) {
-        console.error(CONTEXT_SUMMARY_LOAD_ERROR, summaryError);
-        setActiveSummary(null);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load meetings");
     } finally {
@@ -90,7 +81,7 @@ export function MeetingListPage() {
     () => [...meetings].sort((a, b) => b.date.localeCompare(a.date)),
     [meetings],
   );
-  const currentContext = activeSummary?.currentContext;
+  const currentContext = globalContext;
   const activeMeetingPath = currentContext?.activeMeetingId
     ? `/meetings/${currentContext.activeMeetingId}/facilitator/home`
     : null;
@@ -152,14 +143,6 @@ export function MeetingListPage() {
                     decisionContextId={currentContext.activeDecisionContextId}
                   />
                 )}
-                {!currentContext.activeDecisionContextId &&
-                  activeSummary &&
-                  activeSummary.inSessionMeetings.length > 1 && (
-                    <p className="text-fac-meta text-text-muted">
-                      {activeSummary.inSessionMeetings.length} meetings are in session, but only
-                      this one is selected for global context.
-                    </p>
-                  )}
               </div>
               <div className="flex flex-wrap gap-2">
                 {activeMeetingPath && (

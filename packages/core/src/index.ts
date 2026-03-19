@@ -57,6 +57,7 @@ export {
   createServices,
   createExpertTemplateService,
   createMCPServerService,
+  createConnectionRepository,
   type ServiceContainer,
 } from "./service-factory.js";
 

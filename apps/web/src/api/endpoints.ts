@@ -440,3 +440,26 @@ export function clearActiveDecision(meetingId: string) {
     ...jsonBody({}),
   });
 }
+
+
+// ── Connection management ──────────────────────────────────────────
+
+export interface Connection {
+  id: string;
+  activeMeetingId: string | null;
+  activeDecisionId: string | null;
+  activeDecisionContextId: string | null;
+  activeField: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastSeen: string;
+}
+
+export function listConnections(limit?: number) {
+  const query = limit ? `?limit=${limit}` : "";
+  return apiFetch<{ connections: Connection[] }>(`/api/connections${query}`);
+}
+
+export function createConnection() {
+  return apiFetch<Connection>("/api/connections", { method: "POST" });
+}
