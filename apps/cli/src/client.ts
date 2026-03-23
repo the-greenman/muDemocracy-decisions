@@ -1,6 +1,6 @@
 import { logHttpRequest, logHttpResponse } from "./runtime.js";
 
-const BASE_URL =
+export const BASE_URL =
   process.env.DECISION_LOGGER_API_URL ?? process.env.API_BASE_URL ?? "http://localhost:3001";
 
 /**
@@ -169,7 +169,9 @@ export interface DecisionExportResponse {
 
 export interface ApiStatusResponse {
   status: "ok";
+  version: string;
   timestamp: string;
+  startedAt: string;
   nodeEnv: string;
   databaseConfigured: boolean;
   llm: {

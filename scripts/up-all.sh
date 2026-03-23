@@ -27,6 +27,8 @@ if [[ -f "$WEB_PID_FILE" ]]; then
   rm -f "$WEB_PID_FILE"
 fi
 
+"$ROOT_DIR/dlogger" preflight --web-port "${WEB_PORT:-5173}" --web-only || exit 1
+
 nohup setsid pnpm --filter @repo/web dev >"$WEB_LOG_FILE" 2>&1 &
 WEB_PID=$!
 echo "$WEB_PID" >"$WEB_PID_FILE"

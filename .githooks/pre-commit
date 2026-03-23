@@ -3,3 +3,23 @@ set -e
 
 pnpm lint
 pnpm lint:workspace
+
+# ── Auto-bump API patch version when API source is staged ──────────
+#
+# Triggers on staged changes under apps/api/src/ or packages/schema/src/.
+# Skips if apps/api/package.json already has a version change staged
+# (meaning the developer bumped it manually or it was already auto-bumped).
+STAGED_API=$(git diff --cached --name-only 2>/dev/null \
+  | grep -E '^(apps/api/src/|packages/schema/src/)' \
+  | grep -v '__tests__\|\.test\.\|\.spec\.' \
+  | head -1)
+
+if [ -n "$STAGED_API" ]; then
+  if git diff --cached apps/api/package.json 2>/dev/null | grep -q '"version"'; then
+    echo "[api-version] Version already updated in this commit — skipping auto-bump."
+  else
+    echo "[api-version] API source changed — auto-bumping patch version..."
+    node ./scripts/bump-api-version.mjs --patch
+    git add apps/api/package.json
+  fi
+fi
