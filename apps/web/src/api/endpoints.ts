@@ -8,6 +8,7 @@ import type {
   InSessionMeetingsContextSummary,
   DecisionContext,
   DecisionField,
+  StreamStatus,
   DecisionTemplate,
   ExportTemplate,
   FlaggedDecision,
@@ -74,6 +75,10 @@ export function getTranscriptReading(meetingId: string) {
 
 export function listMeetingChunks(meetingId: string) {
   return apiFetch<{ chunks: TranscriptChunk[] }>(`/api/meetings/${meetingId}/chunks`);
+}
+
+export function getStreamingStatus(meetingId: string) {
+  return apiFetch<StreamStatus>(`/api/meetings/${meetingId}/streaming/status`);
 }
 
 export function uploadTranscript(

@@ -4,6 +4,7 @@ import { ConnectionContext } from "@/context/ConnectionContext";
 import { initConnection, BASE_URL } from "@/api/client";
 import { getGlobalContext } from "@/api/endpoints";
 import type { GlobalContext } from "@/api/types";
+import { ApiStatusBar } from "./ApiStatusBar";
 
 export function RootLayout() {
   const [connectionId, setConnectionId] = useState<string | null>(null);
@@ -90,6 +91,7 @@ export function RootLayout() {
 
   return (
     <ConnectionContext.Provider value={{ connectionId, globalContext }}>
+      <ApiStatusBar />
       <Outlet />
     </ConnectionContext.Provider>
   );

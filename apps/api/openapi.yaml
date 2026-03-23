@@ -1,10 +1,72 @@
 openapi: 3.0.0
 info:
   version: 1.0.0
-  title: Decision Logger API
+  title: μ democracy API
   description: Context-driven decision logging system API
 components:
   schemas:
+    ApiStatusLlm:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum:
+            - mock
+            - real
+        provider:
+          type: string
+        model:
+          type: string
+      required:
+        - mode
+        - provider
+        - model
+      description: Safe LLM runtime configuration currently active in the API process
+      example:
+        mode: real
+        provider: anthropic
+        model: claude-opus-4-5
+    ApiStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        nodeEnv:
+          type: string
+        databaseConfigured:
+          type: boolean
+        llm:
+          $ref: "#/components/schemas/ApiStatusLlm"
+      required:
+        - status
+        - version
+        - timestamp
+        - startedAt
+        - nodeEnv
+        - databaseConfigured
+        - llm
+      description: Safe runtime diagnostics for the API process
+      example:
+        status: ok
+        version: 1.0.0
+        timestamp: "2026-03-10T22:30:00Z"
+        startedAt: "2026-03-10T20:00:00Z"
+        nodeEnv: development
+        databaseConfigured: true
+        llm:
+          mode: real
+          provider: anthropic
+          model: claude-opus-4-5
     Meeting:
       type: object
       properties:
@@ -25,9 +87,11 @@ components:
         status:
           type: string
           enum:
-            - active
-            - completed
-          default: active
+            - proposed
+            - in_session
+            - ended
+            - transcription_complete
+          default: proposed
         createdAt:
           type: string
           format: date-time
@@ -45,10 +109,2862 @@ components:
         participants:
           - Alice
           - Bob
+        status: proposed
+        createdAt: "2026-02-27T10:00:00Z"
+    FlaggedDecision:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        meetingId:
+          type: string
+          format: uuid
+        suggestedTitle:
+          type: string
+        contextSummary:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        chunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        suggestedTemplateId:
+          type: string
+          format: uuid
+        templateConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          enum:
+            - pending
+            - accepted
+            - rejected
+            - dismissed
+          default: pending
+        priority:
+          type: integer
+          default: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - meetingId
+        - suggestedTitle
+        - contextSummary
+        - confidence
+        - chunkIds
+        - createdAt
+        - updatedAt
+      description: A decision flagged for attention in a meeting
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440007
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        suggestedTitle: Architecture Decision
+        contextSummary: Team discussed microservices vs monolith
+        confidence: 0.89
+        chunkIds:
+          - 550e8400-e29b-41d4-a716-446655440002
+        suggestedTemplateId: 550e8400-e29b-41d4-a716-446655440008
+        templateConfidence: 0.92
+        status: pending
+        priority: 1
+        createdAt: "2026-02-27T10:00:00Z"
+        updatedAt: "2026-02-27T10:00:00Z"
+    DecisionContext:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        meetingId:
+          type: string
+          format: uuid
+        flaggedDecisionId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        templateId:
+          type: string
+          format: uuid
+        activeField:
+          type: string
+          format: uuid
+        lockedFields:
+          type: array
+          items:
+            type: string
+            format: uuid
+          default:
+        draftData:
+          type: object
+          additionalProperties:
+            nullable: true
+        draftVersions:
+          type: array
+          items:
+            type: object
+            properties:
+              version:
+                type: integer
+                minimum: 0
+                exclusiveMinimum: true
+              draftData:
+                type: object
+                additionalProperties:
+                  nullable: true
+              savedAt:
+                type: string
+                format: date-time
+            required:
+              - version
+              - draftData
+              - savedAt
+          default:
+        suggestedTags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+            - drafting
+            - reviewing
+            - locked
+            - logged
+          default: drafting
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - meetingId
+        - flaggedDecisionId
+        - title
+        - templateId
+        - createdAt
+        - updatedAt
+      description: Working context for drafting a decision
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440004
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        flaggedDecisionId: 550e8400-e29b-41d4-a716-446655440007
+        title: Architecture Decision
+        templateId: 550e8400-e29b-41d4-a716-446655440008
+        activeField: 550e8400-e29b-41d4-a716-446655440005
+        lockedFields:
+          - 550e8400-e29b-41d4-a716-446655440005
+        draftData:
+          550e8400-e29b-41d4-a716-446655440005: We will use microservices
+        draftVersions:
+          -
+            version: 1
+            draftData:
+              550e8400-e29b-41d4-a716-446655440005: We will use a modular monolith
+            savedAt: "2026-02-27T09:45:00Z"
+        status: drafting
+        createdAt: "2026-02-27T10:00:00Z"
+        updatedAt: "2026-02-27T10:00:00Z"
+    TemplateFieldAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        templateId:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          format: uuid
+        order:
+          type: integer
+          minimum: 0
+        required:
+          type: boolean
+          default: true
+      required:
+        - fieldId
+        - order
+      description: Assignment of a field to a template
+      example:
+        fieldId: 550e8400-e29b-41d4-a716-446655440005
+        order: 0
+        required: true
+    DecisionTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        namespace:
+          type: string
+          default: core
+        name:
+          type: string
+        description:
+          type: string
+        promptTemplate:
+          type: string
+        category:
+          type: string
+          enum:
+            - standard
+            - technology
+            - strategy
+            - budget
+            - policy
+            - proposal
+            - deliberation
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateFieldAssignment"
+        version:
+          type: integer
+          default: 1
+        isDefault:
+          type: boolean
+          default: false
+        isCustom:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - description
+        - category
+        - fields
+        - createdAt
+      description: A template for structuring decisions
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440008
+        namespace: core
+        name: Technology Selection
+        description: Template for choosing between technical options
+        category: technology
+        fields:
+          -
+            fieldId: 550e8400-e29b-41d4-a716-446655440005
+            order: 0
+            required: true
+        version: 1
+        isDefault: false
+        isCustom: false
+        createdAt: "2026-02-27T10:00:00Z"
+    GlobalContext:
+      type: object
+      properties:
+        activeMeetingId:
+          type: string
+          format: uuid
+        activeDecisionId:
+          type: string
+          format: uuid
+        activeDecisionContextId:
+          type: string
+          format: uuid
+        activeField:
+          type: string
+          format: uuid
+        activeMeeting:
+          $ref: "#/components/schemas/Meeting"
+        activeDecision:
+          $ref: "#/components/schemas/FlaggedDecision"
+        activeDecisionContext:
+          $ref: "#/components/schemas/DecisionContext"
+        activeTemplate:
+          $ref: "#/components/schemas/DecisionTemplate"
+      description: Current globally selected meeting and decision drafting context
+    InSessionMeetingsContextSummary:
+      type: object
+      properties:
+        currentContext:
+          $ref: "#/components/schemas/GlobalContext"
+        inSessionMeetings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Meeting"
+      required:
+        - currentContext
+        - inSessionMeetings
+      description: Current global context and all meetings whose lifecycle status is in_session
+    SetActiveMeetingRequest:
+      type: object
+      properties:
+        meetingId:
+          type: string
+          format: uuid
+      required:
+        - meetingId
+    DecisionFeedback:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        decisionContextId:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          nullable: true
+          format: uuid
+        draftVersionNumber:
+          type: integer
+          nullable: true
+          minimum: 0
+          exclusiveMinimum: true
+        fieldVersionId:
+          type: string
+          nullable: true
+          format: uuid
+        rating:
+          type: string
+          enum:
+            - approved
+            - needs_work
+            - rejected
+        source:
+          type: string
+          enum:
+            - user
+            - expert_agent
+            - peer_user
+        authorId:
+          type: string
+          minLength: 1
+        comment:
+          type: string
+        textReference:
+          type: string
+          nullable: true
+        referenceId:
+          type: string
+          nullable: true
+        referenceUrl:
+          type: string
+          nullable: true
+          format: uri
+        excludeFromRegeneration:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - decisionContextId
+        - fieldId
+        - draftVersionNumber
+        - fieldVersionId
+        - rating
+        - source
+        - authorId
+        - comment
+        - textReference
+        - referenceId
+        - referenceUrl
+        - createdAt
+      description: Structured feedback linked to a decision context and optionally a specific field
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440111
+        decisionContextId: 550e8400-e29b-41d4-a716-446655440004
+        fieldId: 550e8400-e29b-41d4-a716-446655440005
+        draftVersionNumber: 2
+        fieldVersionId: null
+        rating: needs_work
+        source: expert_agent
+        authorId: TechReviewer
+        comment: The options field is missing the managed service alternative.
+        textReference: We can either self-host or use a managed offering.
+        referenceId: null
+        referenceUrl: null
+        excludeFromRegeneration: false
+        createdAt: "2026-03-12T11:00:00Z"
+    DecisionFeedbackList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisionFeedback"
+      required:
+        - items
+      description: A list of decision feedback items
+    ToggleFeedbackExcludeRequest:
+      type: object
+      properties:
+        excludeFromRegeneration:
+          type: boolean
+      required:
+        - excludeFromRegeneration
+    SetActiveDecisionRequest:
+      type: object
+      properties:
+        flaggedDecisionId:
+          type: string
+          format: uuid
+        templateId:
+          type: string
+          format: uuid
+        contextId:
+          type: string
+          format: uuid
+      required:
+        - flaggedDecisionId
+    SetActiveFieldRequest:
+      type: object
+      properties:
+        fieldId:
+          type: string
+          minLength: 1
+      required:
+        - fieldId
+    BroadcastContextResponse:
+      type: object
+      properties:
+        decisionContextId:
+          type: string
+          nullable: true
+          format: uuid
+        fieldId:
+          type: string
+          nullable: true
+      required:
+        - decisionContextId
+        - fieldId
+    SetBroadcastContextRequest:
+      type: object
+      properties:
+        decisionContextId:
+          type: string
+          nullable: true
+          format: uuid
+        fieldId:
+          type: string
+          nullable: true
+          minLength: 1
+    UpdateMeetingRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        date:
+          type: string
+          format: date-time
+        participants:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        status:
+          type: string
+          enum:
+            - proposed
+            - in_session
+            - ended
+            - transcription_complete
+    MeetingSummaryResponse:
+      type: object
+      properties:
+        decisionCount:
+          type: integer
+          minimum: 0
+        draftCount:
+          type: integer
+          minimum: 0
+        loggedCount:
+          type: integer
+          minimum: 0
+      required:
+        - decisionCount
+        - draftCount
+        - loggedCount
+    MeetingDecisionContextsResponse:
+      type: object
+      properties:
+        contexts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisionContext"
+      required:
+        - contexts
+    ReadableTranscriptRow:
+      type: object
+      properties:
+        id:
+          type: string
+        meetingId:
+          type: string
+          format: uuid
+        rawTranscriptId:
+          type: string
+          format: uuid
+        rawTranscriptUploadedAt:
+          type: string
+          format: date-time
+        rawTranscriptFormat:
+          type: string
+          enum:
+            - json
+            - txt
+            - vtt
+            - srt
+            - chat-json
+            - chat-txt
+        sequenceNumber:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+        displayText:
+          type: string
+        chunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          default:
+        speaker:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        sourceMetadata:
+          type: object
+          additionalProperties:
+            nullable: true
+      required:
+        - id
+        - meetingId
+        - rawTranscriptId
+        - rawTranscriptUploadedAt
+        - rawTranscriptFormat
+        - sequenceNumber
+        - displayText
+      description: A readable transcript row derived from normalized preprocessing output for human review and selection
+      example:
+        id: "550e8400-e29b-41d4-a716-446655440100:1"
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        rawTranscriptId: 550e8400-e29b-41d4-a716-446655440001
+        rawTranscriptUploadedAt: "2026-02-27T10:00:00Z"
+        rawTranscriptFormat: txt
+        sequenceNumber: 1
+        displayText: We should keep the system simple and evolve it over time.
+        chunkIds:
+          - 550e8400-e29b-41d4-a716-446655440002
+        speaker: Alice
+        startTime: "00:08:29"
+        endTime: "00:08:35"
+        sourceMetadata:
+          sourceBlockIndex: 0
+    TranscriptReadingResponse:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReadableTranscriptRow"
+      required:
+        - rows
+    RawTranscript:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        meetingId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum:
+            - upload
+            - stream
+            - import
+        format:
+          type: string
+          enum:
+            - json
+            - txt
+            - vtt
+            - srt
+            - chat-json
+            - chat-txt
+        content:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+        uploadedBy:
+          type: string
+        streamRelationship:
+          type: string
+          enum:
+            - equivalent
+            - parallel
+            - derived
+          default: equivalent
+        streamEpochMs:
+          type: integer
+        audioUri:
+          type: string
+          format: uri
+        language:
+          type: string
+        derivationType:
+          type: string
+          enum:
+            - synthesis
+            - translation
+            - cleanup
+            - interpretation
+        derivedFromChunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        derivingAgentId:
+          type: string
+      required:
+        - id
+        - meetingId
+        - source
+        - format
+        - content
+        - uploadedAt
+      description: Raw transcript uploaded to a meeting
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440001
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        source: upload
+        format: txt
+        content: Meeting transcript text...
+        metadata:
+          fileName: meeting.txt
+        uploadedAt: "2026-02-27T10:00:00Z"
+        uploadedBy: Alice
+    TranscriptChunk:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        meetingId:
+          type: string
+          format: uuid
+        rawTranscriptId:
+          type: string
+          format: uuid
+        sequenceNumber:
+          type: integer
+          minimum: 0
+        text:
+          type: string
+        speaker:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        chunkStrategy:
+          type: string
+          enum:
+            - fixed
+            - semantic
+            - speaker
+            - streaming
+        tokenCount:
+          type: integer
+        wordCount:
+          type: integer
+        contexts:
+          type: array
+          items:
+            type: string
+          default:
+        topics:
+          type: array
+          items:
+            type: string
+        streamSource:
+          type: string
+        contentType:
+          type: string
+          enum:
+            - speech
+            - message
+          default: speech
+        startTimeMs:
+          type: integer
+        endTimeMs:
+          type: integer
+        messageId:
+          type: string
+        threadId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - meetingId
+        - rawTranscriptId
+        - sequenceNumber
+        - text
+        - chunkStrategy
+        - createdAt
+      description: A chunk of transcript with context tags
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440002
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        rawTranscriptId: 550e8400-e29b-41d4-a716-446655440001
+        sequenceNumber: 0
+        text: We need to decide on the architecture.
+        speaker: Alice
+        startTime: "00:05:00"
+        endTime: "00:05:10"
+        chunkStrategy: semantic
+        tokenCount: 10
+        wordCount: 7
+        contexts:
+          - "meeting:550e8400-e29b-41d4-a716-446655440000"
+        topics:
+          - architecture
+        streamSource: transcription
+        createdAt: "2026-02-27T10:00:00Z"
+    TranscriptUploadResponse:
+      type: object
+      properties:
+        transcript:
+          $ref: "#/components/schemas/RawTranscript"
+        chunks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptChunk"
+      required:
+        - transcript
+        - chunks
+    TranscriptUploadRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+        format:
+          type: string
+          enum:
+            - json
+            - txt
+            - vtt
+            - srt
+          default: txt
+        metadata:
+          type: object
+          additionalProperties:
+            nullable: true
+        uploadedBy:
+          type: string
+        chunkStrategy:
+          type: string
+          enum:
+            - fixed
+            - semantic
+            - speaker
+            - streaming
+          default: fixed
+        chunkSize:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+        overlap:
+          type: integer
+          minimum: 0
+      required:
+        - content
+    RawTranscriptsListResponse:
+      type: object
+      properties:
+        transcripts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RawTranscript"
+      required:
+        - transcripts
+    MeetingChunksListResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptChunk"
+      required:
+        - chunks
+    SearchChunksRequest:
+      type: object
+      properties:
+        meetingId:
+          type: string
+          format: uuid
+        query:
+          type: string
+          minLength: 1
+      required:
+        - meetingId
+        - query
+    StreamTranscriptResponse:
+      type: object
+      properties:
+        buffering:
+          type: boolean
+        bufferSize:
+          type: integer
+          minimum: 0
+        chunkId:
+          type: string
+          format: uuid
+        appliedContexts:
+          type: array
+          items:
+            type: string
+      required:
+        - buffering
+        - bufferSize
+        - appliedContexts
+      description: Acknowledgement that a streaming transcript event was buffered
+      example:
+        buffering: true
+        bufferSize: 2
+        appliedContexts:
+          - "meeting:550e8400-e29b-41d4-a716-446655440000"
+    StreamTranscriptEvent:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+        speaker:
+          type: string
+        timestamp:
+          type: string
+        sequenceNumber:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+        contexts:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        streamSource:
+          type: string
+        contentType:
+          type: string
+          enum:
+            - speech
+            - message
+        messageId:
+          type: string
+        threadId:
+          type: string
+      required:
+        - text
+      description: A streaming transcript text event submitted during an active meeting
+      example:
+        text: We decided to defer the vendor selection
+        speaker: Alice
+        timestamp: "00:12:33"
+        streamSource: "mic:front"
+        contexts:
+          - "custom:note"
+    StreamStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - active
+            - idle
+        eventCount:
+          type: integer
+          minimum: 0
+      required:
+        - status
+        - eventCount
+      description: Current streaming buffer status for a meeting
+      example:
+        status: active
+        eventCount: 3
+    StreamFlushResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptChunk"
+      required:
+        - chunks
+      description: Transcript chunks created by flushing the streaming buffer
+    TagChunksByTimeRangeResponse:
+      type: object
+      properties:
+        updatedCount:
+          type: integer
+      required:
+        - updatedCount
+    TagChunksByTimeRangeRequest:
+      type: object
+      properties:
+        fromMs:
+          type: integer
+          minimum: 0
+        toMs:
+          type: integer
+          minimum: 0
+        contexts:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 1
+      required:
+        - fromMs
+        - toMs
+        - contexts
+    ExpertTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - technical
+            - legal
+            - stakeholder
+            - custom
+        promptTemplate:
+          type: string
+        mcpAccess:
+          type: array
+          items:
+            type: string
+          default:
+        outputSchema:
+          type: object
+          additionalProperties:
+            nullable: true
+        isActive:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - type
+        - promptTemplate
+        - createdAt
+        - updatedAt
+      description: Template for domain expert consultations
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440010
+        name: Technical Architecture Review
+        type: technical
+        promptTemplate: You are a technical architect. Review this decision...
+        mcpAccess:
+          - github
+          - docs
+        outputSchema:
+          suggestions: array
+          concerns: array
+        isActive: true
+        createdAt: "2026-02-27T10:00:00Z"
+        updatedAt: "2026-02-27T10:00:00Z"
+    ExpertsListResponse:
+      type: object
+      properties:
+        experts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpertTemplate"
+      required:
+        - experts
+    MCPServer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - stdio
+            - http
+            - sse
+        connectionConfig:
+          type: object
+          additionalProperties:
+            nullable: true
+        capabilities:
+          type: object
+          properties:
+            tools:
+              type: array
+              items:
+                type: string
+            resources:
+              type: array
+              items:
+                type: string
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+            - error
+          default: active
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - type
+        - connectionConfig
+        - createdAt
+        - updatedAt
+      description: MCP server configuration
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440011
+        name: github-mcp
+        type: stdio
+        connectionConfig:
+          command: npx
+          args:
+            - -y
+            - @modelcontextprotocol/server-github
+        capabilities:
+          tools:
+            - search_code
+            - get_file
         status: active
         createdAt: "2026-02-27T10:00:00Z"
+        updatedAt: "2026-02-27T10:00:00Z"
+    MCPServersListResponse:
+      type: object
+      properties:
+        servers:
+          type: array
+          items:
+            $ref: "#/components/schemas/MCPServer"
+      required:
+        - servers
+    SupplementaryContent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        meetingId:
+          type: string
+          format: uuid
+        label:
+          type: string
+        body:
+          type: string
+          minLength: 1
+        sourceType:
+          type: string
+          default: manual
+        contexts:
+          type: array
+          items:
+            type: string
+          default:
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - meetingId
+        - body
+        - createdAt
+      description: Supplementary evidence attached to a meeting, decision context, or field scope
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440003
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        label: Options comparison table
+        body: "Option 1: cloud-native stack (£45k). Option 2: patch existing service (£8k)."
+        sourceType: manual
+        contexts:
+          - "decision:550e8400-e29b-41d4-a716-446655440004:options"
+        createdBy: Alice
+        createdAt: "2026-02-27T10:00:00Z"
+    CreateSupplementaryContent:
+      type: object
+      properties:
+        meetingId:
+          type: string
+          format: uuid
+        label:
+          type: string
+        body:
+          type: string
+          minLength: 1
+        sourceType:
+          type: string
+          default: manual
+        contexts:
+          type: array
+          items:
+            type: string
+          default:
+        createdBy:
+          type: string
+      required:
+        - meetingId
+        - body
+      description: Schema for creating supplementary evidence
+      example:
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        label: Options comparison table
+        body: "Option 1: cloud-native stack (£45k). Option 2: patch existing service (£8k)."
+        sourceType: manual
+        contexts:
+          - "decision:550e8400-e29b-41d4-a716-446655440004:options"
+        createdBy: Alice
+    SupplementaryContentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupplementaryContent"
+      required:
+        - items
+    CreateFlaggedDecisionRequest:
+      type: object
+      properties:
+        suggestedTitle:
+          type: string
+        contextSummary:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 1
+        chunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        suggestedTemplateId:
+          type: string
+          format: uuid
+        templateConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        priority:
+          type: integer
+          default: 0
+      required:
+        - suggestedTitle
+        - contextSummary
+        - chunkIds
+    FlaggedDecisionListItem:
+      allOf:
+        -
+          $ref: "#/components/schemas/FlaggedDecision"
+        -
+          type: object
+          properties:
+            contextId:
+              type: string
+              nullable: true
+              format: uuid
+            contextStatus:
+              type: string
+              nullable: true
+              enum:
+                - drafting
+                - reviewing
+                - locked
+                - logged
+            hasDraft:
+              type: boolean
+            draftFieldCount:
+              type: integer
+              minimum: 0
+            versionCount:
+              type: integer
+              minimum: 0
+          required:
+            - contextId
+            - contextStatus
+            - hasDraft
+            - draftFieldCount
+            - versionCount
+      description: A flagged decision enriched with decision-context and draft summary for meeting queue views
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440007
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        suggestedTitle: Architecture Decision
+        contextSummary: Team discussed microservices vs monolith
+        confidence: 0.89
+        chunkIds:
+          - 550e8400-e29b-41d4-a716-446655440002
+        suggestedTemplateId: 550e8400-e29b-41d4-a716-446655440008
+        templateConfidence: 0.92
+        status: accepted
+        priority: 1
+        createdAt: "2026-02-27T10:00:00Z"
+        updatedAt: "2026-02-27T10:05:00Z"
+        contextId: 550e8400-e29b-41d4-a716-446655440004
+        contextStatus: drafting
+        hasDraft: true
+        draftFieldCount: 3
+        versionCount: 1
+    FlaggedDecisionListResponse:
+      type: object
+      properties:
+        decisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlaggedDecisionListItem"
+      required:
+        - decisions
+    UpdateFlaggedDecisionRequest:
+      type: object
+      properties:
+        suggestedTitle:
+          type: string
+          minLength: 1
+        contextSummary:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum:
+            - pending
+            - accepted
+            - rejected
+            - dismissed
+        priority:
+          type: integer
+        chunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+    UpdateDecisionContextRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        templateId:
+          type: string
+          format: uuid
+      description: Fields that can be updated on an existing decision context
+      example:
+        title: Updated decision title
+    DecisionField:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        namespace:
+          type: string
+          default: core
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum:
+            - context
+            - evaluation
+            - outcome
+            - metadata
+        extractionPrompt:
+          type: string
+        instructions:
+          type: string
+        fieldType:
+          type: string
+          enum:
+            - text
+            - textarea
+            - select
+            - multiselect
+            - number
+            - date
+            - url
+        placeholder:
+          type: string
+        validationRules:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum:
+                  - required
+                  - minLength
+                  - maxLength
+                  - pattern
+                  - enum
+              value:
+                anyOf:
+                  -
+                    type: string
+                  -
+                    type: number
+                  -
+                    type: array
+                    items:
+                      type: string
+              message:
+                type: string
+            required:
+              - type
+        version:
+          type: integer
+          default: 1
+        isCustom:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - description
+        - category
+        - extractionPrompt
+        - fieldType
+        - createdAt
+      description: A field definition for decision templates
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440005
+        namespace: core
+        name: decision_statement
+        description: The core decision being made
+        category: outcome
+        extractionPrompt: Extract the main decision statement from the discussion
+        fieldType: textarea
+        placeholder: Enter the decision statement...
+        validationRules:
+          -
+            type: required
+            message: Decision statement is required
+          -
+            type: minLength
+            value: 10
+            message: Decision must be at least 10 characters
+        version: 1
+        isCustom: false
+        createdAt: "2024-01-15T10:30:00Z"
+    TemplateFieldsResponse:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisionField"
+      required:
+        - fields
+    DecisionTemplateListResponse:
+      type: object
+      properties:
+        templates:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisionTemplate"
+      required:
+        - templates
+    ExportTemplateFieldAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        exportTemplateId:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          format: uuid
+        order:
+          type: integer
+          minimum: 0
+        title:
+          type: string
+      required:
+        - fieldId
+        - order
+      description: Assignment of a deliberation field to an export template
+      example:
+        fieldId: 550e8400-e29b-41d4-a716-446655440005
+        order: 0
+        title: Analysis
+    DefinitionLineage:
+      type: object
+      properties:
+        sourceDefinitionId:
+          type: string
+          format: uuid
+        sourceVersion:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+        forkedFromDefinitionId:
+          type: string
+          format: uuid
+        forkedFromVersion:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+      description: Optional lineage metadata for imported or forked definitions
+    DefinitionProvenance:
+      type: object
+      properties:
+        publisher:
+          type: string
+        sourcePackage:
+          type: string
+        importedAt:
+          type: string
+          format: date-time
+      description: Optional provenance metadata for imported definitions
+    ExportTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        deliberationTemplateId:
+          type: string
+          format: uuid
+        namespace:
+          type: string
+          default: core
+        name:
+          type: string
+        description:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExportTemplateFieldAssignment"
+        preamble:
+          type: string
+        version:
+          type: integer
+          default: 1
+        isDefault:
+          type: boolean
+          default: false
+        isCustom:
+          type: boolean
+          default: false
+        lineage:
+          $ref: "#/components/schemas/DefinitionLineage"
+        provenance:
+          $ref: "#/components/schemas/DefinitionProvenance"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deliberationTemplateId
+        - name
+        - description
+        - fields
+        - createdAt
+      description: A presentation template for human-readable permanent-log exports
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440018
+        deliberationTemplateId: 550e8400-e29b-41d4-a716-446655440008
+        namespace: core
+        name: Decision Record
+        description: Human-readable permanent log layout
+        fields:
+          -
+            fieldId: 550e8400-e29b-41d4-a716-446655440005
+            order: 0
+            title: Analysis
+        version: 1
+        isDefault: true
+        isCustom: false
+        lineage:
+          sourceDefinitionId: 550e8400-e29b-41d4-a716-446655440018
+          sourceVersion: 1
+        provenance:
+          publisher: core
+          sourcePackage: core-template-library
+          importedAt: "2026-03-15T19:45:00Z"
+        createdAt: "2026-03-15T19:45:00Z"
+    ExportTemplateListResponse:
+      type: object
+      properties:
+        exportTemplates:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExportTemplate"
+      required:
+        - exportTemplates
+    CreateDecisionContextRequest:
+      type: object
+      properties:
+        meetingId:
+          type: string
+          format: uuid
+        flaggedDecisionId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        templateId:
+          type: string
+          format: uuid
+        activeField:
+          type: string
+          format: uuid
+        draftData:
+          type: object
+          additionalProperties:
+            nullable: true
+        suggestedTags:
+          type: array
+          items:
+            type: string
+      required:
+        - meetingId
+        - flaggedDecisionId
+        - title
+        - templateId
+    ChangeTemplateRequest:
+      type: object
+      properties:
+        templateId:
+          type: string
+          format: uuid
+      required:
+        - templateId
+    DecisionContextWindow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        decisionContextId:
+          type: string
+          format: uuid
+        chunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        selectionStrategy:
+          type: string
+          enum:
+            - all
+            - relevant
+            - recent
+            - weighted
+        totalTokens:
+          type: integer
+        totalChunks:
+          type: integer
+        relevanceScores:
+          type: object
+          additionalProperties:
+            type: number
+        usedFor:
+          type: string
+          enum:
+            - draft
+            - regenerate
+            - field-specific
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - decisionContextId
+        - chunkIds
+        - selectionStrategy
+        - totalTokens
+        - totalChunks
+        - usedFor
+        - createdAt
+        - updatedAt
+      description: A window of transcript chunks selected for decision context
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440006
+        decisionContextId: 550e8400-e29b-41d4-a716-446655440004
+        chunkIds:
+          - 550e8400-e29b-41d4-a716-446655440002
+        selectionStrategy: relevant
+        totalTokens: 500
+        totalChunks: 1
+        relevanceScores:
+          550e8400-e29b-41d4-a716-446655440002: 0.95
+        usedFor: draft
+        createdAt: "2026-02-27T10:00:00Z"
+        updatedAt: "2026-02-27T10:00:00Z"
+    DecisionContextWindowsResponse:
+      type: object
+      properties:
+        windows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisionContextWindow"
+      required:
+        - windows
+    CreateDecisionContextWindowRequest:
+      type: object
+      properties:
+        selectionStrategy:
+          type: string
+          enum:
+            - recent
+            - relevant
+            - weighted
+          default: relevant
+        usedFor:
+          type: string
+          enum:
+            - draft
+            - regenerate
+            - field-specific
+          default: draft
+    DecisionContextWindowPreviewResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptChunk"
+        totalTokens:
+          type: integer
+          minimum: 0
+        estimatedRelevance:
+          type: object
+          additionalProperties:
+            type: number
+      required:
+        - chunks
+        - totalTokens
+        - estimatedRelevance
+    GenerateDraftRequest:
+      type: object
+      properties:
+    RegenerateDraftRequest:
+      type: object
+      properties:
+    MarkdownExportResponse:
+      type: object
+      properties:
+        markdown:
+          type: string
+      required:
+        - markdown
+    LockFieldRequest:
+      type: object
+      properties:
+        fieldId:
+          type: string
+          format: uuid
+      required:
+        - fieldId
+    DraftVersionSummary:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+        savedAt:
+          type: string
+        fieldCount:
+          type: integer
+          minimum: 0
+      required:
+        - version
+        - savedAt
+        - fieldCount
+    DraftVersionsResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DraftVersionSummary"
+      required:
+        - versions
+    RollbackDraftRequest:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+      required:
+        - version
+    RegenerateFieldResponse:
+      type: object
+      properties:
+        value:
+          type: string
+      required:
+        - value
+    RegenerateFieldRequest:
+      type: object
+      properties:
+    UpdateFieldValueRequest:
+      type: object
+      properties:
+        value:
+          nullable: true
+    FieldTranscriptResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptChunk"
+      required:
+        - chunks
+    AssignTranscriptChunksResponse:
+      type: object
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptChunk"
+      required:
+        - chunks
+      description: Transcript chunks after assigning context tags
+    AssignTranscriptChunksRequest:
+      type: object
+      properties:
+        chunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+      required:
+        - chunkIds
+      description: Chunk IDs to tag with transcript context derived from the route scope
+      example:
+        chunkIds:
+          - 550e8400-e29b-41d4-a716-446655440002
+          - 550e8400-e29b-41d4-a716-446655440003
+    DecisionLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        meetingId:
+          type: string
+          format: uuid
+        decisionContextId:
+          type: string
+          format: uuid
+        templateId:
+          type: string
+          format: uuid
+        templateVersion:
+          type: integer
+        fields:
+          type: object
+          additionalProperties:
+            nullable: true
+        decisionMethod:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - consensus
+                - vote
+                - authority
+                - defer
+                - reject
+                - manual
+                - ai_assisted
+            details:
+              type: string
+          required:
+            - type
+        sourceChunkIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        loggedAt:
+          type: string
+          format: date-time
+        loggedBy:
+          type: string
+      required:
+        - id
+        - meetingId
+        - decisionContextId
+        - templateId
+        - templateVersion
+        - fields
+        - decisionMethod
+        - sourceChunkIds
+        - loggedAt
+        - loggedBy
+      description: Immutable record of a logged decision
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440009
+        meetingId: 550e8400-e29b-41d4-a716-446655440000
+        decisionContextId: 550e8400-e29b-41d4-a716-446655440004
+        templateId: 550e8400-e29b-41d4-a716-446655440008
+        templateVersion: 1
+        fields:
+          decision_statement: We will use microservices
+        decisionMethod:
+          type: consensus
+          details: 5 for, 2 against
+        sourceChunkIds:
+          - 550e8400-e29b-41d4-a716-446655440002
+        loggedAt: "2026-02-27T10:00:00Z"
+        loggedBy: Alice
+    LogDecisionRequest:
+      type: object
+      properties:
+        loggedBy:
+          type: string
+        decisionMethod:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - consensus
+                - vote
+                - authority
+                - defer
+                - reject
+                - manual
+                - ai_assisted
+            details:
+              type: string
+          required:
+            - type
+      required:
+        - loggedBy
+        - decisionMethod
+    DecisionExportResponse:
+      type: object
+      properties:
+        format:
+          type: string
+          enum:
+            - markdown
+            - json
+        content:
+          anyOf:
+            -
+              type: string
+            -
+              type: object
+              additionalProperties:
+                nullable: true
+      required:
+        - format
+        - content
+    LLMInteraction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        decisionContextId:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          nullable: true
+          format: uuid
+        operation:
+          type: string
+          enum:
+            - generate_draft
+            - regenerate_field
+        promptSegments:
+          type: array
+          items:
+            oneOf:
+              -
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - system
+                  content:
+                    type: string
+                required:
+                  - type
+                  - content
+              -
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - transcript
+                  speaker:
+                    type: string
+                  text:
+                    type: string
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - type
+                  - text
+                  - tags
+              -
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - supplementary
+                  label:
+                    type: string
+                  content:
+                    type: string
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - type
+                  - content
+                  - tags
+              -
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - template_guidance
+                  scope:
+                    type: string
+                    enum:
+                      - template
+                      - field
+                  templateId:
+                    type: string
+                    format: uuid
+                  fieldId:
+                    type: string
+                    nullable: true
+                    format: uuid
+                  label:
+                    type: string
+                  content:
+                    type: string
+                required:
+                  - type
+                  - scope
+                  - templateId
+                  - fieldId
+                  - label
+                  - content
+              -
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - feedback
+                  id:
+                    type: string
+                    format: uuid
+                  decisionContextId:
+                    type: string
+                    format: uuid
+                  fieldId:
+                    type: string
+                    nullable: true
+                    format: uuid
+                  draftVersionNumber:
+                    type: integer
+                    nullable: true
+                    minimum: 0
+                    exclusiveMinimum: true
+                  fieldVersionId:
+                    type: string
+                    nullable: true
+                    format: uuid
+                  rating:
+                    type: string
+                    enum:
+                      - approved
+                      - needs_work
+                      - rejected
+                  source:
+                    type: string
+                    enum:
+                      - user
+                      - expert_agent
+                      - peer_user
+                  authorId:
+                    type: string
+                    minLength: 1
+                  comment:
+                    type: string
+                  textReference:
+                    type: string
+                    nullable: true
+                  referenceId:
+                    type: string
+                    nullable: true
+                  referenceUrl:
+                    type: string
+                    nullable: true
+                    format: uri
+                  excludeFromRegeneration:
+                    type: boolean
+                  createdAt:
+                    type: string
+                    format: date-time
+                required:
+                  - type
+                  - id
+                  - decisionContextId
+                  - fieldId
+                  - draftVersionNumber
+                  - fieldVersionId
+                  - rating
+                  - source
+                  - authorId
+                  - comment
+                  - textReference
+                  - referenceId
+                  - referenceUrl
+                  - excludeFromRegeneration
+                  - createdAt
+              -
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - template_fields
+                  fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        displayName:
+                          type: string
+                        description:
+                          type: string
+                        extractionPrompt:
+                          type: string
+                      required:
+                        - id
+                        - displayName
+                        - description
+                        - extractionPrompt
+                required:
+                  - type
+                  - fields
+        promptText:
+          type: string
+        responseText:
+          type: string
+        parsedResult:
+          type: object
+          nullable: true
+          additionalProperties:
+            nullable: true
+        provider:
+          type: string
+        model:
+          type: string
+        latencyMs:
+          type: integer
+        tokenCount:
+          type: object
+          nullable: true
+          properties:
+            input:
+              type: integer
+            output:
+              type: integer
+          required:
+            - input
+            - output
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - decisionContextId
+        - fieldId
+        - operation
+        - promptSegments
+        - promptText
+        - responseText
+        - parsedResult
+        - provider
+        - model
+        - latencyMs
+        - tokenCount
+        - createdAt
+      description: A stored record of an LLM API call with full prompt and response
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440099
+        decisionContextId: 550e8400-e29b-41d4-a716-446655440004
+        fieldId: null
+        operation: generate_draft
+        promptSegments:
+          -
+            type: system
+            content: You are an expert...
+        promptText: "You are an expert...\n\n=== TRANSCRIPT ===\n..."
+        responseText: "{\"decision_statement\": \"Approve cloud migration\"}"
+        parsedResult:
+          decision_statement: Approve cloud migration
+        provider: anthropic
+        model: claude-opus-4-5
+        latencyMs: 1234
+        tokenCount:
+          input: 500
+          output: 50
+        createdAt: "2026-01-01T00:00:00Z"
+    LLMInteractionsResponse:
+      type: object
+      properties:
+        interactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/LLMInteraction"
+      required:
+        - interactions
   parameters:
 paths:
+  /api/status:
+    get:
+      tags:
+        - system
+      responses:
+        200:
+          description: API runtime status returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiStatus"
+  /api/context:
+    get:
+      tags:
+        - context
+      responses:
+        200:
+          description: Global context returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalContext"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/context/in-session-meetings:
+    get:
+      tags:
+        - context
+      responses:
+        200:
+          description: Current global context plus all meetings whose lifecycle status is in session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InSessionMeetingsContextSummary"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/context/meeting:
+    post:
+      tags:
+        - context
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetActiveMeetingRequest"
+      responses:
+        200:
+          description: Active meeting context updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalContext"
+        404:
+          description: Meeting not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    delete:
+      tags:
+        - context
+      responses:
+        200:
+          description: Active meeting context cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalContext"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/feedback:
+    get:
+      tags:
+        - decision-feedback
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Feedback list returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionFeedbackList"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    post:
+      tags:
+        - decision-feedback
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fieldId:
+                  type: string
+                  nullable: true
+                  format: uuid
+                draftVersionNumber:
+                  type: integer
+                  nullable: true
+                  minimum: 0
+                  exclusiveMinimum: true
+                fieldVersionId:
+                  type: string
+                  nullable: true
+                  format: uuid
+                rating:
+                  type: string
+                  enum:
+                    - approved
+                    - needs_work
+                    - rejected
+                source:
+                  type: string
+                  enum:
+                    - user
+                    - expert_agent
+                    - peer_user
+                authorId:
+                  type: string
+                  minLength: 1
+                comment:
+                  type: string
+                textReference:
+                  type: string
+                  nullable: true
+                referenceId:
+                  type: string
+                  nullable: true
+                referenceUrl:
+                  type: string
+                  nullable: true
+                  format: uri
+                excludeFromRegeneration:
+                  type: boolean
+                  default: false
+              required:
+                - fieldId
+                - draftVersionNumber
+                - fieldVersionId
+                - rating
+                - source
+                - authorId
+                - comment
+                - textReference
+                - referenceId
+                - referenceUrl
+      responses:
+        201:
+          description: Feedback item created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionFeedback"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/feedback/field/:fieldId:
+    get:
+      tags:
+        - decision-feedback
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: fieldId
+          in: path
+      responses:
+        200:
+          description: Field feedback list returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionFeedbackList"
+        404:
+          description: Decision context or field not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-feedback/:feedbackId/exclude:
+    patch:
+      tags:
+        - decision-feedback
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: feedbackId
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToggleFeedbackExcludeRequest"
+      responses:
+        200:
+          description: Feedback exclusion updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionFeedback"
+        404:
+          description: Feedback item not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-feedback/:feedbackId:
+    delete:
+      tags:
+        - decision-feedback
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: feedbackId
+          in: path
+      responses:
+        204:
+          description: Feedback item deleted successfully
+        404:
+          description: Feedback item not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/context/decision:
+    post:
+      tags:
+        - context
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetActiveDecisionRequest"
+      responses:
+        200:
+          description: Active decision context updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalContext"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Flagged decision not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    delete:
+      tags:
+        - context
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Active decision context cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalContext"
+        400:
+          description: Requested meeting does not match the active meeting context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/context/field:
+    post:
+      tags:
+        - context
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetActiveFieldRequest"
+      responses:
+        200:
+          description: Active field context updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalContext"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    delete:
+      tags:
+        - context
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Active field context cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalContext"
+        400:
+          description: Requested meeting does not match the active meeting context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/context/broadcast:
+    put:
+      tags:
+        - context
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetBroadcastContextRequest"
+      responses:
+        200:
+          description: Broadcast context set — all subsequent stream events for this meeting will receive these contexts regardless of connection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastContextResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    delete:
+      tags:
+        - context
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Broadcast context cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastContextResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
   /api/meetings:
     post:
       tags:
@@ -136,6 +3052,2194 @@ paths:
                 $ref: "#/components/schemas/Meeting"
         404:
           description: Meeting not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    patch:
+      tags:
+        - meetings
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeetingRequest"
+      responses:
+        200:
+          description: Meeting updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Meeting not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        409:
+          description: Meeting cannot be deleted because dependent records still exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    delete:
+      tags:
+        - meetings
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        204:
+          description: Meeting deleted successfully
+        404:
+          description: Meeting not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        409:
+          description: Meeting cannot be deleted because dependent records still exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/summary:
+    get:
+      tags:
+        - meetings
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Meeting summary returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingSummaryResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/decision-contexts:
+    get:
+      tags:
+        - meetings
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Meeting decision contexts returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingDecisionContextsResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/transcript-reading:
+    get:
+      tags:
+        - meetings
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Readable transcript rows returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptReadingResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/transcripts/upload:
+    post:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranscriptUploadRequest"
+      responses:
+        201:
+          description: Transcript uploaded and chunked successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptUploadResponse"
+        400:
+          description: Invalid transcript upload request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/transcripts/raw:
+    get:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Raw transcripts returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RawTranscriptsListResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/chunks:
+    get:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Transcript chunks returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingChunksListResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/chunks/search:
+    post:
+      tags:
+        - transcripts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchChunksRequest"
+      responses:
+        200:
+          description: Matching transcript chunks returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingChunksListResponse"
+        400:
+          description: Invalid search request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/transcripts/stream:
+    post:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StreamTranscriptEvent"
+      responses:
+        201:
+          description: Transcript stream event buffered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamTranscriptResponse"
+        400:
+          description: Invalid stream event
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/streaming/status:
+    get:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Streaming buffer status returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamStatusResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/streaming/flush:
+    post:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Streaming buffer flushed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StreamFlushResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/streaming/buffer:
+    delete:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        204:
+          description: Streaming buffer cleared successfully
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/chunks/tag:
+    post:
+      tags:
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagChunksByTimeRangeRequest"
+      responses:
+        200:
+          description: Retroactively applied context tags to all chunks in the time window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagChunksByTimeRangeResponse"
+        400:
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/experts:
+    get:
+      tags:
+        - experts
+      responses:
+        200:
+          description: Registered experts returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpertsListResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/mcp/servers:
+    get:
+      tags:
+        - mcp
+      responses:
+        200:
+          description: Registered MCP servers returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MCPServersListResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/supplementary-content:
+    post:
+      tags:
+        - supplementary-content
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupplementaryContent"
+      responses:
+        201:
+          description: Supplementary content created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplementaryContent"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    get:
+      tags:
+        - supplementary-content
+      parameters:
+        -
+          schema:
+            type: string
+            minLength: 1
+          required: true
+          name: context
+          in: query
+      responses:
+        200:
+          description: Supplementary content returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplementaryContentListResponse"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/supplementary-content/:id:
+    delete:
+      tags:
+        - supplementary-content
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        204:
+          description: Supplementary content deleted successfully
+        404:
+          description: Supplementary content not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/meetings/:id/flagged-decisions:
+    post:
+      tags:
+        - flagged-decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFlaggedDecisionRequest"
+      responses:
+        201:
+          description: Flagged decision created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlaggedDecision"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    get:
+      tags:
+        - flagged-decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            enum:
+              - pending
+              - accepted
+              - rejected
+              - dismissed
+          required: false
+          name: status
+          in: query
+      responses:
+        200:
+          description: Flagged decisions returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlaggedDecisionListResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/flagged-decisions/:id:
+    patch:
+      tags:
+        - flagged-decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFlaggedDecisionRequest"
+      responses:
+        200:
+          description: Flagged decision updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlaggedDecision"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Flagged decision not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    delete:
+      tags:
+        - flagged-decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        204:
+          description: Flagged decision deleted successfully
+        404:
+          description: Flagged decision not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id:
+    get:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Decision context retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    patch:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDecisionContextRequest"
+      responses:
+        200:
+          description: Decision context updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/flagged-decisions/:id/context:
+    get:
+      tags:
+        - flagged-decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Decision context returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/templates/:id/fields:
+    get:
+      tags:
+        - templates
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Ordered template fields returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateFieldsResponse"
+        404:
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/templates:
+    get:
+      tags:
+        - templates
+      responses:
+        200:
+          description: Decision templates returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionTemplateListResponse"
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/templates/:id/export-templates:
+    get:
+      tags:
+        - templates
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Export templates returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportTemplateListResponse"
+        404:
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts:
+    post:
+      tags:
+        - decision-contexts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDecisionContextRequest"
+      responses:
+        201:
+          description: Decision context created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/template-change:
+    post:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeTemplateRequest"
+      responses:
+        200:
+          description: Decision context template changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        404:
+          description: Decision context or template not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/context-window:
+    get:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Saved context windows returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContextWindowsResponse"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    post:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDecisionContextWindowRequest"
+      responses:
+        201:
+          description: Context window created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContextWindow"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/context-window/preview:
+    get:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            enum:
+              - all
+              - recent
+              - relevant
+              - weighted
+            default: relevant
+          required: false
+          name: strategy
+          in: query
+        -
+          schema:
+            type: integer
+            minimum: 0
+            exclusiveMinimum: true
+            maximum: 100
+          required: false
+          name: limit
+          in: query
+      responses:
+        200:
+          description: Context window preview returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContextWindowPreviewResponse"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/generate-draft:
+    post:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateDraftRequest"
+      responses:
+        200:
+          description: Draft generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/regenerate:
+    post:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegenerateDraftRequest"
+      responses:
+        200:
+          description: Draft regenerated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        400:
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/export/markdown:
+    get:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            format: uuid
+          required: false
+          name: exportTemplateId
+          in: query
+        -
+          schema:
+            type: boolean
+            nullable: true
+          required: false
+          name: includeMetadata
+          in: query
+        -
+          schema:
+            type: boolean
+            nullable: true
+          required: false
+          name: includeTimestamps
+          in: query
+        -
+          schema:
+            type: boolean
+            nullable: true
+          required: false
+          name: includeParticipants
+          in: query
+        -
+          schema:
+            type: string
+            enum:
+              - template
+              - alphabetical
+          required: false
+          name: fieldOrder
+          in: query
+        -
+          schema:
+            type: string
+            enum:
+              - prefix
+              - suffix
+              - none
+          required: false
+          name: lockedFieldIndicator
+          in: query
+      responses:
+        200:
+          description: Markdown export generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarkdownExportResponse"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/lock-field:
+    put:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LockFieldRequest"
+      responses:
+        200:
+          description: Field locked successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+    delete:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LockFieldRequest"
+      responses:
+        200:
+          description: Field unlocked successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/versions:
+    get:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Saved draft versions for the decision context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DraftVersionsResponse"
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/rollback:
+    post:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RollbackDraftRequest"
+      responses:
+        200:
+          description: Draft rolled back successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        400:
+          description: Invalid rollback request or unavailable draft version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context or version not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/fields/:fieldId/regenerate:
+    post:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: fieldId
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegenerateFieldRequest"
+      responses:
+        200:
+          description: Field regenerated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegenerateFieldResponse"
+        400:
+          description: Invalid regenerate request or field cannot be regenerated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context or field not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/fields/:fieldId:
+    patch:
+      tags:
+        - decision-contexts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: fieldId
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFieldValueRequest"
+      responses:
+        200:
+          description: Field updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionContext"
+        400:
+          description: Invalid field update request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/fields/:fieldId/transcript:
+    get:
+      tags:
+        - decision-contexts
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: fieldId
+          in: path
+      responses:
+        200:
+          description: Field-tagged transcript chunks for the decision context field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldTranscriptResponse"
+        400:
+          description: Invalid field transcript request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context or field not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/transcript/context:
+    post:
+      tags:
+        - decision-contexts
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignTranscriptChunksRequest"
+      responses:
+        200:
+          description: Transcript chunks tagged for the decision context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignTranscriptChunksResponse"
+        400:
+          description: Invalid transcript context assignment request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/fields/:fieldId/transcript/context:
+    post:
+      tags:
+        - decision-contexts
+        - transcripts
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: fieldId
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignTranscriptChunksRequest"
+      responses:
+        200:
+          description: Transcript chunks tagged for the decision field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignTranscriptChunksResponse"
+        400:
+          description: Invalid field transcript context assignment request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context or field not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/log:
+    post:
+      tags:
+        - decision-contexts
+        - decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogDecisionRequest"
+      responses:
+        200:
+          description: Decision logged successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionLog"
+        400:
+          description: Invalid decision logging request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        404:
+          description: Decision context not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decisions/:id:
+    get:
+      tags:
+        - decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: Decision log details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionLog"
+        404:
+          description: Decision log not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decisions/:id/export:
+    get:
+      tags:
+        - decisions
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+        -
+          schema:
+            type: string
+            enum:
+              - markdown
+              - json
+            default: markdown
+          required: false
+          name: format
+          in: query
+      responses:
+        200:
+          description: Decision log export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionExportResponse"
+        404:
+          description: Decision log not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+        503:
+          description: Database-backed endpoint unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+  /api/decision-contexts/:id/llm-interactions:
+    get:
+      tags:
+        - decision-contexts
+        - observability
+      parameters:
+        -
+          schema:
+            type: string
+            format: uuid
+          required: true
+          name: id
+          in: path
+      responses:
+        200:
+          description: LLM interactions for the decision context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LLMInteractionsResponse"
+        503:
+          description: Database-backed endpoint unavailable
           content:
             application/json:
               schema:

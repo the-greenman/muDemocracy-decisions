@@ -21,6 +21,8 @@ done
 DATABASE_URL="$DEV_DATABASE_URL" npm run -w @repo/db db:migrate
 DATABASE_URL="$TEST_DATABASE_URL" npm run -w @repo/db db:migrate
 
+"$ROOT_DIR/dlogger" preflight --api-port "${COMPOSE_API_PORT:-3001}" --api-only || exit 1
+
 docker compose up --build -d api
 
 for _ in $(seq 1 30); do

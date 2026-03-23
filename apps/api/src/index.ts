@@ -1,6 +1,15 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
+const _apiRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const _pkg = JSON.parse(readFileSync(join(_apiRoot, "package.json"), "utf-8")) as {
+  version: string;
+};
+const API_VERSION: string = _pkg.version;
 import {
   createMeetingRoute,
   deleteMeetingRoute,
@@ -103,6 +112,8 @@ import {
   tagChunksByTimeRangeRoute,
   uploadTranscriptRoute,
 } from "./routes/decision-workflow.js";
+
+const SERVER_STARTED_AT = new Date().toISOString();
 
 // Determine which repository to use
 const useDatabase = process.env.DATABASE_URL !== undefined;
@@ -253,7 +264,9 @@ app.openapi(getApiStatusRoute, async (c) => {
 
   return c.json({
     status: "ok",
+    version: API_VERSION,
     timestamp: new Date().toISOString(),
+    startedAt: SERVER_STARTED_AT,
     nodeEnv: process.env.NODE_ENV ?? "development",
     databaseConfigured: Boolean(process.env.DATABASE_URL),
     llm: {
@@ -1790,7 +1803,7 @@ if (connectionRepository && globalContextService) {
 app.doc("/openapi.json", {
   openapi: "3.0.0",
   info: {
-    version: "1.0.0",
+    version: API_VERSION,
     title: "μ democracy API",
     description: "Context-driven decision logging system API",
   },

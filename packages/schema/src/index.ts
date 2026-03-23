@@ -515,7 +515,9 @@ export const ApiStatusLlmSchema = z
 export const ApiStatusSchema = z
   .object({
     status: z.literal("ok"),
+    version: z.string(),
     timestamp: z.string().datetime({ offset: true }),
+    startedAt: z.string().datetime({ offset: true }),
     nodeEnv: z.string(),
     databaseConfigured: z.boolean(),
     llm: ApiStatusLlmSchema,
@@ -524,7 +526,9 @@ export const ApiStatusSchema = z
     description: "Safe runtime diagnostics for the API process",
     example: {
       status: "ok",
+      version: "1.0.0",
       timestamp: "2026-03-10T22:30:00Z",
+      startedAt: "2026-03-10T20:00:00Z",
       nodeEnv: "development",
       databaseConfigured: true,
       llm: {

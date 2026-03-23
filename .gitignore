@@ -41,6 +41,8 @@ coverage/
 tmp/
 temp/
 .tmp/
+.tmp/web-dev.pid
+web-dev.pid
 
 # TypeScript incremental/build artifacts
 *.tsbuildinfo
@@ -48,4 +50,11 @@ temp/
 
 # Generated declaration output
 packages/schema/src/**/*.d.ts
+
+
+
+
+
+# MCP 
+.mcp.json
 

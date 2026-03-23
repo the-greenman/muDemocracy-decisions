@@ -271,9 +271,16 @@ export interface InSessionMeetingsContextSummary {
   inSessionMeetings: Meeting[];
 }
 
+export interface StreamStatus {
+  status: "active" | "idle";
+  eventCount: number;
+}
+
 export interface ApiStatus {
   status: "ok";
+  version: string;
   timestamp: string;
+  startedAt: string;
   nodeEnv: string;
   databaseConfigured: boolean;
   llm: {
