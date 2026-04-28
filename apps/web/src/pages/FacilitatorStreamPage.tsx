@@ -301,7 +301,7 @@ export function FacilitatorStreamPage() {
             dedupeHorizonMs: transcriptionStatus.defaults.dedupeHorizonMs,
           }
         : undefined;
-      const session = await createTranscriptionSession(meetingId, undefined, sessionOptions);
+      const session = await createTranscriptionSession(meetingId, "browser:mic", undefined, sessionOptions);
       sessionIdRef.current = session.sessionId;
       setActiveSessionId(session.sessionId);
       setActiveSessionStatus({
