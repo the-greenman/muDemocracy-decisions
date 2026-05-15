@@ -467,6 +467,8 @@ export const TranscriptionServiceStatusSchema = z
       dedupeHorizonMs: TranscriptionPositiveMsSchema,
       autoFlushMs: TranscriptionPositiveMsSchema,
     }),
+    healthy: z.boolean().describe("Whether the transcription provider is ready to accept requests"),
+    misconfiguration: z.string().optional().describe("Human-readable description of configuration problems"),
   })
   .openapi("TranscriptionServiceStatus", {
     description: "Status for transcription service health and runtime defaults",

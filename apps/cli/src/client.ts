@@ -185,6 +185,36 @@ export interface ApiStatusResponse {
   };
 }
 
+export const TRANSCRIPTION_URL =
+  process.env.TRANSCRIPTION_URL ?? process.env.VITE_TRANSCRIPTION_URL ?? "http://localhost:8788";
+
+export interface TranscriptionStatusResponse {
+  status: "ok";
+  provider: string;
+  api: {
+    url: string;
+    ok: boolean;
+    error?: string;
+  };
+  whisper:
+    | { enabled: false }
+    | {
+        enabled: true;
+        url: string;
+        ok: boolean;
+        error?: string;
+      };
+  sessionCount: number;
+  defaults: {
+    windowMs: number;
+    stepMs: number;
+    dedupeHorizonMs: number;
+    autoFlushMs: number;
+  };
+  healthy: boolean;
+  misconfiguration?: string;
+}
+
 export async function getContext(): Promise<GlobalContext> {
   return api.get<GlobalContext>("/api/context");
 }
