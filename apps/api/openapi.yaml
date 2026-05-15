@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  version: 1.0.1
+  version: 1.0.3
   title: μ democracy API
   description: Context-driven decision logging system API
 components:
@@ -2320,46 +2320,6 @@ components:
             $ref: "#/components/schemas/LLMInteraction"
       required:
         - interactions
-    Connection:
-      type: object
-      properties:
-        id:
-          type: string
-          minLength: 1
-        activeMeetingId:
-          type: string
-          nullable: true
-          format: uuid
-        activeDecisionId:
-          type: string
-          nullable: true
-          format: uuid
-        activeDecisionContextId:
-          type: string
-          nullable: true
-          format: uuid
-        activeField:
-          type: string
-          nullable: true
-          format: uuid
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        lastSeen:
-          type: string
-          format: date-time
-      required:
-        - id
-        - activeMeetingId
-        - activeDecisionId
-        - activeDecisionContextId
-        - activeField
-        - createdAt
-        - updatedAt
-        - lastSeen
   parameters:
 paths:
   /api/status:
@@ -5292,73 +5252,6 @@ paths:
                 $ref: "#/components/schemas/LLMInteractionsResponse"
         503:
           description: Database-backed endpoint unavailable
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                required:
-                  - error
-  /api/connections:
-    get:
-      parameters:
-        -
-          schema:
-            type: string
-            pattern: ^\d+$
-          required: false
-          name: limit
-          in: query
-      responses:
-        200:
-          description: List of connections ordered by lastSeen descending
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  connections:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Connection"
-                required:
-                  - connections
-    post:
-      responses:
-        201:
-          description: Newly created connection
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Connection"
-  /api/connections/{id}/events:
-    get:
-      parameters:
-        -
-          schema:
-            type: string
-            minLength: 1
-          required: true
-          name: id
-          in: path
-        -
-          schema:
-            type: string
-            minLength: 1
-          required: false
-          name: x-connection-id
-          in: header
-      responses:
-        200:
-          description: Server-sent events stream
-          content:
-            text/event-stream:
-              schema:
-                type: string
-        403:
-          description: Forbidden - connection ID mismatch
           content:
             application/json:
               schema:

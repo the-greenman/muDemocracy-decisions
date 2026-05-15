@@ -71,11 +71,19 @@ function cacheKey(env: LlmEnv): string {
   ].join("|");
 }
 
-async function probeHttp(baseUrl: string, signal: AbortSignal): Promise<LlmReachability> {
+async function probeHttp(
+  baseUrl: string,
+  signal: AbortSignal,
+  apiKey?: string,
+): Promise<LlmReachability> {
   const url = `${baseUrl.replace(/\/+$/, "")}/models`;
   const start = Date.now();
+  const headers: HeadersInit = {};
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
   try {
-    const response = await fetch(url, { method: "GET", signal });
+    const response = await fetch(url, { method: "GET", signal, headers });
     const latencyMs = Date.now() - start;
     if (!response.ok) {
       return {
@@ -109,7 +117,7 @@ async function computeReachability(env: LlmEnv): Promise<LlmReachability> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
     try {
-      return await probeHttp(baseUrl, controller.signal);
+      return await probeHttp(baseUrl, controller.signal, env.apiKey);
     } finally {
       clearTimeout(timer);
     }

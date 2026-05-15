@@ -398,6 +398,27 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
             ? await probeUrlOk(`${whisperUrl.replace(/\/$/, "")}/`)
             : null;
 
+        // Determine if transcription is healthy and identify misconfiguration
+        let healthy = true;
+        let misconfiguration: string | undefined;
+
+        if (!apiProbe.ok) {
+          healthy = false;
+          misconfiguration =
+            `Decision Logger API is unreachable at ${apiUrl}` +
+            (apiProbe.error ? ` (${apiProbe.error})` : "");
+        }
+
+        if (provider === "local") {
+          if (whisperProbe === null || !whisperProbe.ok) {
+            healthy = false;
+            misconfiguration = misconfiguration
+              ? `${misconfiguration}; Local Whisper provider configured but unreachable at ${whisperUrl}`
+              : `Local Whisper provider configured but unreachable at ${whisperUrl}`;
+          }
+        }
+        // For openai provider, healthy defaults to true (API key validated at startup)
+
         const payload = TranscriptionServiceStatusSchema.parse({
           status: "ok",
           provider,
@@ -420,6 +441,8 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
             dedupeHorizonMs: defaultDedupeHorizonMs,
             autoFlushMs,
           },
+          healthy,
+          ...(misconfiguration !== undefined && { misconfiguration }),
         });
 
         sendJson(

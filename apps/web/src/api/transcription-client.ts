@@ -12,6 +12,7 @@ type SessionCreateResponse = {
 
 type SessionCreateRequest = {
   meetingId: string;
+  streamSource: string;
   language?: string;
   windowMs?: number;
   stepMs?: number;
@@ -146,11 +147,13 @@ async function transcriptionFetch<T>(path: string, init?: RequestInit): Promise<
 
 export function createTranscriptionSession(
   meetingId: string,
+  streamSource: string,
   language?: string,
   options?: { windowMs?: number; stepMs?: number; dedupeHorizonMs?: number },
 ) {
   const payload: SessionCreateRequest = {
     meetingId,
+    streamSource,
     ...(language ? { language } : {}),
     ...(options?.windowMs === undefined ? {} : { windowMs: options.windowMs }),
     ...(options?.stepMs === undefined ? {} : { stepMs: options.stepMs }),

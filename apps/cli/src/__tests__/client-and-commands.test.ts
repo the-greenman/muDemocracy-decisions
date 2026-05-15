@@ -458,6 +458,65 @@ describe("CLI command request shapes", () => {
     consoleLogSpy.mockRestore();
   });
 
+  it("status command prefers TRANSCRIPTION_SERVICE_URL over TRANSCRIPTION_URL", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const previousServiceUrl = process.env.TRANSCRIPTION_SERVICE_URL;
+    const previousTranscriptionUrl = process.env.TRANSCRIPTION_URL;
+
+    process.env.TRANSCRIPTION_SERVICE_URL = "http://transcription-service:9999";
+    process.env.TRANSCRIPTION_URL = "http://transcription-url:8888";
+    vi.resetModules();
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "ok",
+          timestamp: "2026-03-10T23:31:00Z",
+          nodeEnv: "development",
+          databaseConfigured: true,
+          llm: {
+            mode: "real",
+            provider: "anthropic",
+            model: "claude-opus-4-5",
+            reachable: true,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "ok",
+          provider: "openai",
+          api: { url: "http://localhost:3001", ok: true },
+          whisper: { enabled: false },
+          sessionCount: 0,
+          defaults: {
+            windowMs: 30000,
+            stepMs: 10000,
+            dedupeHorizonMs: 90000,
+            autoFlushMs: 10000,
+          },
+          healthy: true,
+        }),
+      });
+
+    try {
+      const { statusCommand } = await import("../commands/status.js");
+      await statusCommand.parseAsync(["node", "status"], { from: "node" });
+
+      expect(fetchMock).toHaveBeenNthCalledWith(2, "http://transcription-service:9999/status");
+    } finally {
+      if (previousServiceUrl === undefined) delete process.env.TRANSCRIPTION_SERVICE_URL;
+      else process.env.TRANSCRIPTION_SERVICE_URL = previousServiceUrl;
+      if (previousTranscriptionUrl === undefined) delete process.env.TRANSCRIPTION_URL;
+      else process.env.TRANSCRIPTION_URL = previousTranscriptionUrl;
+      consoleLogSpy.mockRestore();
+    }
+  });
+
   it("transcript read requests transcript rows for the provided meeting", async () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     fetchMock.mockResolvedValueOnce({
