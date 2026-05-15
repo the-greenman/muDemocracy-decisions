@@ -186,7 +186,10 @@ export interface ApiStatusResponse {
 }
 
 export const TRANSCRIPTION_URL =
-  process.env.TRANSCRIPTION_URL ?? process.env.VITE_TRANSCRIPTION_URL ?? "http://localhost:8788";
+  process.env.TRANSCRIPTION_SERVICE_URL ??
+  process.env.TRANSCRIPTION_URL ??
+  process.env.VITE_TRANSCRIPTION_URL ??
+  "http://localhost:8788";
 
 export interface TranscriptionStatusResponse {
   status: "ok";

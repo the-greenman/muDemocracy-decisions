@@ -108,6 +108,25 @@ describe("getLlmReachability", () => {
     expect(result.baseUrl).toBe("http://nonexistent:8080/v1");
   });
 
+  it("sends Authorization header for openai-compatible probes when LLM_API_KEY is set", async () => {
+    process.env.LLM_PROVIDER = "openai-compatible";
+    process.env.LLM_BASE_URL = "http://vllm:8080/v1";
+    process.env.LLM_API_KEY = "secret";
+    fetchSpy.mockResolvedValue({ ok: true, status: 200 });
+
+    await getLlmReachability();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://vllm:8080/v1/models",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer secret",
+        }),
+      }),
+    );
+  });
+
   it("returns reachable=true for openai iff OPENAI_API_KEY is set (without network probe)", async () => {
     process.env.LLM_PROVIDER = "openai";
     process.env.OPENAI_API_KEY = "sk-test";

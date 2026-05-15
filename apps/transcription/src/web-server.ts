@@ -402,10 +402,19 @@ export async function startWebServer(options?: StartWebServerOptions): Promise<R
         let healthy = true;
         let misconfiguration: string | undefined;
 
+        if (!apiProbe.ok) {
+          healthy = false;
+          misconfiguration =
+            `Decision Logger API is unreachable at ${apiUrl}` +
+            (apiProbe.error ? ` (${apiProbe.error})` : "");
+        }
+
         if (provider === "local") {
           if (whisperProbe === null || !whisperProbe.ok) {
             healthy = false;
-            misconfiguration = `Local Whisper provider configured but unreachable at ${whisperUrl}`;
+            misconfiguration = misconfiguration
+              ? `${misconfiguration}; Local Whisper provider configured but unreachable at ${whisperUrl}`
+              : `Local Whisper provider configured but unreachable at ${whisperUrl}`;
           }
         }
         // For openai provider, healthy defaults to true (API key validated at startup)

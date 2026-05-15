@@ -558,3 +558,41 @@ describe("Phase 1d — canonical fields on delivered events", () => {
     expect(deliveredEvent.streamSource).toBe("mic:rear");
   });
 });
+
+describe("transcription /status health semantics", () => {
+  it("reports healthy=false when the Decision Logger API probe fails", async () => {
+    const previousApiUrl = process.env.DECISION_LOGGER_API_URL;
+    const previousProvider = process.env.TRANSCRIPTION_PROVIDER;
+    process.env.DECISION_LOGGER_API_URL = "http://127.0.0.1:1";
+    process.env.TRANSCRIPTION_PROVIDER = "openai";
+
+    try {
+      const server = await startWebServer({
+        port: 0,
+        host: "127.0.0.1",
+        provider: { transcribe: vi.fn() } as ITranscriptionProvider,
+        apiClient: { postStreamEvent: vi.fn(), flushStream: vi.fn() },
+        normalizeAudioChunk: async (audio) => audio,
+      });
+      runningServers.push(server);
+      const baseUrl = `http://127.0.0.1:${server.port}`;
+
+      const response = await fetch(`${baseUrl}/status`);
+      expect(response.status).toBe(200);
+
+      const payload = (await response.json()) as {
+        healthy: boolean;
+        api: { ok: boolean };
+        misconfiguration?: string;
+      };
+      expect(payload.api.ok).toBe(false);
+      expect(payload.healthy).toBe(false);
+      expect(payload.misconfiguration).toContain("Decision Logger API is unreachable");
+    } finally {
+      if (previousApiUrl === undefined) delete process.env.DECISION_LOGGER_API_URL;
+      else process.env.DECISION_LOGGER_API_URL = previousApiUrl;
+      if (previousProvider === undefined) delete process.env.TRANSCRIPTION_PROVIDER;
+      else process.env.TRANSCRIPTION_PROVIDER = previousProvider;
+    }
+  });
+});
